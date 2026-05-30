@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -23,7 +23,6 @@ import {
 } from "lucide-react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
-import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedView";
 
 const PRIMARY = "#F97316";
 const PRIMARY_LIGHT = "#FFF7ED";
@@ -75,25 +74,10 @@ export default function PassengerHome() {
   const [pickup, setPickup] = useState("");
   const [destination, setDestination] = useState("");
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const pulseRef = useRef(null);
 
-  const startPulse = useCallback(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.12,
-          duration: 900,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 900,
-          useNativeDriver: true,
-        }),
-      ]),
-    ).start();
-  }, [pulseAnim]);
-
-  const { data: activeRide, isLoading: rideLoading } = useQuery({
+  // ── Fetch active ride (only poll, never block UI on refetch) ──
+  const { data: activeRide, isPending: rideInitialLoading } = useQuery({
     queryKey: ["activeRide"],
     queryFn: async () => {
       const res = await fetch("/api/rides");
@@ -103,20 +87,60 @@ export default function PassengerHome() {
         data.rides?.find(
           (r) => r.status === "requested" || r.status === "accepted",
         ) || null;
-      if (ride?.status === "requested") startPulse();
       return ride;
     },
-    refetchInterval: 5000,
+    refetchInterval: 6000,
+    // Don't re-show loading state on background refetches
+    staleTime: 4000,
   });
 
+  // ── Pulse animation — driven by ride status, NOT queryFn ──
+  useEffect(() => {
+    if (activeRide?.status === "requested") {
+      if (pulseRef.current) return; // already running
+      pulseRef.current = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.12,
+            duration: 900,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 900,
+            useNativeDriver: true,
+          }),
+        ]),
+      );
+      pulseRef.current.start();
+    } else {
+      if (pulseRef.current) {
+        pulseRef.current.stop();
+        pulseRef.current = null;
+      }
+      pulseAnim.setValue(1);
+    }
+  }, [activeRide?.status]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (pulseRef.current) {
+        pulseRef.current.stop();
+        pulseRef.current = null;
+      }
+    };
+  }, []);
+
+  // ── Request ride ──
   const requestRide = useMutation({
     mutationFn: async () => {
       const res = await fetch("/api/rides", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          pickup_address: pickup,
-          dest_address: destination,
+          pickup_address: pickup.trim(),
+          dest_address: destination.trim(),
           pickup_lat: 12.9716,
           pickup_lng: 77.5946,
           dest_lat: 12.9352,
@@ -124,19 +148,22 @@ export default function PassengerHome() {
         }),
       });
       if (!res.ok) {
-        const error = await res.json();
+        const error = await res.json().catch(() => ({}));
         throw new Error(error.error || "Failed to request ride");
       }
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(["activeRide"]);
+      // TanStack Query v5 format
+      queryClient.invalidateQueries({ queryKey: ["activeRide"] });
+      queryClient.invalidateQueries({ queryKey: ["passengerRides"] });
       setPickup("");
       setDestination("");
     },
     onError: (err) => Alert.alert("Request Failed", err.message),
   });
 
+  // ── Cancel ride ──
   const cancelRide = useMutation({
     mutationFn: async (rideId) => {
       const res = await fetch(`/api/rides/${rideId}`, {
@@ -148,13 +175,14 @@ export default function PassengerHome() {
       return res.json();
     },
     onSuccess: () => {
-      pulseAnim.stopAnimation();
-      queryClient.invalidateQueries(["activeRide"]);
+      queryClient.invalidateQueries({ queryKey: ["activeRide"] });
+      queryClient.invalidateQueries({ queryKey: ["passengerRides"] });
     },
     onError: () => Alert.alert("Error", "Could not cancel the ride"),
   });
 
-  if (rideLoading) {
+  // Only block UI on the very first load (not background refetches)
+  if (rideInitialLoading) {
     return (
       <View
         style={{
@@ -169,11 +197,16 @@ export default function PassengerHome() {
     );
   }
 
+  const canRequest =
+    pickup.trim().length > 0 &&
+    destination.trim().length > 0 &&
+    !requestRide.isPending;
+
   return (
-    <KeyboardAvoidingAnimatedView style={{ flex: 1, backgroundColor: BG }}>
+    <View style={{ flex: 1, backgroundColor: BG }}>
       <StatusBar style="dark" />
 
-      {/* Header */}
+      {/* Header — static, never re-mounts */}
       <View
         style={{
           paddingTop: insets.top + 16,
@@ -223,12 +256,15 @@ export default function PassengerHome() {
         </View>
       </View>
 
+      {/* keyboardShouldPersistTaps so button taps work while keyboard is open */}
       <ScrollView
         contentContainerStyle={{ paddingBottom: 80 }}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
       >
-        {/* Active Ride Card */}
         {activeRide ? (
+          /* ── Active Ride Card ── */
           <View style={{ margin: 16 }}>
             <View
               style={{
@@ -362,7 +398,7 @@ export default function PassengerHome() {
                   </View>
                 </View>
 
-                {/* Driver card if accepted */}
+                {/* Driver info when accepted */}
                 {activeRide.status === "accepted" &&
                   activeRide.vehicle_number && (
                     <View
@@ -471,7 +507,7 @@ export default function PassengerHome() {
             </View>
           </View>
         ) : (
-          /* Ride Request Form */
+          /* ── Ride Request Form ── */
           <View style={{ margin: 16 }}>
             <View
               style={{
@@ -487,7 +523,7 @@ export default function PassengerHome() {
                 overflow: "hidden",
               }}
             >
-              {/* Pickup */}
+              {/* Pickup input */}
               <View
                 style={{
                   padding: 18,
@@ -534,27 +570,28 @@ export default function PassengerHome() {
                       placeholderTextColor={TEXT_MUTED}
                       value={pickup}
                       onChangeText={setPickup}
-                      style={{ fontSize: 15, color: TEXT, fontWeight: "500" }}
+                      returnKeyType="next"
+                      blurOnSubmit={false}
+                      style={{
+                        fontSize: 15,
+                        color: TEXT,
+                        fontWeight: "500",
+                        paddingVertical: 0,
+                      }}
                     />
                   </View>
                   {pickup.length > 0 && (
-                    <TouchableOpacity onPress={() => setPickup("")}>
+                    <TouchableOpacity
+                      onPress={() => setPickup("")}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
                       <X size={16} color={TEXT_MUTED} />
                     </TouchableOpacity>
                   )}
                 </View>
               </View>
 
-              {/* Divider line */}
-              <View
-                style={{
-                  marginLeft: 56,
-                  height: 1,
-                  backgroundColor: "#F5F5F4",
-                }}
-              />
-
-              {/* Destination */}
+              {/* Destination input */}
               <View style={{ padding: 18 }}>
                 <View
                   style={{
@@ -595,11 +632,20 @@ export default function PassengerHome() {
                       placeholderTextColor={TEXT_MUTED}
                       value={destination}
                       onChangeText={setDestination}
-                      style={{ fontSize: 15, color: TEXT, fontWeight: "500" }}
+                      returnKeyType="done"
+                      style={{
+                        fontSize: 15,
+                        color: TEXT,
+                        fontWeight: "500",
+                        paddingVertical: 0,
+                      }}
                     />
                   </View>
                   {destination.length > 0 && (
-                    <TouchableOpacity onPress={() => setDestination("")}>
+                    <TouchableOpacity
+                      onPress={() => setDestination("")}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
                       <X size={16} color={TEXT_MUTED} />
                     </TouchableOpacity>
                   )}
@@ -607,16 +653,14 @@ export default function PassengerHome() {
               </View>
             </View>
 
-            {/* CTA */}
+            {/* Request button */}
             <TouchableOpacity
               onPress={() => requestRide.mutate()}
-              disabled={
-                !pickup.trim() || !destination.trim() || requestRide.isPending
-              }
+              disabled={!canRequest}
+              activeOpacity={0.85}
               style={{
                 marginTop: 16,
-                backgroundColor:
-                  !pickup.trim() || !destination.trim() ? "#D4C4BB" : PRIMARY,
+                backgroundColor: canRequest ? PRIMARY : "#D4C4BB",
                 borderRadius: 14,
                 paddingVertical: 17,
                 flexDirection: "row",
@@ -625,11 +669,10 @@ export default function PassengerHome() {
                 gap: 10,
                 shadowColor: PRIMARY,
                 shadowOffset: { width: 0, height: 6 },
-                shadowOpacity: !pickup.trim() || !destination.trim() ? 0 : 0.3,
+                shadowOpacity: canRequest ? 0.3 : 0,
                 shadowRadius: 12,
-                elevation: 6,
+                elevation: canRequest ? 6 : 0,
               }}
-              activeOpacity={0.85}
             >
               <Text
                 style={{
@@ -646,7 +689,7 @@ export default function PassengerHome() {
           </View>
         )}
 
-        {/* Info strip */}
+        {/* Safety tip */}
         <View style={{ marginHorizontal: 16, marginTop: 8 }}>
           <View
             style={{
@@ -674,13 +717,13 @@ export default function PassengerHome() {
               </Text>
               <Text style={{ fontSize: 12, color: "#166534", lineHeight: 18 }}>
                 Always verify the vehicle number and driver details before
-                boarding. Trust your gut.
+                boarding.
               </Text>
             </View>
           </View>
         </View>
 
-        {/* Quick tip */}
+        {/* Tips */}
         <View style={{ marginHorizontal: 16, marginTop: 12, marginBottom: 16 }}>
           <Text
             style={{
@@ -697,12 +740,12 @@ export default function PassengerHome() {
               {
                 icon: "📍",
                 title: "Be Specific",
-                desc: "Add landmark to help driver find you",
+                desc: "Add a landmark to help the driver find you",
               },
               {
                 icon: "⏱️",
                 title: "Be Ready",
-                desc: "Wait at your pickup point on confirmation",
+                desc: "Wait at your pickup point after confirming",
               },
             ].map((tip, i) => (
               <View
@@ -743,6 +786,6 @@ export default function PassengerHome() {
           </View>
         </View>
       </ScrollView>
-    </KeyboardAvoidingAnimatedView>
+    </View>
   );
 }

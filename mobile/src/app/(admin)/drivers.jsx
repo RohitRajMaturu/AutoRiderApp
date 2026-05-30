@@ -401,8 +401,8 @@ export default function AdminDrivers() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(["adminDrivers"]);
-      queryClient.invalidateQueries(["adminStats"]);
+      queryClient.invalidateQueries({ queryKey: ["adminDrivers"] });
+      queryClient.invalidateQueries({ queryKey: ["adminStats"] });
       Alert.alert("✅ Updated", "Driver status has been updated.");
     },
     onError: () => Alert.alert("Error", "Failed to update driver."),

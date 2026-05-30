@@ -66,7 +66,7 @@ function RegistrationScreen() {
       }
       return res.json();
     },
-    onSuccess: () => queryClient.invalidateQueries(["driverMe"]),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["driverMe"] }),
     onError: (err) => Alert.alert("Registration Failed", err.message),
   });
 
@@ -947,6 +947,7 @@ export default function DriverHome() {
     enabled:
       !!driverData?.driver?.is_approved && !!driverData?.driver?.is_online,
     refetchInterval: 5000,
+    staleTime: 3000,
   });
 
   const toggleStatus = useMutation({
@@ -957,12 +958,12 @@ export default function DriverHome() {
         body: JSON.stringify({ is_online: online, lat: 12.9716, lng: 77.5946 }),
       });
       if (!res.ok) {
-        const error = await res.json();
+        const error = await res.json().catch(() => ({}));
         throw new Error(error.code || error.error || "Failed to update status");
       }
       return res.json();
     },
-    onSuccess: () => queryClient.invalidateQueries(["driverMe"]),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["driverMe"] }),
     onError: (err) => {
       if (
         err.message === "SUBSCRIPTION_EXPIRED" ||
@@ -986,13 +987,13 @@ export default function DriverHome() {
         body: JSON.stringify({ action: "accept" }),
       });
       if (!res.ok) {
-        const error = await res.json();
+        const error = await res.json().catch(() => ({}));
         throw new Error(error.error || "Failed to accept ride");
       }
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(["driverRides"]);
+      queryClient.invalidateQueries({ queryKey: ["driverRides"] });
       Alert.alert("🎉 Ride Accepted!", "Head to the pickup location now!");
     },
     onError: (err) => Alert.alert("Accept Failed", err.message),
@@ -1008,7 +1009,7 @@ export default function DriverHome() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(["driverRides"]);
+      queryClient.invalidateQueries({ queryKey: ["driverRides"] });
       Alert.alert("✅ Ride Completed!", "Great work! Keep earning!");
     },
   });
