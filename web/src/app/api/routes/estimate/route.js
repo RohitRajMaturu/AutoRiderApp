@@ -1,4 +1,4 @@
-import { estimateRoute, getRequiredNumber } from "@/app/api/utils/locations";
+import { getRequiredNumber, getRouteEstimate } from "@/app/api/utils/locations";
 
 export async function GET(request) {
   try {
@@ -8,18 +8,26 @@ export async function GET(request) {
     const destLat = getRequiredNumber(url.searchParams, "destLat");
     const destLng = getRequiredNumber(url.searchParams, "destLng");
 
-    const estimate = await estimateRoute({
+    const estimate = await getRouteEstimate(
       pickupLat,
       pickupLng,
       destLat,
       destLng,
+    );
+
+    return Response.json({
+      distanceKm: estimate.distanceKm,
+      durationMins: estimate.durationMins,
+      estimatedFare: estimate.estimatedFare,
+      polyline: estimate.polyline,
+      provider: estimate.provider,
+      currency: "INR",
     });
-    if (!estimate) {
-      return Response.json({ error: "Route not found" }, { status: 404 });
-    }
-    return Response.json({ estimate });
   } catch (err) {
     console.error("GET /api/routes/estimate error:", err);
-    return Response.json({ error: err.message || "Failed to estimate route" }, { status: 400 });
+    return Response.json(
+      { error: err.message || "Failed to estimate route" },
+      { status: 400 },
+    );
   }
 }

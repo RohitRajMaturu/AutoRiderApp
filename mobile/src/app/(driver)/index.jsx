@@ -24,6 +24,7 @@ import {
 } from "lucide-react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
+import * as Location from "expo-location";
 import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedView";
 
 const PRIMARY = "#F97316";
@@ -952,10 +953,24 @@ export default function DriverHome() {
 
   const toggleStatus = useMutation({
     mutationFn: async (online) => {
+      let coords = null;
+      if (online) {
+        const permission = await Location.requestForegroundPermissionsAsync();
+        if (permission.status === "granted") {
+          const position = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+          coords = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          };
+        }
+      }
+
       const res = await fetch("/api/drivers/status", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ is_online: online, lat: 12.9716, lng: 77.5946 }),
+        body: JSON.stringify({ is_online: online, ...coords }),
       });
       if (!res.ok) {
         const error = await res.json().catch(() => ({}));

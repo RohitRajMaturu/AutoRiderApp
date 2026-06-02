@@ -4,14 +4,11 @@ import React from 'react';
 export const PROVIDER_GOOGLE = 'google';
 export const PROVIDER_DEFAULT = undefined;
 
-const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
-
 const MapView = React.forwardRef((props, ref) => {
   return (
     <WebMapView
       ref={ref}
-      provider={PROVIDER_GOOGLE} // only google provider works on web
-      googleMapsApiKey={GOOGLE_MAPS_API_KEY}
+      provider={PROVIDER_GOOGLE}
       {...props}
       options={{
         disableDefaultUI: true,

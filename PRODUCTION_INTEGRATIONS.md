@@ -6,8 +6,8 @@ This app is intentionally light right now. The items below are the major integra
 
 Current state:
 - Backend location endpoints now exist for autocomplete, place details, reverse geocoding, and route estimate.
-- If `GOOGLE_MAPS_API_KEY` is configured, the backend uses Google Maps APIs.
-- If no provider key is configured, the backend falls back to local Bengaluru dev data.
+- If `OLAMAPS_API_KEY` is configured, the backend uses Ola Maps APIs.
+- If no provider key is configured, the backend falls back to configurable local dev data.
 - Pickup can default to device current location.
 
 Production requirement:
@@ -17,10 +17,8 @@ Production requirement:
 - Let users adjust pickup pin manually.
 - Reverse geocode current location into a readable address.
 
-Recommended provider options:
-- Google Maps Platform: Places Autocomplete, Geocoding API, Maps SDK, Directions API.
-- Mapbox: Search Box / Geocoding, Maps SDK, Directions API.
-- Ola Maps / Mappls: consider if India-focused pricing, coverage, and compliance are better.
+Recommended provider:
+- Ola Maps through Krutrim Cloud for places, geocoding, and auto-rickshaw route estimates.
 
 Implementation notes:
 - Mobile should call a backend endpoint, not the provider directly, for autocomplete and geocoding.
@@ -48,7 +46,7 @@ Acceptance criteria:
 - No map provider secret is exposed in the mobile bundle.
 
 Pending team work:
-- Add a production `GOOGLE_MAPS_API_KEY` or replace the provider adapter with Mapbox/Mappls/Ola Maps.
+- Add a production `OLAMAPS_API_KEY`.
 - Add billing, quota alerts, and API restrictions for the selected maps provider.
 - Add map UI with pickup/destination pins and drag-to-adjust behavior.
 - Persist `pickup_place_id` and `dest_place_id` in the database if provider place IDs are required for audit/debugging.

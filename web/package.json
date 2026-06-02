@@ -4,7 +4,9 @@
 	"type": "module",
 	"scripts": {
 		"dev": "react-router dev",
-		"typecheck": "react-router typegen && tsc --noEmit"
+		"typecheck": "react-router typegen && tsc --noEmit",
+		"db:check": "node scripts/db-check.mjs",
+		"db:migrate": "node scripts/db-migrate.mjs"
 	},
 	"dependencies": {
 		"@auth/core": "^0.37.2",

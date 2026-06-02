@@ -37,58 +37,6 @@ const TEXT_MUTED = "#A8A29E";
 const SUCCESS = "#16A34A";
 const SUCCESS_LIGHT = "#DCFCE7";
 
-const PLACE_SUGGESTIONS = [
-  {
-    label: "Current Location",
-    address: "Use my current location",
-    lat: 12.9716,
-    lng: 77.5946,
-    isCurrentLocation: true,
-  },
-  {
-    label: "Majestic",
-    address: "Kempegowda Bus Station, Bengaluru",
-    lat: 12.9767,
-    lng: 77.5713,
-  },
-  {
-    label: "MG Road",
-    address: "MG Road, Bengaluru",
-    lat: 12.9756,
-    lng: 77.6068,
-  },
-  {
-    label: "Indiranagar",
-    address: "Indiranagar, Bengaluru",
-    lat: 12.9784,
-    lng: 77.6408,
-  },
-  {
-    label: "Koramangala",
-    address: "Koramangala, Bengaluru",
-    lat: 12.9352,
-    lng: 77.6245,
-  },
-  {
-    label: "Whitefield",
-    address: "Whitefield, Bengaluru",
-    lat: 12.9698,
-    lng: 77.75,
-  },
-  {
-    label: "Electronic City",
-    address: "Electronic City, Bengaluru",
-    lat: 12.8452,
-    lng: 77.6602,
-  },
-  {
-    label: "Jayanagar",
-    address: "Jayanagar, Bengaluru",
-    lat: 12.925,
-    lng: 77.5938,
-  },
-];
-
 function formatLocationAddress(location) {
   const parts = [
     location.name,
@@ -97,26 +45,6 @@ function formatLocationAddress(location) {
     location.city,
   ].filter(Boolean);
   return parts.length > 0 ? parts.join(", ") : "Current Location";
-}
-
-function getSuggestions(query, currentLocationSuggestion) {
-  const value = query.trim().toLowerCase();
-  const suggestions = currentLocationSuggestion
-    ? [currentLocationSuggestion, ...PLACE_SUGGESTIONS.filter((p) => !p.isCurrentLocation)]
-    : PLACE_SUGGESTIONS;
-
-  if (!value) {
-    return suggestions.slice(0, 4);
-  }
-
-  return suggestions
-    .filter((place) => {
-      return (
-        place.label.toLowerCase().includes(value) ||
-        place.address.toLowerCase().includes(value)
-      );
-    })
-    .slice(0, 5);
 }
 
 function StatusBadge({ status }) {
@@ -273,10 +201,14 @@ export default function PassengerHome() {
         setPickupSuggestions(
           withCurrent.length > 0
             ? withCurrent.slice(0, 6)
-            : getSuggestions(pickup, currentLocationSuggestion),
+            : currentLocationSuggestion
+              ? [currentLocationSuggestion]
+              : [],
         );
       } catch {
-        setPickupSuggestions(getSuggestions(pickup, currentLocationSuggestion));
+        setPickupSuggestions(
+          currentLocationSuggestion ? [currentLocationSuggestion] : [],
+        );
       }
     }, 250);
 
@@ -301,10 +233,10 @@ export default function PassengerHome() {
         setDestinationSuggestions(
           remoteSuggestions.length > 0
             ? remoteSuggestions.slice(0, 6)
-            : getSuggestions(destination, null),
+            : [],
         );
       } catch {
-        setDestinationSuggestions(getSuggestions(destination, null));
+        setDestinationSuggestions([]);
       }
     }, 250);
 
@@ -358,10 +290,10 @@ export default function PassengerHome() {
         body: JSON.stringify({
           pickup_address: pickup.trim(),
           dest_address: destination.trim(),
-          pickup_lat: pickupCoords?.lat ?? 12.9716,
-          pickup_lng: pickupCoords?.lng ?? 77.5946,
-          dest_lat: destinationCoords?.lat ?? 12.9352,
-          dest_lng: destinationCoords?.lng ?? 77.6245,
+          pickup_lat: pickupCoords.lat,
+          pickup_lng: pickupCoords.lng,
+          dest_lat: destinationCoords.lat,
+          dest_lng: destinationCoords.lng,
         }),
       });
       if (!res.ok) {
@@ -412,6 +344,8 @@ export default function PassengerHome() {
   const canRequest =
     pickup.trim().length > 0 &&
     destination.trim().length > 0 &&
+    !!pickupCoords &&
+    !!destinationCoords &&
     !requestRide.isPending;
   const resolvePlace = async (place) => {
     if (place.lat && place.lng) {
