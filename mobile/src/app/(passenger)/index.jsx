@@ -47,6 +47,15 @@ function formatLocationAddress(location) {
   return parts.length > 0 ? parts.join(", ") : "Current Location";
 }
 
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Timed out")), ms),
+    ),
+  ]);
+}
+
 function StatusBadge({ status }) {
   const configs = {
     requested: { bg: "#FEF3C7", text: "#D97706", label: "Finding Driver" },
@@ -125,14 +134,18 @@ export default function PassengerHome() {
         const permission = await Location.requestForegroundPermissionsAsync();
         if (permission.status !== "granted") return;
 
-        const position = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
+        const position = await withTimeout(
+          Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          }),
+          8000,
+        );
         const { latitude, longitude } = position.coords;
         let reversePlace = null;
         try {
-          const res = await fetch(
-            `/api/locations/reverse?lat=${latitude}&lng=${longitude}`,
+          const res = await withTimeout(
+            fetch(`/api/locations/reverse?lat=${latitude}&lng=${longitude}`),
+            5000,
           );
           const data = await res.json();
           reversePlace = data.place || null;
@@ -142,10 +155,13 @@ export default function PassengerHome() {
 
         const [address] = reversePlace
           ? []
-          : await Location.reverseGeocodeAsync({
-              latitude,
-              longitude,
-            });
+          : await withTimeout(
+              Location.reverseGeocodeAsync({
+                latitude,
+                longitude,
+              }),
+              5000,
+            ).catch(() => []);
 
         if (!mounted) return;
 

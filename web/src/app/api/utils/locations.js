@@ -43,6 +43,23 @@ function getConfiguredFallbackPlaces() {
   return [pickup, destination];
 }
 
+function makeSearchFallbackPlace(text, locationBias = {}) {
+  const query = text.trim();
+  if (!query) return null;
+
+  const destination = getConfiguredFallbackPlaces()[1];
+  const lat = parseNumber(locationBias.lat) ?? destination.lat;
+  const lng = parseNumber(locationBias.lng) ?? destination.lng;
+  return {
+    ...destination,
+    placeId: `local-search-${encodeURIComponent(query.toLowerCase())}`,
+    label: query,
+    address: query,
+    lat,
+    lng,
+  };
+}
+
 function toRad(value) {
   return (value * Math.PI) / 180;
 }
@@ -119,9 +136,9 @@ function normalizePlace(place, provider = "local") {
   };
 }
 
-function localPlacesForQuery(text = "") {
+function localPlacesForQuery(text = "", locationBias = {}) {
   const query = text.trim().toLowerCase();
-  return getConfiguredFallbackPlaces()
+  const matches = getConfiguredFallbackPlaces()
     .filter((place) => {
       if (!query) return true;
       return (
@@ -130,6 +147,12 @@ function localPlacesForQuery(text = "") {
       );
     })
     .slice(0, 6);
+
+  if (matches.length > 0 || !query) {
+    return matches;
+  }
+
+  return [makeSearchFallbackPlace(text, locationBias)].filter(Boolean);
 }
 
 function localPlaceById(placeId) {
@@ -285,11 +308,17 @@ export async function getAutocomplete(text = "", locationBias = {}) {
 
     return {
       provider: "ola",
-      suggestions: suggestions.length > 0 ? suggestions : localPlacesForQuery(query),
+      suggestions:
+        suggestions.length > 0
+          ? suggestions
+          : localPlacesForQuery(query, locationBias),
     };
   } catch (error) {
     console.warn("Ola autocomplete fallback:", error.message);
-    return { provider: "local", suggestions: localPlacesForQuery(query) };
+    return {
+      provider: "local",
+      suggestions: localPlacesForQuery(query, locationBias),
+    };
   }
 }
 
