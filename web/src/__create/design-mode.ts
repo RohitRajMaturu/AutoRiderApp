@@ -3,7 +3,18 @@
  * from DOM elements.
  */
 
-import { type GetStyleInfo, initDesignMode } from '../../../../shared/design-mode';
+type ResolvedElement = {
+  element: Element | null;
+};
+
+type GetStyleInfo = (resolved: ResolvedElement) => {
+  className: string;
+  styles: Record<string, string> | null;
+};
+
+const initDesignMode = (_getStyleInfo: GetStyleInfo) => {
+  return () => {};
+};
 
 // Registers the <hex-color-picker> custom element used by the design toolbar's
 // background-color dropdown. Loaded conditionally because the package executes

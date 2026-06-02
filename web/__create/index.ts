@@ -1,5 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import nodeConsole from 'node:console';
+import { mkdirSync } from 'node:fs';
 import { skipCSRFCheck } from '@auth/core';
 import Credentials from '@auth/core/providers/credentials';
 import { authHandler, initAuthConfig } from '@hono/auth-js';
@@ -22,10 +23,24 @@ neonConfig.webSocketConstructor = ws;
 
 const als = new AsyncLocalStorage<{ requestId: string }>();
 
+function isIgnorableDevStreamClose(args: unknown[]) {
+  if (process.env.NODE_ENV !== 'development') {
+    return false;
+  }
+  const first = args[0];
+  return (
+    first instanceof Error &&
+    first.message === 'The destination stream closed early.'
+  );
+}
+
 for (const method of ['log', 'info', 'warn', 'error', 'debug'] as const) {
   const original = nodeConsole[method].bind(console);
 
   console[method] = (...args: unknown[]) => {
+    if (method === 'error' && isIgnorableDevStreamClose(args)) {
+      return;
+    }
     const requestId = als.getStore()?.requestId;
     if (requestId) {
       original(`[traceId:${requestId}]`, ...args);
@@ -292,6 +307,11 @@ app.use('/api/auth/*', async (c, next) => {
   return next();
 });
 app.route(API_BASENAME, api);
+
+if (process.env.NODE_ENV === 'development') {
+  mkdirSync('build/client', { recursive: true });
+  mkdirSync('public', { recursive: true });
+}
 
 export default await createHonoServer({
   app,

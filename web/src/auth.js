@@ -1,1 +1,3 @@
-export const auth = null;
+export async function auth() {
+  return null;
+}

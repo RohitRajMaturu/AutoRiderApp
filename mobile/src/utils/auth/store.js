@@ -20,7 +20,7 @@ export const authKey = `${process.env.EXPO_PUBLIC_PROJECT_GROUP_ID}-jwt`;
  *   NSException and trip iOS 26's unhandled async-void TurboModule rethrow.
  */
 export const secureStoreOptions = {
-  keychainService: 'anything-auth',
+  keychainService: 'autoconnect-auth',
   keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
   requireAuthentication: false,
 };
