@@ -4,9 +4,9 @@ A lightweight auto-rickshaw ride connection platform for India.
 
 ## Tech Stack
 - **Frontend**: React Native (Expo)
-- **Backend**: Node.js (Serverless Functions)
+- **Backend**: React Router server routes on Node.js
 - **Database**: PostgreSQL via `pg` / node-postgres
-- **Authentication**: Built-in system with Email/Password + Role-based Onboarding
+- **Authentication**: Auth.js credentials flow with role-based onboarding
 - **Maps/Location Provider**: Ola Maps (Krutrim Cloud) via backend-only REST integration
 
 ## Core Features
@@ -53,18 +53,27 @@ To become an admin for testing:
 4. Remove `ENABLE_ADMIN_SETUP` before production. The route is blocked once an admin exists.
 5. Restart the app to see the Admin Panel.
 
+The setup route is also hard-disabled when `NODE_ENV=production`.
+
 ### 3. Environment Variables
 The platform handles core environment variables like `DATABASE_URL`.
 
 For production-grade location search and routing, configure the backend with:
 
 ```env
+AUTH_SECRET=replace_with_a_long_random_secret
 OLAMAPS_API_KEY=your_ola_maps_api_key
+DRIVER_RIDE_RADIUS_KM=8
+DRIVER_LOCATION_MAX_AGE_MINUTES=10
+RATE_LIMIT_MAX_REQUESTS=120
+RATE_LIMIT_WINDOW_MS=60000
 ```
 
 The mobile app does not call Ola Maps directly. Expo screens call backend routes under `/api/locations/*` and `/api/routes/estimate`, keeping the provider key out of the client bundle.
 
 Mobile auth stores `{ jwt, user }` in SecureStore under the stable key `auto-ride-auth`. `/api/auth/token` returns this shape after WebView sign-in, and mobile API calls send the JWT as a bearer token.
+
+Backend `/api/*` routes include basic rate limiting and security headers. Set `RATE_LIMIT_MAX_REQUESTS=0` only for local debugging.
 
 ## Completed Backend Location Work
 
@@ -76,6 +85,17 @@ Mobile auth stores `{ jwt, user }` in SecureStore under the stable key `auto-rid
 - Fare calculation exists server-side as base fare INR 35 plus INR 18 per kilometer, but passenger-facing fare/surge UI is intentionally not enabled yet.
 - Native mobile ride request screen shows pickup/destination pins and supports drag-to-adjust pickup without exposing Ola Maps keys.
 - Configurable local fallback data for development when Ola Maps is unavailable or `OLAMAPS_API_KEY` is not configured.
+
+## Backend Verification
+
+```powershell
+cd web
+npm run typecheck
+npm run test:api
+npm run db:check
+```
+
+Focused API tests cover auth resolution, ride authorization conflicts, admin driver validation, and nearby driver filtering.
 
 ## Project Structure
 - `/mobile/src`: Expo application code.

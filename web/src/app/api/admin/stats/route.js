@@ -20,7 +20,7 @@ export async function GET(request) {
     activeDrivers,
     totalDrivers,
     pendingDrivers,
-  ] = await sql.transaction([
+  ] = await Promise.all([
     sql`SELECT COUNT(*) as count FROM rides`,
     sql`SELECT COUNT(*) as count FROM rides WHERE status = 'completed'`,
     sql`SELECT COUNT(*) as count FROM rides WHERE status = 'cancelled'`,

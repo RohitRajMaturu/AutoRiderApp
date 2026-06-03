@@ -1,9 +1,13 @@
 import { getPlaceDetails } from "@/app/api/utils/locations";
+import { readBoundedString } from "@/app/api/utils/validation";
 
 export async function GET(request) {
   try {
     const url = new URL(request.url);
-    const placeId = url.searchParams.get("placeId") || url.searchParams.get("place_id");
+    const placeId = readBoundedString(
+      url.searchParams.get("placeId") || url.searchParams.get("place_id"),
+      { min: 1, max: 255 },
+    );
 
     if (!placeId) {
       return Response.json(

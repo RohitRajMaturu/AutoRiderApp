@@ -3,6 +3,13 @@ import { auth } from "@/auth";
 
 export async function POST(request) {
   try {
+    if (process.env.NODE_ENV === "production") {
+      return Response.json(
+        { error: "Admin setup is not available in production" },
+        { status: 404 },
+      );
+    }
+
     if (process.env.ENABLE_ADMIN_SETUP !== "true") {
       return Response.json(
         { error: "Admin setup is disabled" },

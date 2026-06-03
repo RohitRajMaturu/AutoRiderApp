@@ -1,4 +1,5 @@
 import { getRequiredNumber, getRouteEstimate } from "@/app/api/utils/locations";
+import { isCoordinatePair } from "@/app/api/utils/validation";
 
 export async function GET(request) {
   try {
@@ -7,6 +8,16 @@ export async function GET(request) {
     const pickupLng = getRequiredNumber(url.searchParams, "pickupLng");
     const destLat = getRequiredNumber(url.searchParams, "destLat");
     const destLng = getRequiredNumber(url.searchParams, "destLng");
+
+    if (
+      !isCoordinatePair(pickupLat, pickupLng) ||
+      !isCoordinatePair(destLat, destLng)
+    ) {
+      return Response.json(
+        { error: "Pickup and destination coordinates must be valid" },
+        { status: 400 },
+      );
+    }
 
     const estimate = await getRouteEstimate(
       pickupLat,

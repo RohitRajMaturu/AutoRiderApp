@@ -54,6 +54,23 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 const adapter = NeonAdapter(pool);
+const rateLimitBuckets = new Map<string, { count: number; resetAt: number }>();
+
+function readPositiveInt(value: string | undefined, fallback: number) {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0) return fallback;
+  return parsed;
+}
+
+function readClientIp(headers: Headers) {
+  const forwardedFor = headers.get('x-forwarded-for')?.split(',')[0]?.trim();
+  return (
+    forwardedFor ||
+    headers.get('cf-connecting-ip') ||
+    headers.get('x-real-ip') ||
+    'unknown'
+  );
+}
 
 function isPhoneIdentifier(value: string) {
   return value.replace(/\D/g, '').length >= 7 && !value.includes('@');
@@ -69,6 +86,14 @@ app.use('*', (c, next) => {
 });
 
 app.use(contextStorage());
+
+app.use('*', async (c, next) => {
+  c.header('X-Content-Type-Options', 'nosniff');
+  c.header('Referrer-Policy', 'no-referrer');
+  c.header('X-Frame-Options', 'SAMEORIGIN');
+  c.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=(self)');
+  await next();
+});
 
 app.onError((err, c) => {
   if (c.req.method !== 'GET') {
@@ -102,6 +127,39 @@ for (const method of ['post', 'put', 'patch'] as const) {
     })
   );
 }
+
+app.use('/api/*', async (c, next) => {
+  const maxRequests = readPositiveInt(process.env.RATE_LIMIT_MAX_REQUESTS, 120);
+  if (maxRequests === 0) {
+    return next();
+  }
+
+  const windowMs = readPositiveInt(process.env.RATE_LIMIT_WINDOW_MS, 60_000);
+  const now = Date.now();
+  const resetAt = now + windowMs;
+  const key = `${readClientIp(c.req.raw.headers)}:${c.req.method}:${c.req.path}`;
+  const bucket = rateLimitBuckets.get(key);
+
+  if (!bucket || bucket.resetAt <= now) {
+    rateLimitBuckets.set(key, { count: 1, resetAt });
+    c.header('X-RateLimit-Limit', String(maxRequests));
+    c.header('X-RateLimit-Remaining', String(Math.max(0, maxRequests - 1)));
+    return next();
+  }
+
+  if (bucket.count >= maxRequests) {
+    const retryAfterSeconds = Math.max(1, Math.ceil((bucket.resetAt - now) / 1000));
+    c.header('Retry-After', String(retryAfterSeconds));
+    c.header('X-RateLimit-Limit', String(maxRequests));
+    c.header('X-RateLimit-Remaining', '0');
+    return c.json({ error: 'Too many requests' }, 429);
+  }
+
+  bucket.count += 1;
+  c.header('X-RateLimit-Limit', String(maxRequests));
+  c.header('X-RateLimit-Remaining', String(Math.max(0, maxRequests - bucket.count)));
+  return next();
+});
 
 if (process.env.AUTH_SECRET) {
   app.use(

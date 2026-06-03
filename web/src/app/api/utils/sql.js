@@ -28,6 +28,22 @@ async function query(text, values = []) {
   return result.rows;
 }
 
+function createSqlExecutor(client) {
+  return function scopedSql(stringsOrText, ...values) {
+    if (Array.isArray(stringsOrText) && "raw" in stringsOrText) {
+      const { text, values: queryValues } = buildParameterizedQuery(
+        stringsOrText,
+        values,
+      );
+      return client.query(text, queryValues).then((result) => result.rows);
+    }
+
+    return client
+      .query(stringsOrText, values[0] || [])
+      .then((result) => result.rows);
+  };
+}
+
 function sql(stringsOrText, ...values) {
   if (Array.isArray(stringsOrText) && "raw" in stringsOrText) {
     const { text, values: queryValues } = buildParameterizedQuery(
@@ -40,8 +56,26 @@ function sql(stringsOrText, ...values) {
   return query(stringsOrText, values[0] || []);
 }
 
-sql.transaction = async (queries) => {
-  return Promise.all(queries);
+sql.transaction = async (callback) => {
+  if (!pool) {
+    throw createMissingDatabaseUrlError();
+  }
+  if (typeof callback !== "function") {
+    throw new Error("sql.transaction requires a callback that receives a transaction-scoped sql helper.");
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await callback(createSqlExecutor(client));
+    await client.query("COMMIT");
+    return result;
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw error;
+  } finally {
+    client.release();
+  }
 };
 
 export default sql;

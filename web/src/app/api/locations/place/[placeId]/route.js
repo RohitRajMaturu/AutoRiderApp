@@ -1,8 +1,14 @@
 import { getPlaceDetails } from "@/app/api/utils/locations";
+import { readBoundedString } from "@/app/api/utils/validation";
 
 export async function GET(_request, { params }) {
   try {
-    const place = await getPlaceDetails(params.placeId);
+    const placeId = readBoundedString(params.placeId, { min: 1, max: 255 });
+    if (!placeId) {
+      return Response.json({ error: "Missing placeId" }, { status: 400 });
+    }
+
+    const place = await getPlaceDetails(placeId);
     if (!place) {
       return Response.json({ error: "Place not found" }, { status: 404 });
     }

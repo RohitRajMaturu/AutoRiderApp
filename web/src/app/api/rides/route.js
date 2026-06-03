@@ -1,19 +1,32 @@
 import sql from "@/app/api/utils/sql";
 import { getRouteEstimate } from "@/app/api/utils/locations";
+import {
+  getEnvNumber,
+  isLatitude,
+  isLongitude,
+  readBoundedString,
+} from "@/app/api/utils/validation";
 import { auth } from "@/auth";
 
-const MAX_NEARBY_RIDE_KM = 8;
-
-function isFiniteLatitude(value) {
-  return Number.isFinite(value) && value >= -90 && value <= 90;
+function getNearbyRideRadiusKm() {
+  return getEnvNumber("DRIVER_RIDE_RADIUS_KM", 8, { min: 1, max: 50 });
 }
 
-function isFiniteLongitude(value) {
-  return Number.isFinite(value) && value >= -180 && value <= 180;
+function getDriverLocationMaxAgeMinutes() {
+  return getEnvNumber("DRIVER_LOCATION_MAX_AGE_MINUTES", 10, {
+    min: 1,
+    max: 240,
+  });
 }
 
-function readString(value) {
-  return typeof value === "string" ? value.trim() : "";
+function hasFreshDriverLocation(driver) {
+  if (!isLatitude(Number(driver?.last_lat)) || !isLongitude(Number(driver?.last_lng))) {
+    return false;
+  }
+  const updatedAt = driver?.updated_at ? new Date(driver.updated_at).getTime() : 0;
+  if (!Number.isFinite(updatedAt)) return false;
+  const maxAgeMs = getDriverLocationMaxAgeMinutes() * 60 * 1000;
+  return Date.now() - updatedAt <= maxAgeMs;
 }
 
 export async function POST(request) {
@@ -37,16 +50,16 @@ export async function POST(request) {
     const pickupLng = Number(pickup_lng);
     const destLat = Number(dest_lat);
     const destLng = Number(dest_lng);
-    const pickupAddress = readString(pickup_address);
-    const destAddress = readString(dest_address);
-    const pickupPlaceId = readString(pickup_place_id) || null;
-    const destPlaceId = readString(dest_place_id) || null;
+    const pickupAddress = readBoundedString(pickup_address, { min: 3, max: 500 });
+    const destAddress = readBoundedString(dest_address, { min: 3, max: 500 });
+    const pickupPlaceId = readBoundedString(pickup_place_id, { max: 255 });
+    const destPlaceId = readBoundedString(dest_place_id, { max: 255 });
 
     if (
-      !isFiniteLatitude(pickupLat) ||
-      !isFiniteLongitude(pickupLng) ||
-      !isFiniteLatitude(destLat) ||
-      !isFiniteLongitude(destLng) ||
+      !isLatitude(pickupLat) ||
+      !isLongitude(pickupLng) ||
+      !isLatitude(destLat) ||
+      !isLongitude(destLng) ||
       !pickupAddress ||
       !destAddress
     ) {
@@ -130,14 +143,13 @@ export async function GET(request) {
     let rides;
     if (role === "driver") {
       const driverRows =
-        await sql`SELECT id, last_lat, last_lng FROM drivers WHERE user_id = ${session.user.id} LIMIT 1`;
+        await sql`SELECT id, last_lat, last_lng, updated_at FROM drivers WHERE user_id = ${session.user.id} LIMIT 1`;
       const driver = driverRows[0];
       if (!driver) {
         return Response.json({ rides: [] });
       }
-      const hasLocation =
-        isFiniteLatitude(Number(driver.last_lat)) &&
-        isFiniteLongitude(Number(driver.last_lng));
+      const hasLocation = hasFreshDriverLocation(driver);
+      const nearbyRideRadiusKm = getNearbyRideRadiusKm();
       rides = await sql`
         SELECT
           r.*,
@@ -182,7 +194,7 @@ export async function GET(request) {
                   )
                 )
               )
-            ) <= ${MAX_NEARBY_RIDE_KM}
+            ) <= ${nearbyRideRadiusKm}
           )
         ORDER BY r.created_at DESC
       `;

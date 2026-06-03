@@ -5,6 +5,7 @@
 	"scripts": {
 		"dev": "react-router dev",
 		"typecheck": "react-router typegen && tsc --noEmit",
+		"test:api": "vitest run --config src/app/api/vitest.config.ts",
 		"db:check": "node scripts/db-check.mjs",
 		"db:migrate": "node scripts/db-migrate.mjs"
 	},
