@@ -1,15 +1,29 @@
 import sql from "@/app/api/utils/sql";
 import { auth } from "@/auth";
 
+function readString(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
 export async function POST(request) {
   try {
-    const session = await auth();
+    const session = await auth(request);
     if (!session || !session.user?.id) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { vehicle_number, auto_photo_url, license_url } =
       await request.json();
+    const vehicleNumber = readString(vehicle_number).toUpperCase();
+    const autoPhotoUrl = readString(auto_photo_url) || null;
+    const licenseUrl = readString(license_url);
+
+    if (!vehicleNumber || vehicleNumber.length > 32 || !licenseUrl) {
+      return Response.json(
+        { error: "Vehicle number and license document URL are required" },
+        { status: 400 },
+      );
+    }
 
     const existing =
       await sql`SELECT id FROM drivers WHERE user_id = ${session.user.id} LIMIT 1`;
@@ -22,7 +36,7 @@ export async function POST(request) {
 
     const rows = await sql`
       INSERT INTO drivers (user_id, vehicle_number, auto_photo_url, license_url)
-      VALUES (${session.user.id}, ${vehicle_number}, ${auto_photo_url}, ${license_url})
+      VALUES (${session.user.id}, ${vehicleNumber}, ${autoPhotoUrl}, ${licenseUrl})
       RETURNING *
     `;
 
@@ -36,9 +50,9 @@ export async function POST(request) {
   }
 }
 
-export async function GET() {
+export async function GET(request) {
   try {
-    const session = await auth();
+    const session = await auth(request);
     if (!session || !session.user?.id) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }

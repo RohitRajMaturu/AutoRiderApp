@@ -1,14 +1,43 @@
 import sql from "@/app/api/utils/sql";
 import { auth } from "@/auth";
 
+function isFiniteLatitude(value) {
+  return Number.isFinite(value) && value >= -90 && value <= 90;
+}
+
+function isFiniteLongitude(value) {
+  return Number.isFinite(value) && value >= -180 && value <= 180;
+}
+
 export async function PATCH(request) {
   try {
-    const session = await auth();
+    const session = await auth(request);
     if (!session || !session.user?.id) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { is_online, lat, lng } = await request.json();
+    const nextOnline =
+      is_online === undefined || is_online === null ? null : Boolean(is_online);
+    const nextLat = lat === undefined || lat === null ? null : Number(lat);
+    const nextLng = lng === undefined || lng === null ? null : Number(lng);
+
+    if (is_online !== undefined && typeof is_online !== "boolean") {
+      return Response.json(
+        { error: "is_online must be a boolean" },
+        { status: 400 },
+      );
+    }
+    if (
+      (nextLat !== null && !isFiniteLatitude(nextLat)) ||
+      (nextLng !== null && !isFiniteLongitude(nextLng)) ||
+      ((nextLat === null) !== (nextLng === null))
+    ) {
+      return Response.json(
+        { error: "lat and lng must be valid coordinates when provided" },
+        { status: 400 },
+      );
+    }
 
     // Check if subscription is active
     const driver =
@@ -25,7 +54,7 @@ export async function PATCH(request) {
       : null;
 
     // If trying to go online but subscription expired
-    if (is_online && (!expiry || expiry < now)) {
+    if (nextOnline && (!expiry || expiry < now)) {
       return Response.json(
         {
           error: "Subscription expired. Please renew to go online.",
@@ -37,9 +66,10 @@ export async function PATCH(request) {
 
     const rows = await sql`
       UPDATE drivers 
-      SET is_online = COALESCE(${is_online}, is_online),
-          last_lat = COALESCE(${lat}, last_lat),
-          last_lng = COALESCE(${lng}, last_lng)
+      SET is_online = COALESCE(${nextOnline}, is_online),
+          last_lat = COALESCE(${nextLat}, last_lat),
+          last_lng = COALESCE(${nextLng}, last_lng),
+          updated_at = CURRENT_TIMESTAMP
       WHERE user_id = ${session.user.id}
       RETURNING *
     `;

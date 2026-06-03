@@ -10,7 +10,7 @@ A lightweight auto-rickshaw ride connection platform for India.
 - **Maps/Location Provider**: Ola Maps (Krutrim Cloud) via backend-only REST integration
 
 ## Core Features
-- **Passengers**: Request rides, see driver details, track ride history.
+- **Passengers**: Request rides, adjust pickup on a native map, see driver details, track ride history.
 - **Drivers**: Register vehicle/license, toggle online/offline status, accept nearby rides.
 - **Admin**: Approve/Reject driver applications, manage subscriptions.
 - **Subscription Model**: Drivers need an active subscription to go online.
@@ -39,7 +39,7 @@ cd web
 npm run db:check
 ```
 
-The initial schema lives in `web/db/migrations/001_init_autoconnect.sql` and creates the auth, driver, and ride tables required by the current API routes.
+The schema lives under `web/db/migrations`. `001_init_autoconnect.sql` creates the auth, driver, and ride tables, while later migrations extend the auth account model.
 
 Current verified local state:
 - `npm run db:check` connects to database `AutoRider` as user `postgres`.
@@ -48,8 +48,10 @@ Current verified local state:
 ### 2. Admin Setup
 To become an admin for testing:
 1. Sign up as a regular user in the app.
-2. Call the setup endpoint: `POST /api/admin/setup`.
-3. Restart the app to see the Admin Panel.
+2. Temporarily set `ENABLE_ADMIN_SETUP=true` in the backend environment.
+3. Call the setup endpoint: `POST /api/admin/setup`.
+4. Remove `ENABLE_ADMIN_SETUP` before production. The route is blocked once an admin exists.
+5. Restart the app to see the Admin Panel.
 
 ### 3. Environment Variables
 The platform handles core environment variables like `DATABASE_URL`.
@@ -62,13 +64,17 @@ OLAMAPS_API_KEY=your_ola_maps_api_key
 
 The mobile app does not call Ola Maps directly. Expo screens call backend routes under `/api/locations/*` and `/api/routes/estimate`, keeping the provider key out of the client bundle.
 
+Mobile auth stores `{ jwt, user }` in SecureStore under the stable key `auto-ride-auth`. `/api/auth/token` returns this shape after WebView sign-in, and mobile API calls send the JWT as a bearer token.
+
 ## Completed Backend Location Work
 
 - Server-side Ola Maps autocomplete through `GET /api/locations/autocomplete`.
 - Server-side Ola Maps place details through `GET /api/locations/place/:placeId` and `GET /api/locations/place?placeId=...`.
 - Server-side Ola Maps reverse geocoding through `GET /api/locations/reverse`.
 - Auto-rickshaw route estimation through `GET /api/routes/estimate` using Ola routing mode `auto`.
-- Fare calculation from route distance: base fare INR 35 plus INR 18 per kilometer.
+- Route metadata is stored when rides are created so fare/ETA can be shown later.
+- Fare calculation exists server-side as base fare INR 35 plus INR 18 per kilometer, but passenger-facing fare/surge UI is intentionally not enabled yet.
+- Native mobile ride request screen shows pickup/destination pins and supports drag-to-adjust pickup without exposing Ola Maps keys.
 - Configurable local fallback data for development when Ola Maps is unavailable or `OLAMAPS_API_KEY` is not configured.
 
 ## Project Structure

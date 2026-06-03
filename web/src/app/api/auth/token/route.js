@@ -1,42 +1,56 @@
-import { getToken } from '@auth/core/jwt';
+import { getToken } from "@auth/core/jwt";
+import { auth } from "@/auth";
+
+const AUTH_COOKIE_NAMES = [
+  "authjs.session-token",
+  "__Secure-authjs.session-token",
+  "next-auth.session-token",
+  "__Secure-next-auth.session-token",
+];
+
+async function readRawToken(request) {
+  if (!process.env.AUTH_SECRET) {
+    return null;
+  }
+
+  for (const cookieName of AUTH_COOKIE_NAMES) {
+    const token = await getToken({
+      req: request,
+      secret: process.env.AUTH_SECRET,
+      cookieName,
+      secureCookie: cookieName.startsWith("__Secure-"),
+      raw: true,
+    });
+    if (token) return token;
+  }
+
+  return null;
+}
+
 export async function GET(request) {
-	const isSecure = process.env.AUTH_URL?.startsWith('https') ?? request.url?.startsWith('https') ?? false;
-	const [token, jwt] = await Promise.all([
-		getToken({
-			req: request,
-			secret: process.env.AUTH_SECRET,
-			secureCookie: isSecure,
-			raw: true,
-		}),
-		getToken({
-			req: request,
-			secret: process.env.AUTH_SECRET,
-			secureCookie: isSecure,
-		}),
-	]);
+  const [jwt, session] = await Promise.all([
+    readRawToken(request),
+    auth(request),
+  ]);
 
-	if (!jwt) {
-		return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-			status: 401,
-			headers: {
-				'Content-Type': 'application/json',
-			},
-		});
-	}
+  if (!jwt || !session?.user?.id) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-	return new Response(
-		JSON.stringify({
-			jwt: token,
-			user: {
-				id: jwt.sub,
-				email: jwt.email,
-				name: jwt.name,
-			},
-		}),
-		{
-			headers: {
-				'Content-Type': 'application/json',
-			},
-		}
-	);
+  const payload = {
+    jwt,
+    user: {
+      id: session.user.id,
+      email: session.user.email,
+      phone: session.user.phone,
+      role: session.user.role,
+      name: session.user.name,
+      image: session.user.image,
+    },
+  };
+
+  return Response.json({
+    ...payload,
+    auth: payload,
+  });
 }

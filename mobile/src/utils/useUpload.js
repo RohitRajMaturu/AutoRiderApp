@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { UploadClient } from '@uploadcare/upload-client'
+import { authKey, secureStoreOptions } from './auth/store';
 const client = new UploadClient({ publicKey: process.env.EXPO_PUBLIC_UPLOADCARE_PUBLIC_KEY });
 
 function useUpload() {
@@ -35,7 +36,7 @@ function useUpload() {
           };
 
           try {
-            const authStr = await SecureStore.getItemAsync(`${projectGroupId}-jwt`);
+            const authStr = await SecureStore.getItemAsync(authKey, secureStoreOptions);
             if (authStr) {
               const auth = JSON.parse(authStr);
               if (auth?.jwt) headers["authorization"] = `Bearer ${auth.jwt}`;

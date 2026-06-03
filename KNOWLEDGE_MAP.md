@@ -16,7 +16,7 @@ Primary stack:
 - Web/backend: React Router 7 app with server route handlers under `web/src/app/api`.
 - Database: PostgreSQL through `pg` / node-postgres.
 - Maps/location: Ola Maps (Krutrim Cloud) through backend-only REST calls.
-- Auth: intended Auth.js/custom flow, but currently incomplete.
+- Auth: Auth.js credentials flow with backend `auth(request)` JWT session decoding.
 
 ## Repository Layout
 
@@ -103,13 +103,15 @@ State and data fetching:
 
 Auth:
 - `mobile/src/utils/auth/useAuth.js` loads auth state from Expo SecureStore.
+- SecureStore key is project-owned and stable: `auto-ride-auth`.
+- Stored auth shape is `{ jwt, user }`; `/api/auth/token` returns this shape and includes `user.role` and `user.phone`.
 - A 3-second race prevents blank screens if SecureStore hangs or throws.
 - Auth UI is driven through `useAuthModal` and web account pages.
 
 Important mobile behavior:
 - Test mode is persisted in AsyncStorage with `@autoconnect_test_mode` and `@autoconnect_test_role`.
 - Test mode routes directly into passenger, driver, or admin screens without real backend auth.
-- Mobile fetch is wrapped by `mobile/src/__create/fetch.ts`, so relative `/api/...` calls are forwarded to `EXPO_PUBLIC_BASE_URL`.
+- Mobile fetch is wrapped by `mobile/src/__create/fetch.ts`, so relative `/api/...` calls are forwarded to `EXPO_PUBLIC_BASE_URL` with the stored bearer JWT when available.
 - Mobile does not receive the Ola Maps API key.
 
 ## Backend/API Architecture
@@ -123,15 +125,10 @@ Database utility:
 
 Auth utility:
 - `web/src/auth.js`
-- Current implementation:
-
-```js
-export async function auth() {
-  return null;
-}
-```
-
-This is the central blocker for real protected API flows. Most protected routes call `auth()` and return `401` when it returns null.
+- Decodes Auth.js JWT session cookies with `@auth/core/jwt`.
+- Loads the current user from `auth_users`.
+- Protected API route handlers pass their `Request` object as `auth(request)`.
+- Returns `{ user: { id, email, phone, role, name, image } }` or `null`.
 
 Major API groups:
 - `POST/GET /api/rides`
@@ -215,9 +212,11 @@ Passenger ride request:
 2. GPS and reverse-geocode calls have timeouts so the UI does not stay stuck on detection.
 3. Pickup/destination autocomplete calls `/api/locations/autocomplete`.
 4. Place selection may call `/api/locations/place/:placeId`.
-5. Passenger submits `POST /api/rides` with addresses and resolved coordinates.
-6. Passenger polls `/api/rides` every 6 seconds for active ride status.
-7. Passenger cancels through `PATCH /api/rides/:id` with `{ action: "cancel" }`.
+5. Native mobile shows a map preview once coordinates are available; pickup marker is draggable and reverse-geocodes through the backend.
+6. Passenger submits `POST /api/rides` with addresses, resolved coordinates, and optional provider place IDs.
+7. Backend stores route estimate metadata for future fare/ETA features, but passenger UI does not currently present fare or surge pricing.
+8. Passenger polls `/api/rides` every 6 seconds for active ride status.
+9. Passenger cancels through `PATCH /api/rides/:id` with `{ action: "cancel" }`.
 
 Driver onboarding:
 1. Driver home calls `GET /api/drivers`.
@@ -238,7 +237,7 @@ Driver ride handling:
 Admin:
 1. Admin dashboard calls `/api/admin/stats` and `/api/admin/drivers`.
 2. Admin driver review uses `PATCH /api/admin/drivers`.
-3. `POST /api/admin/setup` upgrades the current user to admin and should not exist in production.
+3. `POST /api/admin/setup` is disabled unless `ENABLE_ADMIN_SETUP=true` and no admin user exists yet.
 
 ## Maps, Places, And Fare Logic
 
@@ -259,25 +258,40 @@ Fare estimate:
 - Formula: `35 + distanceKm * 18`.
 - Currency: `INR`.
 - `/api/routes/estimate` returns `distanceKm`, `durationMins`, `estimatedFare`, `polyline`, `provider`, and `currency`.
+- `POST /api/rides` stores `distance_km`, `duration_mins`, `estimated_fare`, `route_polyline`, and `route_provider` for later use.
+- No passenger-facing fare, ETA, or surge UI is currently shown.
 
 Verified provider status:
 - A live Ola Maps autocomplete request with the key in `web/.env` returned HTTP `200` and 5 predictions.
 
 ## Known Gaps And Risks
 
-Highest priority:
-- `web/src/auth.js` returns `null`; protected APIs cannot work with real sessions until this is implemented.
-- Admin setup route is unsafe for production and should be gated or removed.
-- Several backend routes trust input without validation beyond basic presence checks.
-- `GET /api/rides/:id` does not require auth, so ride details may be exposed by ID.
+Recently completed hardening:
+- `web/src/auth.js` now performs real Auth.js JWT cookie decoding and user lookup.
+- Protected API routes now call `auth(request)`.
+- `GET /api/rides/:id` now requires auth and only returns rides to the passenger, assigned driver, or an admin.
+- `POST /api/admin/setup` is gated by `ENABLE_ADMIN_SETUP=true` and is blocked once an admin exists.
+- `PATCH /api/admin/drivers` validates `driver_id`, `is_approved`, and `subscription_days`; subscription extension uses parameterized `make_interval` instead of interpolated SQL.
+- Ride `complete` and `cancel` actions now return explicit non-2xx errors when no row is updated.
+- Driver unassigned ride feed is now limited to nearby requested rides using the driver's last known coordinates; drivers without coordinates only see assigned rides.
+- Ride creation, driver registration/status, and user profile updates now have basic input validation.
+- `/api/auth/token` is aligned with mobile SecureStore shape `{ jwt, user }`.
+- Ride creation persists provider place IDs and route estimate metadata for future fare/ETA features.
+- Native passenger screen includes pickup/destination map pins and draggable pickup adjustment without calling Ola Maps directly from mobile.
+
+Highest remaining priorities:
+- Add focused API tests for auth, ride authorization, admin driver updates, and driver nearby ride filtering.
+- Confirm mobile WebView sign-in and bearer-token API calls across Expo Go and device builds.
+- Add rate limiting and request/security controls beyond the existing body limit.
+- Continue broad input validation on lower-risk routes and provider query endpoints.
 
 Backend correctness:
-- `PATCH /api/admin/drivers` builds a SQL string for `subscription_days`; validate and clamp this value before using it in an interval.
-- `complete` and `cancel` ride actions can return `{ ride: undefined }` without a non-2xx error if no row is updated.
-- Driver ride feed currently shows all unassigned requested rides, not geographically nearby rides.
+- `sql.transaction` currently runs already-created promises with `Promise.all`; use a real PostgreSQL transaction helper before multi-step writes need atomicity.
+- Driver nearby filtering uses a fixed 8 km radius and last known coordinates; make the radius configurable and improve freshness handling.
+- Admin setup is gated, but production deployments should leave `ENABLE_ADMIN_SETUP` unset and ideally remove the route entirely after first admin creation.
 
 Mobile experience:
-- Route/fare estimate endpoint exists, but passenger request flow does not yet show fare/ETA before submitting.
+- Route/fare estimate metadata is stored on ride creation, but passenger request flow intentionally does not show fare/ETA/surge yet.
 - UI files contain some mojibake/encoding artifacts in comments and emoji text. Avoid spreading this when editing.
 - Test mode is useful for demos but can hide auth/backend integration problems.
 
@@ -290,10 +304,10 @@ Production readiness:
 ## Implementation Hotspots
 
 When adding auth:
-- Start with `web/src/auth.js`.
-- Check `web/src/app/account/signin/page.jsx` and `signup/page.jsx`.
-- Align `/api/auth/token` with the mobile SecureStore format expected by `mobile/src/utils/auth/store.js`.
-- Make sure `auth()` returns `{ user: { id, email, role? } }` or update every dependent route.
+- `web/src/auth.js` already decodes Auth.js JWT cookies and returns user id/email/phone/role/name/image.
+- Protected API handlers should call `auth(request)`, not `auth()`.
+- Check `web/src/app/account/signin/page.jsx`, `signup/page.jsx`, and `web/__create/index.ts` before changing providers or callbacks.
+- `/api/auth/token` already returns `{ jwt, user, auth }`; mobile stores `{ jwt, user }` under `auto-ride-auth`.
 
 When changing database schema:
 - Add new SQL files under `web/db/migrations`.
@@ -302,10 +316,10 @@ When changing database schema:
 - Keep indexes aligned with passenger, driver, and admin query patterns.
 
 When adding map UI:
-- Keep mobile calling backend endpoints, not Ola Maps directly.
-- Use existing `/api/locations/*` and `/api/routes/estimate`.
-- Store normalized coordinates and optional provider place IDs.
-- Add map pins and drag-to-adjust pickup without leaking provider secrets.
+- Mobile already calls backend endpoints, not Ola Maps directly.
+- Native passenger screen already uses map pins and draggable pickup adjustment.
+- Continue using existing `/api/locations/*` and `/api/routes/estimate`.
+- Continue storing normalized coordinates and optional provider place IDs.
 
 When adding payments:
 - Backend should own subscription creation and webhook verification.
@@ -321,9 +335,9 @@ When adding notifications:
 
 Use these prompts with another agent after attaching this knowledge map.
 
-Auth implementation:
+Auth verification:
 ```text
-Using KNOWLEDGE_MAP.md as context, implement real auth for this app. Start by replacing web/src/auth.js so protected API routes receive a valid session with user.id. Inspect the existing account pages and mobile auth utilities first. Keep changes minimal, preserve test mode, and add focused verification steps.
+Using KNOWLEDGE_MAP.md as context, add focused API/session tests for the existing Auth.js JWT-backed auth(request) helper. Cover signed-in user lookup, unauthorized requests, ride detail access control, and admin route access.
 ```
 
 Database change:
@@ -343,7 +357,7 @@ Using KNOWLEDGE_MAP.md as context, improve driver ride discovery so online drive
 
 Admin hardening:
 ```text
-Using KNOWLEDGE_MAP.md as context, harden admin operations. Require auth on every admin route, remove or gate /api/admin/setup, validate PATCH /api/admin/drivers input, and return explicit errors when no rows update.
+Using KNOWLEDGE_MAP.md as context, continue admin hardening. Add tests for gated /api/admin/setup, admin-only route access, PATCH /api/admin/drivers validation, and production behavior when ENABLE_ADMIN_SETUP is unset.
 ```
 
 Production maps:
@@ -358,11 +372,9 @@ Using KNOWLEDGE_MAP.md as context, add Expo push notifications for ride requeste
 
 ## Suggested Implementation Order
 
-1. Implement real auth/session handling.
-2. Harden protected routes and row-level access.
-3. Add fare/ETA preview using existing route estimate endpoint.
-4. Add nearby ride filtering and real driver location updates.
-5. Add payment-backed subscription renewal.
-6. Add notifications.
-7. Add observability, rate limits, and production security cleanup.
-
+1. Add focused backend tests for auth, authorization, admin updates, and ride state transitions.
+2. Add fare/ETA preview using existing route estimate endpoint.
+3. Improve nearby ride filtering radius/freshness and real driver location updates.
+4. Add payment-backed subscription renewal.
+5. Add notifications.
+6. Add observability, rate limits, and production security cleanup.

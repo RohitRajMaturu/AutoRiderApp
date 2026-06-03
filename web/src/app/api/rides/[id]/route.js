@@ -3,13 +3,13 @@ import { auth } from "@/auth";
 
 export async function PATCH(request, { params }) {
   try {
-    const session = await auth();
+    const session = await auth(request);
     if (!session || !session.user?.id) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { id } = params;
-    const { action } = await request.json(); // 'accept', 'cancel', 'complete'
+    const { action } = await request.json();
 
     const driverRows =
       await sql`SELECT id FROM drivers WHERE user_id = ${session.user.id} LIMIT 1`;
@@ -42,13 +42,26 @@ export async function PATCH(request, { params }) {
     }
 
     if (action === "complete") {
+      if (!driverId) {
+        return Response.json(
+          { error: "Only the assigned driver can complete a ride" },
+          { status: 403 },
+        );
+      }
       const result = await sql`
         UPDATE rides 
         SET status = 'completed',
-            completed_at = CURRENT_TIMESTAMP
+            completed_at = CURRENT_TIMESTAMP,
+            updated_at = CURRENT_TIMESTAMP
         WHERE id = ${id} AND driver_id = ${driverId} AND status = 'accepted'
         RETURNING *
       `;
+      if (result.length === 0) {
+        return Response.json(
+          { error: "Ride cannot be completed because it is not assigned to this driver or is no longer active" },
+          { status: 409 },
+        );
+      }
       return Response.json({ ride: result[0] });
     }
 
@@ -56,12 +69,20 @@ export async function PATCH(request, { params }) {
       // Both passenger and driver can cancel requested/accepted rides
       const result = await sql`
         UPDATE rides 
-        SET status = 'cancelled'
+        SET status = 'cancelled',
+            cancelled_at = CURRENT_TIMESTAMP,
+            updated_at = CURRENT_TIMESTAMP
         WHERE id = ${id} 
         AND (passenger_id = ${session.user.id} OR driver_id = ${driverId})
         AND status IN ('requested', 'accepted')
         RETURNING *
       `;
+      if (result.length === 0) {
+        return Response.json(
+          { error: "Ride cannot be cancelled because it was not found, is already closed, or is not accessible to this user" },
+          { status: 409 },
+        );
+      }
       return Response.json({ ride: result[0] });
     }
 
@@ -74,6 +95,11 @@ export async function PATCH(request, { params }) {
 
 export async function GET(request, { params }) {
   try {
+    const session = await auth(request);
+    if (!session || !session.user?.id) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { id } = params;
     const rows = await sql`
       SELECT r.*, d.vehicle_number, d.auto_photo_url, du.phone as driver_phone, pu.phone as passenger_phone
@@ -81,7 +107,13 @@ export async function GET(request, { params }) {
       LEFT JOIN drivers d ON r.driver_id = d.id
       LEFT JOIN auth_users du ON d.user_id = du.id
       JOIN auth_users pu ON r.passenger_id = pu.id
+      JOIN auth_users requester ON requester.id = ${session.user.id}
       WHERE r.id = ${id}
+      AND (
+        r.passenger_id = ${session.user.id}
+        OR d.user_id = ${session.user.id}
+        OR requester.role = 'admin'
+      )
       LIMIT 1
     `;
     return Response.json({ ride: rows[0] || null });

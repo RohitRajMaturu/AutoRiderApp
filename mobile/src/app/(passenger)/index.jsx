@@ -9,7 +9,9 @@ import {
   Alert,
   Animated,
   Linking,
+  Platform,
 } from "react-native";
+import MapView, { Marker } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   MapPin,
@@ -95,6 +97,8 @@ export default function PassengerHome() {
   const [destination, setDestination] = useState("");
   const [pickupCoords, setPickupCoords] = useState(null);
   const [destinationCoords, setDestinationCoords] = useState(null);
+  const [pickupPlaceId, setPickupPlaceId] = useState(null);
+  const [destinationPlaceId, setDestinationPlaceId] = useState(null);
   const [focusedField, setFocusedField] = useState(null);
   const [currentLocationSuggestion, setCurrentLocationSuggestion] =
     useState(null);
@@ -179,6 +183,7 @@ export default function PassengerHome() {
         setUserCoords({ lat: latitude, lng: longitude });
         setPickup(suggestion.address);
         setPickupCoords({ lat: latitude, lng: longitude });
+        setPickupPlaceId(suggestion.placeId);
       } catch {
         // Keep the manual pickup field usable if location permission or lookup fails.
       } finally {
@@ -310,6 +315,8 @@ export default function PassengerHome() {
           pickup_lng: pickupCoords.lng,
           dest_lat: destinationCoords.lat,
           dest_lng: destinationCoords.lng,
+          pickup_place_id: pickupPlaceId,
+          dest_place_id: destinationPlaceId,
         }),
       });
       if (!res.ok) {
@@ -328,12 +335,15 @@ export default function PassengerHome() {
           lat: currentLocationSuggestion.lat,
           lng: currentLocationSuggestion.lng,
         });
+        setPickupPlaceId(currentLocationSuggestion.placeId);
       } else {
         setPickup("");
         setPickupCoords(null);
+        setPickupPlaceId(null);
       }
       setDestination("");
       setDestinationCoords(null);
+      setDestinationPlaceId(null);
       setFocusedField(null);
     },
     onError: (err) => Alert.alert("Request Failed", err.message),
@@ -363,6 +373,51 @@ export default function PassengerHome() {
     !!pickupCoords &&
     !!destinationCoords &&
     !requestRide.isPending;
+
+  const mapRegion =
+    pickupCoords || destinationCoords
+      ? {
+          latitude:
+            pickupCoords && destinationCoords
+              ? (pickupCoords.lat + destinationCoords.lat) / 2
+              : (pickupCoords || destinationCoords).lat,
+          longitude:
+            pickupCoords && destinationCoords
+              ? (pickupCoords.lng + destinationCoords.lng) / 2
+              : (pickupCoords || destinationCoords).lng,
+          latitudeDelta:
+            pickupCoords && destinationCoords
+              ? Math.max(
+                  Math.abs(pickupCoords.lat - destinationCoords.lat) * 2.5,
+                  0.025,
+                )
+              : 0.025,
+          longitudeDelta:
+            pickupCoords && destinationCoords
+              ? Math.max(
+                  Math.abs(pickupCoords.lng - destinationCoords.lng) * 2.5,
+                  0.025,
+                )
+              : 0.025,
+        }
+      : null;
+
+  const updatePickupFromMap = async ({ latitude, longitude }) => {
+    setPickupCoords({ lat: latitude, lng: longitude });
+    setPickupPlaceId(null);
+    try {
+      const res = await fetch(`/api/locations/reverse?lat=${latitude}&lng=${longitude}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.place?.address) {
+        setPickup(data.place.address);
+        setPickupPlaceId(data.place.placeId || null);
+      }
+    } catch {
+      // Keep the dragged coordinates even if reverse geocoding is unavailable.
+    }
+  };
+
   const resolvePlace = async (place) => {
     if (place.lat && place.lng) {
       return place;
@@ -384,6 +439,7 @@ export default function PassengerHome() {
     setPickupCoords(
       resolved.lat && resolved.lng ? { lat: resolved.lat, lng: resolved.lng } : null,
     );
+    setPickupPlaceId(resolved.placeId || null);
     setFocusedField(null);
     setPickupSuggestions([]);
   };
@@ -394,6 +450,7 @@ export default function PassengerHome() {
     setDestinationCoords(
       resolved.lat && resolved.lng ? { lat: resolved.lat, lng: resolved.lng } : null,
     );
+    setDestinationPlaceId(resolved.placeId || null);
     setFocusedField(null);
     setDestinationSuggestions([]);
   };
@@ -819,6 +876,7 @@ export default function PassengerHome() {
                       onChangeText={(value) => {
                         setPickup(value);
                         setPickupCoords(null);
+                        setPickupPlaceId(null);
                         setFocusedField("pickup");
                       }}
                       returnKeyType="next"
@@ -836,6 +894,7 @@ export default function PassengerHome() {
                       onPress={() => {
                         setPickup("");
                         setPickupCoords(null);
+                        setPickupPlaceId(null);
                         setFocusedField("pickup");
                       }}
                       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -906,6 +965,7 @@ export default function PassengerHome() {
                       onChangeText={(value) => {
                         setDestination(value);
                         setDestinationCoords(null);
+                        setDestinationPlaceId(null);
                         setFocusedField("destination");
                       }}
                       returnKeyType="done"
@@ -922,6 +982,7 @@ export default function PassengerHome() {
                       onPress={() => {
                         setDestination("");
                         setDestinationCoords(null);
+                        setDestinationPlaceId(null);
                         setFocusedField("destination");
                       }}
                       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -936,6 +997,54 @@ export default function PassengerHome() {
                 )}
               </View>
             </View>
+
+            {Platform.OS !== "web" && mapRegion && (
+              <View
+                style={{
+                  marginTop: 14,
+                  height: 210,
+                  borderRadius: 18,
+                  overflow: "hidden",
+                  borderWidth: 1,
+                  borderColor: BORDER,
+                  backgroundColor: SURFACE,
+                }}
+              >
+                <MapView
+                  style={{ flex: 1 }}
+                  initialRegion={mapRegion}
+                  region={mapRegion}
+                  showsUserLocation
+                  showsMyLocationButton
+                >
+                  {pickupCoords && (
+                    <Marker
+                      coordinate={{
+                        latitude: pickupCoords.lat,
+                        longitude: pickupCoords.lng,
+                      }}
+                      draggable
+                      title="Pickup"
+                      description="Drag to adjust pickup"
+                      pinColor={PRIMARY}
+                      onDragEnd={(event) =>
+                        updatePickupFromMap(event.nativeEvent.coordinate)
+                      }
+                    />
+                  )}
+                  {destinationCoords && (
+                    <Marker
+                      coordinate={{
+                        latitude: destinationCoords.lat,
+                        longitude: destinationCoords.lng,
+                      }}
+                      title="Destination"
+                      pinColor={SUCCESS}
+                    />
+                  )}
+                </MapView>
+              </View>
+            )}
 
             {/* Request button */}
             <TouchableOpacity
