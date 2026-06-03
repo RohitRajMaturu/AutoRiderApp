@@ -1,4 +1,3 @@
-import { ErrorFixEvents, errorFixEmitter } from '@anythingai/app/utils';
 import { SplashScreen } from 'expo-router/build/exports';
 import * as Updates from 'expo-updates';
 import React, { type ReactNode, useCallback, useEffect } from 'react';
@@ -14,56 +13,33 @@ type ErrorBoundaryState = {
   sentLogs: boolean;
 };
 
-const DeviceErrorBoundary = ({
-  sentLogs,
-  error,
-}: {
-  sentLogs: boolean;
-  error: unknown | null;
-}) => {
-  const isAnythingApp = process.env.EXPO_PUBLIC_IS_ANYTHING_APP === 'true';
+const DeviceErrorBoundary = ({ sentLogs }: { sentLogs: boolean }) => {
   useEffect(() => {
     SplashScreen.hideAsync().catch(() => {});
   }, []);
-  const handleFixClick = useCallback(() => {
-    const seraizliedError = serializeError(error);
-    const displayableError = isErrorLike(seraizliedError)
-      ? `${seraizliedError.message}\n\n${seraizliedError.stack}`
-      : JSON.stringify(seraizliedError, null, 2);
-    errorFixEmitter.emit(ErrorFixEvents.ERROR_FIX_SUBMITTED, {
-      error: displayableError,
-    });
-  }, [error]);
+
   const handleReload = useCallback(async () => {
     if (Platform.OS === 'web') {
       window.location.reload();
       return;
     }
 
-    Updates.reloadAsync().catch((error) => {
-      // no-op, we don't want to show an error here
-    });
+    Updates.reloadAsync().catch(() => {});
   }, []);
+
   return (
     <SharedErrorBoundary
       isOpen
       description={
-        sentLogs && !isAnythingApp
-          ? 'It looks like an error occurred while trying to use your app. This error has been reported to the AI agent and should be visible to the AI soon. If it is not present please see anything.com/docs for help'
-          : 'It looks like an error occurred while trying to use your app. Please see anything.com/docs for help'
+        sentLogs
+          ? 'Auto Ride ran into an unexpected issue and saved the error details for diagnostics.'
+          : 'Auto Ride ran into an unexpected issue. Please restart the app and try again.'
       }
     >
       <View style={{ flexDirection: 'row', gap: 8 }}>
-        {isAnythingApp && (
-          <Button color="primary" onPress={handleFixClick}>
-            Try to fix
-          </Button>
-        )}
-        {!isAnythingApp && (
-          <Button color="primary" onPress={handleReload}>
-            Restart app
-          </Button>
-        )}
+        <Button color="primary" onPress={handleReload}>
+          Restart app
+        </Button>
       </View>
     </SharedErrorBoundary>
   );
@@ -85,7 +61,7 @@ export class DeviceErrorBoundaryWrapper extends React.Component<
     return { hasError: true, error, sentLogs: false };
   }
 
-  componentDidCatch(error: unknown, errorInfo: React.ErrorInfo): void {
+  componentDidCatch(error: unknown): void {
     this.setState({ error });
     const logger = getTestFlightLogger();
     if (logger) {
@@ -95,17 +71,17 @@ export class DeviceErrorBoundaryWrapper extends React.Component<
       );
     }
     reportErrorToRemote({ error })
-      .then(({ success, error: fetchError }) => {
+      .then(({ success }) => {
         this.setState({ hasError: true, sentLogs: success });
       })
-      .catch((reportError) => {
+      .catch(() => {
         this.setState({ hasError: true, sentLogs: false });
       });
   }
 
   render() {
     if (this.state.hasError) {
-      return <DeviceErrorBoundary error={this.state.error} sentLogs={this.state.sentLogs} />;
+      return <DeviceErrorBoundary sentLogs={this.state.sentLogs} />;
     }
     return this.props.children;
   }

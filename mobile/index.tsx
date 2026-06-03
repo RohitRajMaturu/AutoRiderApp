@@ -10,8 +10,8 @@ global.Buffer = Buffer;
 
 const context = require.context('./src/app');
 
-function AutoConnectApp() {
+function AutoRideApp() {
   return <ExpoRoot context={context} />;
 }
 
-registerRootComponent(AutoConnectApp);
+registerRootComponent(AutoRideApp);

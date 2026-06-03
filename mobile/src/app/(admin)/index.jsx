@@ -198,7 +198,7 @@ export default function AdminDashboard() {
             🛺 Admin Panel
           </Text>
           <Text style={{ fontSize: 13, color: TEXT_SECONDARY, marginTop: 2 }}>
-            AutoConnect Command Center
+            Auto Ride Command Center
           </Text>
         </View>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>

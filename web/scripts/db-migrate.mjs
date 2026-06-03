@@ -1,9 +1,9 @@
 import { readdirSync, readFileSync } from "node:fs";
-import { spawnSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { neon } from "@neondatabase/serverless";
+import pg from "pg";
 
+const { Pool } = pg;
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = resolve(__dirname, "..");
 const MIGRATIONS_DIR = resolve(WEB_ROOT, "db", "migrations");
@@ -28,36 +28,6 @@ function loadDotEnv() {
   }
 }
 
-function splitSqlStatements(sqlText) {
-  return sqlText
-    .split(";")
-    .map((statement) => statement.trim())
-    .filter(Boolean);
-}
-
-function isLocalDatabase(url) {
-  return /localhost|127\.0\.0\.1/i.test(url);
-}
-
-function runPsqlMigration(databaseUrl, filePath) {
-  const result = spawnSync(
-    "psql",
-    [databaseUrl, "-v", "ON_ERROR_STOP=1", "-f", filePath],
-    { encoding: "utf8" },
-  );
-
-  if (result.error?.code === "ENOENT") {
-    throw new Error(
-      "Local DATABASE_URL requires psql, but psql was not found. Install PostgreSQL client tools or run web/scripts/apply-schema.ps1 on a machine with psql.",
-    );
-  }
-  if (result.status !== 0) {
-    throw new Error((result.stderr || result.stdout).trim());
-  }
-
-  process.stdout.write(result.stdout);
-}
-
 async function main() {
   loadDotEnv();
 
@@ -66,7 +36,6 @@ async function main() {
     throw new Error("DATABASE_URL is missing. Set it in web/.env or the shell.");
   }
 
-  const sql = neon(databaseUrl);
   const files = readdirSync(MIGRATIONS_DIR)
     .filter((file) => file.endsWith(".sql"))
     .sort();
@@ -76,22 +45,25 @@ async function main() {
     return;
   }
 
-  for (const file of files) {
-    const fullPath = resolve(MIGRATIONS_DIR, file);
-    if (isLocalDatabase(databaseUrl)) {
-      console.log(`Applying ${file} with psql`);
-      runPsqlMigration(databaseUrl, fullPath);
-      continue;
+  const pool = new Pool({ connectionString: databaseUrl });
+  const client = await pool.connect();
+  try {
+    for (const file of files) {
+      const fullPath = resolve(MIGRATIONS_DIR, file);
+      const migrationSql = readFileSync(fullPath, "utf8");
+      console.log(`Applying ${file}`);
+      await client.query("BEGIN");
+      await client.query(migrationSql);
+      await client.query("COMMIT");
     }
-
-    const statements = splitSqlStatements(readFileSync(fullPath, "utf8"));
-    console.log(`Applying ${file} (${statements.length} statements)`);
-    for (const statement of statements) {
-      await sql(statement);
-    }
+    console.log("Database migrations completed.");
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw error;
+  } finally {
+    client.release();
+    await pool.end();
   }
-
-  console.log("Database migrations completed.");
 }
 
 main().catch((error) => {

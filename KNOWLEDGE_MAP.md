@@ -14,7 +14,8 @@ Core actors:
 Primary stack:
 - Mobile: Expo React Native, Expo Router, TanStack Query, Zustand, SecureStore, AsyncStorage.
 - Web/backend: React Router 7 app with server route handlers under `web/src/app/api`.
-- Database: Neon PostgreSQL through `@neondatabase/serverless`.
+- Database: PostgreSQL through `pg` / node-postgres.
+- Maps/location: Ola Maps (Krutrim Cloud) through backend-only REST calls.
 - Auth: intended Auth.js/custom flow, but currently incomplete.
 
 ## Repository Layout
@@ -27,16 +28,16 @@ Primary stack:
 │   ├── src/utils/auth/           # Mobile auth modal, token storage, hooks
 │   └── package.json
 ├── web/                          # React Router app plus API routes
+│   ├── db/migrations/            # PostgreSQL schema migrations
+│   ├── scripts/                  # DB check/migration helper scripts
 │   ├── src/auth.js               # Current auth shim; returns null
 │   ├── src/app/api/              # Backend/server route handlers
 │   ├── src/app/account/          # Sign in/sign up/logout pages
 │   └── package.json
 ├── README.md
-├── PRODUCTION_INTEGRATIONS.md    # Production backlog and integration notes
-└── run-local.ps1                 # Starts web backend and Expo with LAN env vars
+├── PRODUCTION_INTEGRATIONS.md
+└── run-local.ps1
 ```
-
-Note: `README.md` mentions `/apps/mobile` and `/apps/web`; the actual folders are `mobile/` and `web/`.
 
 ## Runtime And Local Development
 
@@ -53,7 +54,38 @@ Useful commands:
 .\run-local.ps1 -SkipInstall
 .\run-local.ps1 -ClearExpoCache
 cd web; npm run typecheck
+cd web; npm run db:check
+cd web; npm run db:migrate
 ```
+
+## Database State
+
+Database URL format:
+
+```env
+DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DB_NAME?sslmode=disable
+```
+
+Current local DB status verified with `npm run db:check`:
+- Connected: yes.
+- Driver: `pg`.
+- Database: `AutoRider`.
+- User: `postgres`.
+- Missing required tables: none.
+
+Schema tooling:
+- Migration file: `web/db/migrations/001_init_autoconnect.sql`.
+- Check command: `cd web; npm run db:check`.
+- Apply command: `cd web; npm run db:migrate`.
+- Optional `psql` helper: `web/scripts/apply-schema.ps1`.
+
+Required tables now created:
+- `auth_users`
+- `auth_accounts`
+- `auth_sessions`
+- `auth_verification_tokens`
+- `drivers`
+- `rides`
 
 ## Mobile Architecture
 
@@ -77,7 +109,8 @@ Auth:
 Important mobile behavior:
 - Test mode is persisted in AsyncStorage with `@autoconnect_test_mode` and `@autoconnect_test_role`.
 - Test mode routes directly into passenger, driver, or admin screens without real backend auth.
-- Real API calls still require backend auth and may fail while in test mode.
+- Mobile fetch is wrapped by `mobile/src/__create/fetch.ts`, so relative `/api/...` calls are forwarded to `EXPO_PUBLIC_BASE_URL`.
+- Mobile does not receive the Ola Maps API key.
 
 ## Backend/API Architecture
 
@@ -85,8 +118,8 @@ API handlers live under `web/src/app/api`.
 
 Database utility:
 - `web/src/app/api/utils/sql.js`
-- Uses `neon(process.env.DATABASE_URL)`.
-- Throws a clear error if `DATABASE_URL` is missing.
+- Uses `pg.Pool` with `process.env.DATABASE_URL`.
+- Preserves the local `sql\`...\`` tagged template style used by existing route handlers.
 
 Auth utility:
 - `web/src/auth.js`
@@ -98,7 +131,7 @@ export async function auth() {
 }
 ```
 
-This is the central blocker for real protected API flows. Most routes call `auth()` and return `401` when it returns null.
+This is the central blocker for real protected API flows. Most protected routes call `auth()` and return `401` when it returns null.
 
 Major API groups:
 - `POST/GET /api/rides`
@@ -112,19 +145,25 @@ Major API groups:
 - `GET/PUT /api/user-profile`
 - `GET /api/locations/autocomplete`
 - `GET /api/locations/place/:placeId`
+- `GET /api/locations/place?placeId=...`
 - `GET /api/locations/reverse`
 - `GET /api/routes/estimate`
 - `GET /api/auth/token`
 
-## Current Data Model Assumptions
+## Current Data Model
 
-The code assumes these PostgreSQL tables and fields exist:
+The current migration creates these main domain tables.
 
 `auth_users`
 - `id`
+- `name`
 - `email`
 - `phone`
-- `role` with expected values such as `passenger`, `driver`, `admin`
+- `role`: `passenger`, `driver`, or `admin`
+- `emailVerified`
+- `image`
+- `created_at`
+- `updated_at`
 
 `drivers`
 - `id`
@@ -138,37 +177,47 @@ The code assumes these PostgreSQL tables and fields exist:
 - `last_lng`
 - `subscription_expiry`
 - `created_at`
+- `updated_at`
 
 `rides`
 - `id`
 - `passenger_id`
 - `driver_id`
+- `pickup_address`
+- `pickup_place_id`
 - `pickup_lat`
 - `pickup_lng`
+- `dest_address`
+- `dest_place_id`
 - `dest_lat`
 - `dest_lng`
-- `pickup_address`
-- `dest_address`
-- `status`: `requested`, `accepted`, `completed`, `cancelled`
+- `distance_km`
+- `duration_mins`
+- `estimated_fare`
+- `route_polyline`
+- `route_provider`
+- `status`: `requested`, `accepted`, `completed`, or `cancelled`
 - `accepted_at`
 - `completed_at`
+- `cancelled_at`
 - `created_at`
+- `updated_at`
 
-Production integration notes also recommend adding:
-- `pickup_place_id`
-- `dest_place_id`
-- route distance/duration/fare/provider metadata
-- versioned migrations and indexes
+Auth support tables:
+- `auth_accounts`
+- `auth_sessions`
+- `auth_verification_tokens`
 
 ## Key Domain Flows
 
 Passenger ride request:
-1. `mobile/src/app/(passenger)/index.jsx` loads current location through `expo-location`.
-2. Pickup/destination autocomplete calls `/api/locations/autocomplete`.
-3. Place selection may call `/api/locations/place/:placeId`.
-4. Passenger submits `POST /api/rides` with addresses and coordinates.
-5. Passenger polls `/api/rides` every 6 seconds for active ride status.
-6. Passenger cancels through `PATCH /api/rides/:id` with `{ action: "cancel" }`.
+1. `mobile/src/app/(passenger)/index.jsx` attempts to load current location through `expo-location`.
+2. GPS and reverse-geocode calls have timeouts so the UI does not stay stuck on detection.
+3. Pickup/destination autocomplete calls `/api/locations/autocomplete`.
+4. Place selection may call `/api/locations/place/:placeId`.
+5. Passenger submits `POST /api/rides` with addresses and resolved coordinates.
+6. Passenger polls `/api/rides` every 6 seconds for active ride status.
+7. Passenger cancels through `PATCH /api/rides/:id` with `{ action: "cancel" }`.
 
 Driver onboarding:
 1. Driver home calls `GET /api/drivers`.
@@ -179,11 +228,12 @@ Driver onboarding:
 
 Driver ride handling:
 1. Approved driver toggles online via `PATCH /api/drivers/status`.
-2. Backend blocks online status if `subscription_expiry` is missing or expired.
-3. Online driver polls `/api/rides` every 5 seconds.
-4. Driver accepts through `PATCH /api/rides/:id` with `{ action: "accept" }`.
-5. The accept query only succeeds when ride is still `requested` and `driver_id IS NULL`.
-6. Driver completes through `{ action: "complete" }`.
+2. Mobile uses device coordinates when permission is available.
+3. Backend blocks online status if `subscription_expiry` is missing or expired.
+4. Online driver polls `/api/rides` every 5 seconds.
+5. Driver accepts through `PATCH /api/rides/:id` with `{ action: "accept" }`.
+6. The accept query only succeeds when ride is still `requested` and `driver_id IS NULL`.
+7. Driver completes through `{ action: "complete" }`.
 
 Admin:
 1. Admin dashboard calls `/api/admin/stats` and `/api/admin/drivers`.
@@ -195,25 +245,28 @@ Admin:
 Location provider code is in `web/src/app/api/utils/locations.js`.
 
 Provider selection:
-- If `OLAMAPS_API_KEY` exists, use Ola Maps APIs.
-- Otherwise use configurable local development fallback places.
+- If `OLAMAPS_API_KEY` exists, backend calls Ola Maps APIs.
+- If the provider is unavailable, backend returns configurable local fallback data.
+- For typed autocomplete in fallback mode, backend still returns a selectable suggestion instead of an empty list.
 
 Implemented capabilities:
 - Autocomplete: Ola Maps Places Autocomplete or local fallback.
 - Place details: Ola Maps Place Details or local fallback.
 - Reverse geocode: Ola Maps Reverse Geocode or local coordinate label.
-- Route estimate: Ola Maps Directions with auto mode or local haversine fallback.
+- Route estimate: Ola Maps Directions with `mode: "auto"` or local haversine fallback.
 
 Fare estimate:
-- Base formula currently appears as `35 + distanceKm * 18`.
-- Currency is `INR`.
-- Fare is returned by `/api/routes/estimate` but not fully integrated into the ride creation UI.
+- Formula: `35 + distanceKm * 18`.
+- Currency: `INR`.
+- `/api/routes/estimate` returns `distanceKm`, `durationMins`, `estimatedFare`, `polyline`, `provider`, and `currency`.
+
+Verified provider status:
+- A live Ola Maps autocomplete request with the key in `web/.env` returned HTTP `200` and 5 predictions.
 
 ## Known Gaps And Risks
 
 Highest priority:
 - `web/src/auth.js` returns `null`; protected APIs cannot work with real sessions until this is implemented.
-- No visible migration files; schema is assumed to exist.
 - Admin setup route is unsafe for production and should be gated or removed.
 - Several backend routes trust input without validation beyond basic presence checks.
 - `GET /api/rides/:id` does not require auth, so ride details may be exposed by ID.
@@ -222,10 +275,8 @@ Backend correctness:
 - `PATCH /api/admin/drivers` builds a SQL string for `subscription_days`; validate and clamp this value before using it in an interval.
 - `complete` and `cancel` ride actions can return `{ ride: undefined }` without a non-2xx error if no row is updated.
 - Driver ride feed currently shows all unassigned requested rides, not geographically nearby rides.
-- Driver online updates should use device coordinates when permission is available.
 
 Mobile experience:
-- Passenger screen has local suggestions and backend suggestions; keep provider normalization consistent.
 - Route/fare estimate endpoint exists, but passenger request flow does not yet show fare/ETA before submitting.
 - UI files contain some mojibake/encoding artifacts in comments and emoji text. Avoid spreading this when editing.
 - Test mode is useful for demos but can hide auth/backend integration problems.
@@ -244,14 +295,14 @@ When adding auth:
 - Align `/api/auth/token` with the mobile SecureStore format expected by `mobile/src/utils/auth/store.js`.
 - Make sure `auth()` returns `{ user: { id, email, role? } }` or update every dependent route.
 
-When adding database migrations:
-- Create a migrations folder in `web/` or root.
-- Capture all assumed `auth_users`, `drivers`, and `rides` fields.
-- Add indexes for `rides.passenger_id`, `rides.driver_id`, `rides.status`, `drivers.user_id`, `drivers.is_online`, `drivers.is_approved`.
-- Add constraints for ride status values and status transitions where practical.
+When changing database schema:
+- Add new SQL files under `web/db/migrations`.
+- Run `cd web; npm run db:migrate`.
+- Verify with `cd web; npm run db:check`.
+- Keep indexes aligned with passenger, driver, and admin query patterns.
 
-When adding real maps UI:
-- Keep mobile calling backend endpoints, not Google/Mapbox directly.
+When adding map UI:
+- Keep mobile calling backend endpoints, not Ola Maps directly.
 - Use existing `/api/locations/*` and `/api/routes/estimate`.
 - Store normalized coordinates and optional provider place IDs.
 - Add map pins and drag-to-adjust pickup without leaking provider secrets.
@@ -275,9 +326,9 @@ Auth implementation:
 Using KNOWLEDGE_MAP.md as context, implement real auth for this app. Start by replacing web/src/auth.js so protected API routes receive a valid session with user.id. Inspect the existing account pages and mobile auth utilities first. Keep changes minimal, preserve test mode, and add focused verification steps.
 ```
 
-Database migrations:
+Database change:
 ```text
-Using KNOWLEDGE_MAP.md as context, add versioned PostgreSQL migrations for the schema currently assumed by the API routes. Include auth_users, drivers, rides, indexes, status constraints, and safe defaults. Also update README setup instructions.
+Using KNOWLEDGE_MAP.md as context, add the next PostgreSQL migration under web/db/migrations. Preserve the existing pg-based scripts, update README if setup changes, run npm run db:migrate, and verify with npm run db:check.
 ```
 
 Passenger fare preview:
@@ -297,7 +348,7 @@ Using KNOWLEDGE_MAP.md as context, harden admin operations. Require auth on ever
 
 Production maps:
 ```text
-Using KNOWLEDGE_MAP.md and PRODUCTION_INTEGRATIONS.md as context, integrate production maps end to end. Keep API keys server-side, reuse the existing provider adapter, add map UI pins on mobile, and persist place IDs and route estimate metadata.
+Using KNOWLEDGE_MAP.md and PRODUCTION_INTEGRATIONS.md as context, improve Ola Maps integration end to end. Keep API keys server-side, reuse the existing provider adapter, add map UI pins on mobile, and persist place IDs and route estimate metadata.
 ```
 
 Notifications:
@@ -308,10 +359,10 @@ Using KNOWLEDGE_MAP.md as context, add Expo push notifications for ride requeste
 ## Suggested Implementation Order
 
 1. Implement real auth/session handling.
-2. Add database migrations and seed data.
-3. Harden protected routes and row-level access.
-4. Add fare/ETA preview using existing route estimate endpoint.
-5. Add nearby ride filtering and real driver location updates.
-6. Add payment-backed subscription renewal.
-7. Add notifications.
-8. Add observability, rate limits, and production security cleanup.
+2. Harden protected routes and row-level access.
+3. Add fare/ETA preview using existing route estimate endpoint.
+4. Add nearby ride filtering and real driver location updates.
+5. Add payment-backed subscription renewal.
+6. Add notifications.
+7. Add observability, rate limits, and production security cleanup.
+

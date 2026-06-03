@@ -395,7 +395,7 @@ export default function DriverProfile() {
           >
             <MenuItem
               icon={Star}
-              label="Rate AutoConnect"
+              label="Rate Auto Ride"
               sublabel="Share your driver experience"
               onPress={() => {}}
             />
@@ -482,7 +482,7 @@ export default function DriverProfile() {
             marginTop: 28,
           }}
         >
-          AutoConnect Driver Console v1.0 · 🇮🇳
+          Auto Ride Driver Console v1.0 - India
         </Text>
       </ScrollView>
     </View>

@@ -11,6 +11,16 @@ import {
   Modal,
   Pressable,
 } from "react-native";
+import {
+  ArrowRight,
+  CircleDollarSign,
+  FlaskConical,
+  Gauge,
+  ShieldCheck,
+  UserRound,
+  CarFront,
+  Settings,
+} from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import useAppStore from "../store/useAppStore";
@@ -19,12 +29,11 @@ const SAFFRON = "#F97316";
 const INDIA_GREEN = "#138808";
 const DARK = "#1C1917";
 
-// ── Role Picker Modal ────────────────────────────────────────────
 function RolePickerModal({ visible, onClose, onSelect }) {
   const roles = [
     {
       id: "passenger",
-      emoji: "🧑",
+      Icon: UserRound,
       title: "Passenger",
       desc: "Book autos, track rides, call drivers",
       color: SAFFRON,
@@ -33,7 +42,7 @@ function RolePickerModal({ visible, onClose, onSelect }) {
     },
     {
       id: "driver",
-      emoji: "🛺",
+      Icon: CarFront,
       title: "Driver",
       desc: "Go online, accept rides, manage subscription",
       color: "#16A34A",
@@ -42,7 +51,7 @@ function RolePickerModal({ visible, onClose, onSelect }) {
     },
     {
       id: "admin",
-      emoji: "⚙️",
+      Icon: Settings,
       title: "Admin",
       desc: "Dashboard, driver approvals, analytics",
       color: "#2563EB",
@@ -52,12 +61,7 @@ function RolePickerModal({ visible, onClose, onSelect }) {
   ];
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable
         style={{
           flex: 1,
@@ -76,7 +80,6 @@ function RolePickerModal({ visible, onClose, onSelect }) {
               paddingBottom: 40,
             }}
           >
-            {/* Handle bar */}
             <View
               style={{
                 width: 40,
@@ -94,7 +97,7 @@ function RolePickerModal({ visible, onClose, onSelect }) {
                 fontWeight: "800",
                 color: DARK,
                 marginBottom: 6,
-                letterSpacing: -0.5,
+                letterSpacing: 0,
               }}
             >
               Choose Role to Test
@@ -107,11 +110,9 @@ function RolePickerModal({ visible, onClose, onSelect }) {
                 lineHeight: 20,
               }}
             >
-              Explore each section of the app without signing in. API calls may
-              show empty data.
+              Explore each section of the app without signing in. API calls may show empty data.
             </Text>
 
-            {/* Test mode warning */}
             <View
               style={{
                 backgroundColor: "#FFFBEB",
@@ -125,7 +126,7 @@ function RolePickerModal({ visible, onClose, onSelect }) {
                 gap: 10,
               }}
             >
-              <Text style={{ fontSize: 18 }}>🧪</Text>
+              <FlaskConical size={18} color="#92400E" />
               <Text
                 style={{
                   fontSize: 12,
@@ -134,8 +135,7 @@ function RolePickerModal({ visible, onClose, onSelect }) {
                   lineHeight: 18,
                 }}
               >
-                Test mode — UI is fully functional. Sign in with a real account
-                to use live data.
+                Test mode - UI is fully functional. Sign in with a real account to use live data.
               </Text>
             </View>
 
@@ -171,7 +171,7 @@ function RolePickerModal({ visible, onClose, onSelect }) {
                       elevation: 2,
                     }}
                   >
-                    <Text style={{ fontSize: 26 }}>{role.emoji}</Text>
+                    <role.Icon size={26} color={role.color} strokeWidth={2.4} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text
@@ -194,7 +194,7 @@ function RolePickerModal({ visible, onClose, onSelect }) {
                       {role.desc}
                     </Text>
                   </View>
-                  <Text style={{ fontSize: 20, color: role.color }}>→</Text>
+                  <ArrowRight size={20} color={role.color} />
                 </TouchableOpacity>
               ))}
             </View>
@@ -205,7 +205,6 @@ function RolePickerModal({ visible, onClose, onSelect }) {
   );
 }
 
-// ── Main Index ───────────────────────────────────────────────────
 export default function Index() {
   const { auth, signIn, isReady } = useAuth();
   const insets = useSafeAreaInsets();
@@ -213,13 +212,11 @@ export default function Index() {
   const slideAnim = useRef(new Animated.Value(40)).current;
   const [showRolePicker, setShowRolePicker] = useState(false);
 
-  const { testMode, testRole, testModeLoaded, loadTestMode, enableTestMode } =
-    useAppStore();
+  const { testMode, testRole, testModeLoaded, loadTestMode, enableTestMode } = useAppStore();
 
-  // Load persisted test mode on mount
   useEffect(() => {
     loadTestMode();
-  }, []);
+  }, [loadTestMode]);
 
   useEffect(() => {
     Animated.parallel([
@@ -234,7 +231,7 @@ export default function Index() {
         useNativeDriver: true,
       }),
     ]).start();
-  }, []);
+  }, [fadeAnim, slideAnim]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["userProfile"],
@@ -246,7 +243,6 @@ export default function Index() {
     enabled: !!auth,
   });
 
-  // Show loader until test mode is loaded from storage
   if (!testModeLoaded || !isReady || (auth && isLoading)) {
     return (
       <View
@@ -259,20 +255,18 @@ export default function Index() {
       >
         <ActivityIndicator size="large" color={SAFFRON} />
         <Text style={{ marginTop: 12, fontSize: 14, color: "#78716C" }}>
-          Loading AutoConnect...
+          Loading Auto Ride...
         </Text>
       </View>
     );
   }
 
-  // ── Test mode redirect ─────────────────────────────
   if (testMode && testRole) {
     if (testRole === "admin") return <Redirect href="/(admin)" />;
     if (testRole === "driver") return <Redirect href="/(driver)" />;
     return <Redirect href="/(passenger)" />;
   }
 
-  // ── Auth redirect ──────────────────────────────────
   if (auth) {
     const role = data?.user?.role || "passenger";
     if (role === "admin") return <Redirect href="/(admin)" />;
@@ -280,7 +274,6 @@ export default function Index() {
     return <Redirect href="/(passenger)" />;
   }
 
-  // ── Landing screen ─────────────────────────────────
   return (
     <View style={{ flex: 1, backgroundColor: DARK }}>
       <StatusBar style="light" />
@@ -294,7 +287,6 @@ export default function Index() {
       />
 
       <View style={{ flex: 1, justifyContent: "flex-end" }}>
-        {/* Decorative circles */}
         <View
           style={{
             position: "absolute",
@@ -320,7 +312,6 @@ export default function Index() {
           }}
         />
 
-        {/* India flag stripe */}
         <View
           style={{
             position: "absolute",
@@ -336,7 +327,6 @@ export default function Index() {
           <View style={{ flex: 1, backgroundColor: INDIA_GREEN }} />
         </View>
 
-        {/* Logo */}
         <Animated.View
           style={{
             paddingHorizontal: 32,
@@ -369,11 +359,11 @@ export default function Index() {
               fontSize: 42,
               fontWeight: "800",
               color: "#FFFFFF",
-              letterSpacing: -1,
+              letterSpacing: 0,
             }}
           >
             Auto{"\n"}
-            <Text style={{ color: SAFFRON }}>Connect</Text>
+            <Text style={{ color: SAFFRON }}>Ride</Text>
           </Text>
           <Text
             style={{
@@ -387,9 +377,13 @@ export default function Index() {
           </Text>
 
           <View style={{ flexDirection: "row", gap: 8, marginTop: 32 }}>
-            {["🚀 Instant", "✅ Safe", "💰 Fair"].map((tag, i) => (
+            {[
+              { label: "Instant", Icon: Gauge },
+              { label: "Safe", Icon: ShieldCheck },
+              { label: "Fair", Icon: CircleDollarSign },
+            ].map(({ label, Icon }) => (
               <View
-                key={i}
+                key={label}
                 style={{
                   paddingHorizontal: 12,
                   paddingVertical: 6,
@@ -397,15 +391,18 @@ export default function Index() {
                   backgroundColor: "#FFFFFF12",
                   borderWidth: 1,
                   borderColor: "#FFFFFF18",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 6,
                 }}
               >
-                <Text style={{ fontSize: 12, color: "#D6D3D1" }}>{tag}</Text>
+                <Icon size={13} color="#D6D3D1" />
+                <Text style={{ fontSize: 12, color: "#D6D3D1" }}>{label}</Text>
               </View>
             ))}
           </View>
         </Animated.View>
 
-        {/* Bottom card */}
         <Animated.View
           style={{
             backgroundColor: "#FFFFFF",
@@ -439,7 +436,6 @@ export default function Index() {
             Sign in to book an auto or start earning as a driver today.
           </Text>
 
-          {/* Primary CTA */}
           <TouchableOpacity
             onPress={() => signIn()}
             style={{
@@ -460,14 +456,13 @@ export default function Index() {
                 color: "#fff",
                 fontSize: 17,
                 fontWeight: "700",
-                letterSpacing: 0.3,
+                letterSpacing: 0,
               }}
             >
-              Continue with Email
+              Continue with Email / Number
             </Text>
           </TouchableOpacity>
 
-          {/* Divider */}
           <View
             style={{
               flexDirection: "row",
@@ -483,7 +478,6 @@ export default function Index() {
             <View style={{ flex: 1, height: 1, backgroundColor: "#E7E5E4" }} />
           </View>
 
-          {/* Skip / Test mode CTA */}
           <TouchableOpacity
             onPress={() => setShowRolePicker(true)}
             style={{
@@ -499,9 +493,9 @@ export default function Index() {
             }}
             activeOpacity={0.8}
           >
-            <Text style={{ fontSize: 18 }}>🧪</Text>
+            <FlaskConical size={18} color="#44403C" />
             <Text style={{ color: "#44403C", fontSize: 15, fontWeight: "700" }}>
-              Skip Sign In — Test App
+              Skip Sign In - Test App
             </Text>
           </TouchableOpacity>
 

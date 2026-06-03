@@ -1,9 +1,9 @@
 import { readFileSync } from "node:fs";
-import { spawnSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { neon } from "@neondatabase/serverless";
+import pg from "pg";
 
+const { Pool } = pg;
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = resolve(__dirname, "..");
 const REQUIRED_TABLES = [
@@ -31,54 +31,7 @@ function loadDotEnv() {
       }
     }
   } catch {
-    // External DATABASE_URL is also supported, so a missing .env is fine.
-  }
-}
-
-function isLocalDatabase(url) {
-  return /localhost|127\.0\.0\.1/i.test(url);
-}
-
-function runPsqlCheck(databaseUrl) {
-  const query = `
-    SELECT table_name
-    FROM information_schema.tables
-    WHERE table_schema = 'public'
-      AND table_name IN (${REQUIRED_TABLES.map((table) => `'${table}'`).join(",")})
-    ORDER BY table_name;
-  `;
-  const result = spawnSync(
-    "psql",
-    [databaseUrl, "-t", "-A", "-c", query],
-    { encoding: "utf8" },
-  );
-
-  if (result.error?.code === "ENOENT") {
-    throw new Error(
-      "Local DATABASE_URL requires psql, but psql was not found. Install PostgreSQL client tools or use web/scripts/apply-schema.ps1 on a machine with psql.",
-    );
-  }
-  if (result.status !== 0) {
-    throw new Error((result.stderr || result.stdout).trim());
-  }
-
-  const existingTables = result.stdout
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-  const found = new Set(existingTables);
-  const missing = REQUIRED_TABLES.filter((table) => !found.has(table));
-
-  console.log(JSON.stringify({
-    connected: true,
-    driver: "psql",
-    requiredTables: REQUIRED_TABLES,
-    existingTables,
-    missingTables: missing,
-  }, null, 2));
-
-  if (missing.length > 0) {
-    process.exitCode = 2;
+    // External DATABASE_URL is also supported.
   }
 }
 
@@ -90,37 +43,46 @@ async function main() {
     throw new Error("DATABASE_URL is missing. Set it in web/.env or the shell.");
   }
 
-  if (isLocalDatabase(databaseUrl)) {
-    runPsqlCheck(databaseUrl);
-    return;
-  }
+  const pool = new Pool({ connectionString: databaseUrl });
+  try {
+    const connection = await pool.query(
+      "SELECT current_database() AS database_name, current_user AS user_name",
+    );
+    const tables = await pool.query(
+      `
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE table_schema = 'public'
+          AND table_name = ANY($1)
+        ORDER BY table_name
+      `,
+      [REQUIRED_TABLES],
+    );
 
-  const sql = neon(databaseUrl);
-  const [connection] = await sql`
-    SELECT current_database() AS database_name, current_user AS user_name
-  `;
-  const rows = await sql`
-    SELECT table_name
-    FROM information_schema.tables
-    WHERE table_schema = 'public'
-      AND table_name = ANY(${REQUIRED_TABLES})
-    ORDER BY table_name
-  `;
+    const found = new Set(tables.rows.map((row) => row.table_name));
+    const missing = REQUIRED_TABLES.filter((table) => !found.has(table));
 
-  const found = new Set(rows.map((row) => row.table_name));
-  const missing = REQUIRED_TABLES.filter((table) => !found.has(table));
+    console.log(
+      JSON.stringify(
+        {
+          connected: true,
+          driver: "pg",
+          database: connection.rows[0].database_name,
+          user: connection.rows[0].user_name,
+          requiredTables: REQUIRED_TABLES,
+          existingTables: [...found].sort(),
+          missingTables: missing,
+        },
+        null,
+        2,
+      ),
+    );
 
-  console.log(JSON.stringify({
-    connected: true,
-    database: connection.database_name,
-    user: connection.user_name,
-    requiredTables: REQUIRED_TABLES,
-    existingTables: [...found].sort(),
-    missingTables: missing,
-  }, null, 2));
-
-  if (missing.length > 0) {
-    process.exitCode = 2;
+    if (missing.length > 0) {
+      process.exitCode = 2;
+    }
+  } finally {
+    await pool.end();
   }
 }
 

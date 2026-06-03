@@ -52,9 +52,7 @@ const isSecondPartyUrl = (url: string) => {
     (process.env.NEXT_PUBLIC_CREATE_BASE_URL &&
       url.startsWith(process.env.NEXT_PUBLIC_CREATE_BASE_URL)) ||
     url.startsWith('https://www.create.xyz') ||
-    url.startsWith('https://api.create.xyz/') ||
-    url.startsWith('https://www.createanything.com') ||
-    url.startsWith('https://api.createanything.com')
+    url.startsWith('https://api.create.xyz/')
   );
 };
 

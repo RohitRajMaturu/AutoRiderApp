@@ -412,7 +412,7 @@ export default function PassengerProfile() {
             marginTop: 28,
           }}
         >
-          AutoConnect v1.0 · Made in India 🇮🇳
+          Auto Ride v1.0 - Made in India
         </Text>
       </ScrollView>
     </View>

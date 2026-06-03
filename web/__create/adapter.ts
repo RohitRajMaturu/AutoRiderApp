@@ -19,6 +19,7 @@ interface NeonAdapter extends Adapter {
   createUser(data: AdapterUser): Promise<AdapterUser>;
   getUser(userId: string): Promise<AdapterUser | null>;
   getUserByEmail(email: string): Promise<NeonUser | null>;
+  getUserByPhone(phone: string): Promise<NeonUser | null>;
   getUserByAccount(data: {
     provider: string;
     providerAccountId: string;
@@ -92,6 +93,27 @@ export default function NeonAdapter(client: Pool): NeonAdapter {
     async getUserByEmail(email) {
       const sql = 'select * from auth_users where email = $1';
       const result = await client.query(sql, [email]);
+      if (result.rowCount === 0) {
+        return null;
+      }
+      const userData = result.rows[0];
+      const accountsData = await client.query(
+        'select * from auth_accounts where "userId" = $1',
+        [userData.id]
+      );
+      return {
+        ...userData,
+        accounts: accountsData.rows,
+      };
+    },
+    async getUserByPhone(phone) {
+      const normalizedPhone = phone.replace(/\D/g, '');
+      const sql = `
+        select *
+        from auth_users
+        where regexp_replace(coalesce(phone, ''), '\\D', '', 'g') = $1
+        limit 1`;
+      const result = await client.query(sql, [normalizedPhone]);
       if (result.rowCount === 0) {
         return null;
       }

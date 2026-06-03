@@ -1,7 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React from 'react';
 import { Modal, View } from 'react-native';
-import { create } from 'zustand';
-import { useCallback, useMemo } from 'react';
 import { AuthWebView } from './AuthWebView';
 import { useAuthStore, useAuthModal } from './store';
 
@@ -33,7 +31,6 @@ export const AuthModal = () => {
   const { isOpen, mode } = useAuthModal();
   const { auth } = useAuthStore();
 
-  const snapPoints = useMemo(() => ['100%'], []);
   const proxyURL = process.env.EXPO_PUBLIC_PROXY_BASE_URL;
   const baseURL = process.env.EXPO_PUBLIC_BASE_URL;
   if (!proxyURL && !baseURL) {

@@ -55,6 +55,10 @@ const pool = new Pool({
 });
 const adapter = NeonAdapter(pool);
 
+function isPhoneIdentifier(value: string) {
+  return value.replace(/\D/g, '').length >= 7 && !value.includes('@');
+}
+
 const app = new Hono();
 
 app.use('*', requestId());
@@ -189,8 +193,8 @@ if (process.env.AUTH_SECRET) {
           name: 'Credentials Sign in',
           credentials: {
             email: {
-              label: 'Email',
-              type: 'email',
+              label: 'Email or phone',
+              type: 'text',
             },
             password: {
               label: 'Password',
@@ -206,8 +210,10 @@ if (process.env.AUTH_SECRET) {
               return null;
             }
 
-            // logic to verify if user exists
-            const user = await adapter.getUserByEmail(email);
+            const identifier = email.trim();
+            const user = isPhoneIdentifier(identifier)
+              ? await adapter.getUserByPhone(identifier)
+              : await adapter.getUserByEmail(identifier.toLowerCase());
             if (!user) {
               return null;
             }

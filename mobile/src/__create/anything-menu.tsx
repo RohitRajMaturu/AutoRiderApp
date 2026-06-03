@@ -1,3 +1,3 @@
-export default function AnythingMenu() {
+export default function AutoRideMenu() {
   return null
 }
