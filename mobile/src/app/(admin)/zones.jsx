@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   RefreshControl,
   ScrollView,
   Text,
@@ -9,10 +10,11 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import MapView, { Marker, Polygon } from "react-native-maps";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Map, Plus, ToggleLeft, ToggleRight } from "lucide-react-native";
+import { LocateFixed, Map, Plus, Search, ToggleLeft, ToggleRight, X } from "lucide-react-native";
 
 const PRIMARY = "#F97316";
 const BG = "#1C1917";
@@ -22,6 +24,12 @@ const TEXT = "#FAFAF9";
 const TEXT_SECONDARY = "#A8A29E";
 const SUCCESS = "#22C55E";
 const ERROR = "#EF4444";
+const DEFAULT_REGION = {
+  latitude: 12.9716,
+  longitude: 77.5946,
+  latitudeDelta: 0.12,
+  longitudeDelta: 0.12,
+};
 
 function toNumber(value) {
   const next = Number(value);
@@ -39,6 +47,32 @@ function buildRectangleBoundary(swLat, swLng, neLat, neLng) {
       [swLng, swLat],
     ]],
   };
+}
+
+function normalizeRectangleFromPoints(points) {
+  if (points.length < 2) return null;
+  const lats = points.map((point) => point.latitude);
+  const lngs = points.map((point) => point.longitude);
+  return {
+    south: Math.min(...lats),
+    west: Math.min(...lngs),
+    north: Math.max(...lats),
+    east: Math.max(...lngs),
+  };
+}
+
+function rectanglePolygon(rectangle) {
+  if (!rectangle) return [];
+  return [
+    { latitude: rectangle.south, longitude: rectangle.west },
+    { latitude: rectangle.south, longitude: rectangle.east },
+    { latitude: rectangle.north, longitude: rectangle.east },
+    { latitude: rectangle.north, longitude: rectangle.west },
+  ];
+}
+
+function formatCoord(value) {
+  return String(Number(value).toFixed(6));
 }
 
 function parseGeoJsonBoundary(value) {
@@ -62,6 +96,7 @@ function parseGeoJsonBoundary(value) {
 export default function AdminZones() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
+  const mapRef = useRef(null);
   const [mode, setMode] = useState("rectangle");
   const [name, setName] = useState("");
   const [maxDrivers, setMaxDrivers] = useState("25");
@@ -70,6 +105,11 @@ export default function AdminZones() {
   const [neLat, setNeLat] = useState("");
   const [neLng, setNeLng] = useState("");
   const [geoJson, setGeoJson] = useState("");
+  const [mapPoints, setMapPoints] = useState([]);
+  const [areaSearch, setAreaSearch] = useState("");
+  const [areaSuggestions, setAreaSuggestions] = useState([]);
+  const [searchPin, setSearchPin] = useState(null);
+  const [isSearchingArea, setIsSearchingArea] = useState(false);
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["adminZones"],
@@ -126,6 +166,7 @@ export default function AdminZones() {
       setNeLat("");
       setNeLng("");
       setGeoJson("");
+      setMapPoints([]);
       queryClient.invalidateQueries({ queryKey: ["adminZones"] });
       Alert.alert("Zone Created", "Drivers can now be matched inside this boundary.");
     },
@@ -147,6 +188,80 @@ export default function AdminZones() {
   });
 
   const zones = data?.zones || [];
+  const selectedRectangle = normalizeRectangleFromPoints(mapPoints);
+  const selectedPolygon = rectanglePolygon(selectedRectangle);
+
+  const setRectangleFromMap = (points) => {
+    setMapPoints(points);
+    const rectangle = normalizeRectangleFromPoints(points);
+    if (!rectangle) return;
+    setSwLat(formatCoord(rectangle.south));
+    setSwLng(formatCoord(rectangle.west));
+    setNeLat(formatCoord(rectangle.north));
+    setNeLng(formatCoord(rectangle.east));
+  };
+
+  const handleMapPress = (event) => {
+    const point = event.nativeEvent.coordinate;
+    setRectangleFromMap(mapPoints.length >= 2 ? [point] : [...mapPoints, point]);
+  };
+
+  const searchArea = async () => {
+    const query = areaSearch.trim();
+    if (query.length < 2) {
+      setAreaSuggestions([]);
+      return;
+    }
+    setIsSearchingArea(true);
+    try {
+      const res = await fetch(`/api/locations/autocomplete?q=${encodeURIComponent(query)}`);
+      if (!res.ok) throw new Error("Search failed");
+      const data = await res.json();
+      setAreaSuggestions((data.suggestions || []).slice(0, 5));
+    } catch {
+      Alert.alert("Search Failed", "Could not fetch area suggestions.");
+    } finally {
+      setIsSearchingArea(false);
+    }
+  };
+
+  const resolvePlace = async (place) => {
+    if (place.lat && place.lng) return place;
+    if (!place.placeId) return place;
+    const res = await fetch(`/api/locations/place/${encodeURIComponent(place.placeId)}`);
+    if (!res.ok) return place;
+    const data = await res.json();
+    return data.place || place;
+  };
+
+  const jumpToPlace = async (place) => {
+    try {
+      const resolved = await resolvePlace(place);
+      if (!resolved.lat || !resolved.lng) {
+        Alert.alert("Location Missing", "This suggestion does not include map coordinates.");
+        return;
+      }
+      const pin = {
+        latitude: Number(resolved.lat),
+        longitude: Number(resolved.lng),
+        title: resolved.label || resolved.name || areaSearch,
+      };
+      setSearchPin(pin);
+      setAreaSearch(resolved.address || resolved.label || areaSearch);
+      setAreaSuggestions([]);
+      mapRef.current?.animateToRegion(
+        {
+          latitude: pin.latitude,
+          longitude: pin.longitude,
+          latitudeDelta: 0.035,
+          longitudeDelta: 0.035,
+        },
+        450,
+      );
+    } catch {
+      Alert.alert("Search Failed", "Could not move the map to that area.");
+    }
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
@@ -242,6 +357,175 @@ export default function AdminZones() {
           />
           {mode === "rectangle" ? (
             <>
+              {Platform.OS !== "web" && (
+                <>
+                  <View
+                    style={{
+                      backgroundColor: BG,
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: BORDER,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 10,
+                        paddingHorizontal: 12,
+                        paddingVertical: 10,
+                      }}
+                    >
+                      <Search size={16} color={TEXT_SECONDARY} />
+                      <TextInput
+                        placeholder="Search area, locality, landmark..."
+                        placeholderTextColor={TEXT_SECONDARY}
+                        value={areaSearch}
+                        onChangeText={setAreaSearch}
+                        onSubmitEditing={searchArea}
+                        returnKeyType="search"
+                        style={{ flex: 1, color: TEXT, fontSize: 13, paddingVertical: 0 }}
+                      />
+                      {areaSearch.length > 0 && (
+                        <TouchableOpacity
+                          onPress={() => {
+                            setAreaSearch("");
+                            setAreaSuggestions([]);
+                            setSearchPin(null);
+                          }}
+                        >
+                          <X size={16} color={TEXT_SECONDARY} />
+                        </TouchableOpacity>
+                      )}
+                      <TouchableOpacity
+                        onPress={searchArea}
+                        disabled={isSearchingArea}
+                        style={{
+                          width: 34,
+                          height: 34,
+                          borderRadius: 10,
+                          backgroundColor: PRIMARY,
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        {isSearchingArea ? (
+                          <ActivityIndicator size="small" color="#fff" />
+                        ) : (
+                          <LocateFixed size={16} color="#fff" />
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                    {areaSuggestions.map((place, index) => (
+                      <TouchableOpacity
+                        key={`${place.placeId || place.address || place.label}-${index}`}
+                        onPress={() => jumpToPlace(place)}
+                        style={{
+                          paddingHorizontal: 12,
+                          paddingVertical: 10,
+                          borderTopWidth: 1,
+                          borderTopColor: BORDER,
+                        }}
+                      >
+                        <Text style={{ color: TEXT, fontSize: 13, fontWeight: "800" }} numberOfLines={1}>
+                          {place.label || place.name || "Suggested area"}
+                        </Text>
+                        <Text style={{ color: TEXT_SECONDARY, fontSize: 11, marginTop: 2 }} numberOfLines={1}>
+                          {place.address || place.description || ""}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <View
+                    style={{
+                      height: 260,
+                      borderRadius: 12,
+                      overflow: "hidden",
+                      borderWidth: 1,
+                      borderColor: BORDER,
+                      backgroundColor: BG,
+                    }}
+                  >
+                    <MapView
+                      ref={mapRef}
+                      style={{ flex: 1 }}
+                      initialRegion={DEFAULT_REGION}
+                      onPress={handleMapPress}
+                    >
+                      {searchPin && (
+                        <Marker
+                          coordinate={searchPin}
+                          title={searchPin.title || "Selected area"}
+                          pinColor="#3B82F6"
+                        />
+                      )}
+                      {mapPoints.map((point, index) => (
+                        <Marker
+                          key={`${point.latitude}-${point.longitude}-${index}`}
+                          coordinate={point}
+                          title={index === 0 ? "Corner 1" : "Corner 2"}
+                          pinColor={index === 0 ? PRIMARY : SUCCESS}
+                        />
+                      ))}
+                      {selectedPolygon.length === 4 && (
+                        <Polygon
+                          coordinates={selectedPolygon}
+                          strokeColor={PRIMARY}
+                          fillColor="rgba(249,115,22,0.22)"
+                          strokeWidth={2}
+                        />
+                      )}
+                    </MapView>
+                    <View
+                      style={{
+                        position: "absolute",
+                        left: 10,
+                        right: 10,
+                        bottom: 10,
+                        padding: 10,
+                        borderRadius: 10,
+                        backgroundColor: "rgba(28,25,23,0.88)",
+                        borderWidth: 1,
+                        borderColor: BORDER,
+                      }}
+                    >
+                      <Text style={{ color: TEXT, fontSize: 12, fontWeight: "800" }}>
+                        {mapPoints.length < 2
+                          ? `Tap ${2 - mapPoints.length} more corner${mapPoints.length === 1 ? "" : "s"}`
+                          : "Rectangle selected"}
+                      </Text>
+                      <Text style={{ color: TEXT_SECONDARY, fontSize: 11, marginTop: 3 }}>
+                        Search to jump, pan manually, then tap two opposite corners.
+                      </Text>
+                    </View>
+                  </View>
+                </>
+              )}
+              {Platform.OS !== "web" && mapPoints.length > 0 && (
+                <TouchableOpacity
+                  onPress={() => {
+                    setMapPoints([]);
+                    setSwLat("");
+                    setSwLng("");
+                    setNeLat("");
+                    setNeLng("");
+                  }}
+                  style={{
+                    alignSelf: "flex-start",
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    borderColor: BORDER,
+                    backgroundColor: BG,
+                  }}
+                >
+                  <Text style={{ color: TEXT_SECONDARY, fontWeight: "800", fontSize: 12 }}>
+                    Clear Map Selection
+                  </Text>
+                </TouchableOpacity>
+              )}
               <View style={{ flexDirection: "row", gap: 8 }}>
                 <TextInput
                   placeholder="SW lat"
