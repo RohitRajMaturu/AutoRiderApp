@@ -1,33 +1,20 @@
 import sql from "@/app/api/utils/sql";
 import { getRouteEstimate } from "@/app/api/utils/locations";
 import {
-  getEnvNumber,
   isLatitude,
   isLongitude,
   readBoundedString,
 } from "@/app/api/utils/validation";
+import {
+  autoCancelGhostRides,
+  createBackgroundTask,
+  dispatchRideRequest,
+  findZoneForPoint,
+  getPassengerPostCancelCooldownSeconds,
+  getPassengerSpamCooldownSeconds,
+  offlineExpiredDrivers,
+} from "@/app/api/utils/dispatch";
 import { auth } from "@/auth";
-
-function getNearbyRideRadiusKm() {
-  return getEnvNumber("DRIVER_RIDE_RADIUS_KM", 8, { min: 1, max: 50 });
-}
-
-function getDriverLocationMaxAgeMinutes() {
-  return getEnvNumber("DRIVER_LOCATION_MAX_AGE_MINUTES", 10, {
-    min: 1,
-    max: 240,
-  });
-}
-
-function hasFreshDriverLocation(driver) {
-  if (!isLatitude(Number(driver?.last_lat)) || !isLongitude(Number(driver?.last_lng))) {
-    return false;
-  }
-  const updatedAt = driver?.updated_at ? new Date(driver.updated_at).getTime() : 0;
-  if (!Number.isFinite(updatedAt)) return false;
-  const maxAgeMs = getDriverLocationMaxAgeMinutes() * 60 * 1000;
-  return Date.now() - updatedAt <= maxAgeMs;
-}
 
 export async function POST(request) {
   try {
@@ -69,7 +56,9 @@ export async function POST(request) {
       );
     }
 
-    // Check if user already has an active ride
+    await autoCancelGhostRides();
+
+    // Check if user already has an active ride.
     const active = await sql`
       SELECT id FROM rides 
       WHERE passenger_id = ${session.user.id} 
@@ -80,6 +69,59 @@ export async function POST(request) {
       return Response.json(
         { error: "You already have an active ride request" },
         { status: 400 },
+      );
+    }
+
+    const spamCooldownSeconds = getPassengerSpamCooldownSeconds();
+    if (spamCooldownSeconds > 0) {
+      const recent = await sql`
+        SELECT id, created_at
+        FROM rides
+        WHERE passenger_id = ${session.user.id}
+          AND created_at > CURRENT_TIMESTAMP - make_interval(secs => ${spamCooldownSeconds})
+        ORDER BY created_at DESC
+        LIMIT 1
+      `;
+      if (recent.length > 0) {
+        return Response.json(
+          {
+            error: `Please wait ${spamCooldownSeconds} seconds before requesting again.`,
+            code: "REQUEST_COOLDOWN",
+            retry_after_seconds: spamCooldownSeconds,
+          },
+          { status: 429 },
+        );
+      }
+    }
+
+    const postCancelCooldownSeconds = getPassengerPostCancelCooldownSeconds();
+    if (postCancelCooldownSeconds > 0) {
+      const cancelled = await sql`
+        SELECT id, cancelled_at
+        FROM rides
+        WHERE passenger_id = ${session.user.id}
+          AND status = 'cancelled'
+          AND cancelled_at > CURRENT_TIMESTAMP - make_interval(secs => ${postCancelCooldownSeconds})
+        ORDER BY cancelled_at DESC
+        LIMIT 1
+      `;
+      if (cancelled.length > 0) {
+        return Response.json(
+          {
+            error: `Please wait ${postCancelCooldownSeconds} seconds after cancellation before requesting again.`,
+            code: "POST_CANCEL_COOLDOWN",
+            retry_after_seconds: postCancelCooldownSeconds,
+          },
+          { status: 429 },
+        );
+      }
+    }
+
+    const zone = await findZoneForPoint(pickupLat, pickupLng);
+    if (!zone) {
+      return Response.json(
+        { error: "Pickup is outside all active service zones", code: "NO_SERVICE_ZONE" },
+        { status: 422 },
       );
     }
 
@@ -100,7 +142,8 @@ export async function POST(request) {
         duration_mins,
         estimated_fare,
         route_polyline,
-        route_provider
+        route_provider,
+        zone_id
       )
       VALUES (
         ${session.user.id},
@@ -116,12 +159,15 @@ export async function POST(request) {
         ${estimate.durationMins},
         ${estimate.estimatedFare},
         ${estimate.polyline},
-        ${estimate.provider}
+        ${estimate.provider},
+        ${zone.id}
       )
       RETURNING *
     `;
 
-    return Response.json({ ride: rows[0] });
+    createBackgroundTask(() => dispatchRideRequest(rows[0]));
+
+    return Response.json({ ride: rows[0], zone }, { status: 202 });
   } catch (err) {
     console.error("POST /api/rides error:", err);
     return Response.json({ error: "Internal Server Error" }, { status: 500 });
@@ -142,59 +188,33 @@ export async function GET(request) {
 
     let rides;
     if (role === "driver") {
+      await autoCancelGhostRides();
+      await offlineExpiredDrivers();
       const driverRows =
-        await sql`SELECT id, last_lat, last_lng, updated_at FROM drivers WHERE user_id = ${session.user.id} LIMIT 1`;
+        await sql`SELECT id, zone_id FROM drivers WHERE user_id = ${session.user.id} LIMIT 1`;
       const driver = driverRows[0];
       if (!driver) {
         return Response.json({ rides: [] });
       }
-      const hasLocation = hasFreshDriverLocation(driver);
-      const nearbyRideRadiusKm = getNearbyRideRadiusKm();
       rides = await sql`
         SELECT
           r.*,
           u.phone as passenger_phone,
-          CASE
-            WHEN ${hasLocation} THEN (
-              6371 * acos(
-                least(
-                  1,
-                  greatest(
-                    -1,
-                    cos(radians(${driver.last_lat})) *
-                    cos(radians(r.pickup_lat)) *
-                    cos(radians(r.pickup_lng) - radians(${driver.last_lng})) +
-                    sin(radians(${driver.last_lat})) *
-                    sin(radians(r.pickup_lat))
-                  )
-                )
-              )
-            )
-            ELSE NULL
-          END as pickup_distance_km
+          z.name as zone_name
         FROM rides r
         JOIN auth_users u ON r.passenger_id = u.id
+        LEFT JOIN geo_zones z ON z.id = r.zone_id
         WHERE
           r.driver_id = ${driver.id}
           OR (
-            ${hasLocation}
-            AND r.status = 'requested'
+            r.status = 'requested'
             AND r.driver_id IS NULL
-            AND (
-              6371 * acos(
-                least(
-                  1,
-                  greatest(
-                    -1,
-                    cos(radians(${driver.last_lat})) *
-                    cos(radians(r.pickup_lat)) *
-                    cos(radians(r.pickup_lng) - radians(${driver.last_lng})) +
-                    sin(radians(${driver.last_lat})) *
-                    sin(radians(r.pickup_lat))
-                  )
-                )
-              )
-            ) <= ${nearbyRideRadiusKm}
+            AND r.zone_id = ${driver.zone_id}
+            AND EXISTS (
+              SELECT 1
+              FROM ride_driver_notifications n
+              WHERE n.ride_id = r.id AND n.driver_id = ${driver.id}
+            )
           )
         ORDER BY r.created_at DESC
       `;

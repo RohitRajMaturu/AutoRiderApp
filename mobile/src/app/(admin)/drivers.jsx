@@ -394,7 +394,7 @@ export default function AdminDrivers() {
         body: JSON.stringify({
           driver_id: driverId,
           is_approved: isApproved,
-          subscription_days: subscriptionDays || 30,
+          subscription_days: subscriptionDays,
         }),
       });
       if (!res.ok) throw new Error("Update failed");
@@ -583,7 +583,7 @@ export default function AdminDrivers() {
                           updateDriver.mutate({
                             driverId: id,
                             isApproved: false,
-                            subscriptionDays: 0,
+                            subscriptionDays: null,
                           }),
                       },
                     ],

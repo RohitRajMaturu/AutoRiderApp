@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   View,
   Text,
@@ -26,6 +26,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
 import * as Location from "expo-location";
 import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedView";
+import { useRealtime } from "@/utils/realtime/useRealtime";
 
 const PRIMARY = "#F97316";
 const PRIMARY_DARK = "#EA580C";
@@ -1027,6 +1028,18 @@ export default function DriverHome() {
       queryClient.invalidateQueries({ queryKey: ["driverRides"] });
       Alert.alert("✅ Ride Completed!", "Great work! Keep earning!");
     },
+  });
+
+  const handleRealtimeRideRequest = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["driverRides"] });
+    refetchRides();
+  }, [queryClient, refetchRides]);
+
+  useRealtime({
+    enabled:
+      !!driverData?.driver?.is_approved && !!driverData?.driver?.is_online,
+    onRideRequest: handleRealtimeRideRequest,
+    heartbeatPayload: useCallback(() => ({ is_online: true }), []),
   });
 
   if (driverLoading) {

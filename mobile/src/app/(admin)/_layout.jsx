@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { BarChart3, Users, Route } from "lucide-react-native";
+import { BarChart3, FileText, Map, Users, Route } from "lucide-react-native";
 
 export default function AdminLayout() {
   return (
@@ -54,6 +54,32 @@ export default function AdminLayout() {
           title: "Rides",
           tabBarIcon: ({ color }) => (
             <Route
+              color={color}
+              size={22}
+              strokeWidth={color === "#F97316" ? 2.5 : 1.8}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="zones"
+        options={{
+          title: "Zones",
+          tabBarIcon: ({ color }) => (
+            <Map
+              color={color}
+              size={22}
+              strokeWidth={color === "#F97316" ? 2.5 : 1.8}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="audit"
+        options={{
+          title: "Audit",
+          tabBarIcon: ({ color }) => (
+            <FileText
               color={color}
               size={22}
               strokeWidth={color === "#F97316" ? 2.5 : 1.8}

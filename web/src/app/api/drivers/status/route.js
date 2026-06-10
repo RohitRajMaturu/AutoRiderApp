@@ -1,5 +1,10 @@
 import sql from "@/app/api/utils/sql";
 import { auth } from "@/auth";
+import {
+  findZoneForPoint,
+  getDriverHeartbeatTimeoutSeconds,
+  offlineExpiredDrivers,
+} from "@/app/api/utils/dispatch";
 
 function isFiniteLatitude(value) {
   return Number.isFinite(value) && value >= -90 && value <= 90;
@@ -39,9 +44,16 @@ export async function PATCH(request) {
       );
     }
 
+    await offlineExpiredDrivers();
+
     // Check if subscription is active
     const driver =
-      await sql`SELECT id, subscription_expiry FROM drivers WHERE user_id = ${session.user.id} LIMIT 1`;
+      await sql`
+        SELECT id, is_approved, subscription_expiry
+        FROM drivers
+        WHERE user_id = ${session.user.id}
+        LIMIT 1
+      `;
     if (driver.length === 0)
       return Response.json(
         { error: "Driver profile not found" },
@@ -52,6 +64,13 @@ export async function PATCH(request) {
     const expiry = driver[0].subscription_expiry
       ? new Date(driver[0].subscription_expiry)
       : null;
+
+    if (nextOnline && !driver[0].is_approved) {
+      return Response.json(
+        { error: "Driver must be approved before going online.", code: "DRIVER_NOT_APPROVED" },
+        { status: 403 },
+      );
+    }
 
     // If trying to go online but subscription expired
     if (nextOnline && (!expiry || expiry < now)) {
@@ -64,17 +83,73 @@ export async function PATCH(request) {
       );
     }
 
-    const rows = await sql`
-      UPDATE drivers 
-      SET is_online = COALESCE(${nextOnline}, is_online),
-          last_lat = COALESCE(${nextLat}, last_lat),
-          last_lng = COALESCE(${nextLng}, last_lng),
-          updated_at = CURRENT_TIMESTAMP
-      WHERE user_id = ${session.user.id}
-      RETURNING *
-    `;
+    let zone = null;
+    if (nextOnline) {
+      if (nextLat === null || nextLng === null) {
+        return Response.json(
+          { error: "Location is required to go online", code: "LOCATION_REQUIRED" },
+          { status: 400 },
+        );
+      }
+      zone = await findZoneForPoint(nextLat, nextLng);
+      if (!zone) {
+        return Response.json(
+          { error: "You are outside all active service zones", code: "NO_SERVICE_ZONE" },
+          { status: 422 },
+        );
+      }
 
-    return Response.json({ driver: rows[0] });
+      const capacityRows = await sql`
+        SELECT count(d.id)::int AS online_count, max_online_drivers
+        FROM geo_zones z
+        LEFT JOIN drivers d ON d.zone_id = z.id
+          AND d.is_online = true
+          AND d.is_approved = true
+          AND d.id <> ${driver[0].id}
+          AND d.subscription_expiry > CURRENT_TIMESTAMP
+          AND d.last_heartbeat_at >= CURRENT_TIMESTAMP - make_interval(secs => ${getDriverHeartbeatTimeoutSeconds()})
+        WHERE z.id = ${zone.id}
+        GROUP BY z.max_online_drivers
+      `;
+      const capacity = capacityRows[0];
+      if (capacity && capacity.online_count >= capacity.max_online_drivers) {
+        return Response.json(
+          { error: "This zone is at its online driver cap.", code: "ZONE_DRIVER_CAP_REACHED" },
+          { status: 409 },
+        );
+      }
+    }
+
+    const rows = nextOnline === false
+      ? await sql`
+          UPDATE drivers
+          SET is_online = false,
+              zone_id = NULL,
+              online_since = NULL,
+              last_heartbeat_at = CURRENT_TIMESTAMP,
+              last_lat = COALESCE(${nextLat}, last_lat),
+              last_lng = COALESCE(${nextLng}, last_lng),
+              updated_at = CURRENT_TIMESTAMP
+          WHERE user_id = ${session.user.id}
+          RETURNING *
+        `
+      : await sql`
+          UPDATE drivers 
+          SET is_online = COALESCE(${nextOnline}, is_online),
+              zone_id = COALESCE(${zone?.id || null}, zone_id),
+              online_since = CASE
+                WHEN ${nextOnline} AND online_since IS NULL THEN CURRENT_TIMESTAMP
+                ELSE online_since
+              END,
+              last_heartbeat_at = CURRENT_TIMESTAMP,
+              last_lat = COALESCE(${nextLat}, last_lat),
+              last_lng = COALESCE(${nextLng}, last_lng),
+              updated_at = CURRENT_TIMESTAMP
+          WHERE user_id = ${session.user.id}
+          RETURNING *
+        `;
+
+    return Response.json({ driver: rows[0], zone });
   } catch (err) {
     console.error("PATCH /api/drivers/status error:", err);
     return Response.json({ error: "Internal Server Error" }, { status: 500 });

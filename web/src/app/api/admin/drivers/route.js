@@ -1,5 +1,6 @@
 import sql from "@/app/api/utils/sql";
 import { auth } from "@/auth";
+import { writeAdminAudit } from "@/app/api/utils/admin";
 
 function parseSubscriptionDays(value) {
   if (value === undefined || value === null || value === "") {
@@ -10,6 +11,13 @@ function parseSubscriptionDays(value) {
     return undefined;
   }
   return days;
+}
+
+async function runTransaction(callback) {
+  if (typeof sql.transaction === "function") {
+    return sql.transaction(callback);
+  }
+  return callback(sql);
 }
 
 export async function GET(request) {
@@ -77,23 +85,35 @@ export async function PATCH(request) {
       return Response.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const rows =
-      subscriptionDays === null
-        ? await sql`
-            UPDATE drivers
-            SET is_approved = COALESCE(${is_approved}, is_approved),
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = ${driver_id}
-            RETURNING *
-          `
-        : await sql`
-            UPDATE drivers
-            SET is_approved = COALESCE(${is_approved}, is_approved),
-                subscription_expiry = CURRENT_TIMESTAMP + make_interval(days => ${subscriptionDays}),
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = ${driver_id}
-            RETURNING *
-          `;
+    const rows = await runTransaction(async (tx) => {
+      const updated =
+        subscriptionDays === null
+          ? await tx`
+              UPDATE drivers
+              SET is_approved = COALESCE(${is_approved}, is_approved),
+                  is_online = CASE WHEN ${is_approved} = false THEN false ELSE is_online END,
+                  online_since = CASE WHEN ${is_approved} = false THEN NULL ELSE online_since END,
+                  updated_at = CURRENT_TIMESTAMP
+              WHERE id = ${driver_id}
+              RETURNING *
+            `
+          : await tx`
+              UPDATE drivers
+              SET is_approved = COALESCE(${is_approved}, is_approved),
+                  subscription_expiry = CURRENT_TIMESTAMP + make_interval(days => ${subscriptionDays}),
+                  updated_at = CURRENT_TIMESTAMP
+              WHERE id = ${driver_id}
+              RETURNING *
+            `;
+
+      if (updated.length > 0) {
+        await writeAdminAudit(session.user.id, "driver.update", "driver", updated[0].id, {
+          is_approved,
+          subscription_days: subscriptionDays,
+        }, tx);
+      }
+      return updated;
+    });
 
     if (rows.length === 0) {
       return Response.json({ error: "Driver not found" }, { status: 404 });

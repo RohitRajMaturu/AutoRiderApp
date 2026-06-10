@@ -13,6 +13,12 @@ const REQUIRED_TABLES = [
   "auth_verification_tokens",
   "drivers",
   "rides",
+  "geo_zones",
+  "ride_driver_notifications",
+  "admin_audit_log",
+  "otp_cooldowns",
+  "realtime_tokens",
+  "otp_challenges",
 ];
 
 function loadDotEnv() {

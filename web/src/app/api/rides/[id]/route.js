@@ -1,5 +1,10 @@
 import sql from "@/app/api/utils/sql";
 import { auth } from "@/auth";
+import {
+  autoCancelGhostRides,
+  getAcceptedRideTimeoutMinutes,
+  offlineExpiredDrivers,
+} from "@/app/api/utils/dispatch";
 
 export async function PATCH(request, { params }) {
   try {
@@ -10,10 +15,18 @@ export async function PATCH(request, { params }) {
 
     const { id } = params;
     const { action } = await request.json();
+    await autoCancelGhostRides();
+    await offlineExpiredDrivers();
 
     const driverRows =
-      await sql`SELECT id FROM drivers WHERE user_id = ${session.user.id} LIMIT 1`;
-    const driverId = driverRows[0]?.id;
+      await sql`
+        SELECT id, zone_id, is_online, is_approved, subscription_expiry
+        FROM drivers
+        WHERE user_id = ${session.user.id}
+        LIMIT 1
+      `;
+    const driver = driverRows[0];
+    const driverId = driver?.id;
 
     if (action === "accept") {
       if (!driverId)
@@ -22,15 +35,46 @@ export async function PATCH(request, { params }) {
           { status: 403 },
         );
 
-      // First accepted driver wins
-      const result = await sql`
-        UPDATE rides 
-        SET driver_id = ${driverId}, 
-            status = 'accepted',
-            accepted_at = CURRENT_TIMESTAMP
-        WHERE id = ${id} AND status = 'requested' AND driver_id IS NULL
-        RETURNING *
-      `;
+      if (
+        !driver.is_online ||
+        !driver.is_approved ||
+        !driver.subscription_expiry ||
+        new Date(driver.subscription_expiry) <= new Date()
+      ) {
+        return Response.json(
+          { error: "Driver must be online, approved, and subscribed to accept rides" },
+          { status: 403 },
+        );
+      }
+
+      const result = await sql.transaction(async (tx) => {
+        const rows = await tx`
+          UPDATE rides 
+          SET driver_id = ${driverId}, 
+              status = 'accepted',
+              accepted_at = CURRENT_TIMESTAMP,
+              expires_at = CURRENT_TIMESTAMP + make_interval(mins => ${getAcceptedRideTimeoutMinutes()}),
+              updated_at = CURRENT_TIMESTAMP
+          WHERE id = ${id}
+            AND status = 'requested'
+            AND driver_id IS NULL
+            AND zone_id = ${driver.zone_id}
+            AND EXISTS (
+              SELECT 1
+              FROM ride_driver_notifications n
+              WHERE n.ride_id = rides.id AND n.driver_id = ${driverId}
+            )
+          RETURNING *
+        `;
+        if (rows.length > 0) {
+          await tx`
+            UPDATE ride_driver_notifications
+            SET status = 'sent', delivered_at = CURRENT_TIMESTAMP
+            WHERE ride_id = ${id} AND driver_id = ${driverId} AND channel = 'websocket'
+          `;
+        }
+        return rows;
+      });
 
       if (result.length === 0) {
         return Response.json(
@@ -71,6 +115,7 @@ export async function PATCH(request, { params }) {
         UPDATE rides 
         SET status = 'cancelled',
             cancelled_at = CURRENT_TIMESTAMP,
+            cancellation_reason = 'user_cancelled',
             updated_at = CURRENT_TIMESTAMP
         WHERE id = ${id} 
         AND (passenger_id = ${session.user.id} OR driver_id = ${driverId})

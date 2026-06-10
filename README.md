@@ -4,7 +4,7 @@ A lightweight auto-rickshaw ride connection platform for India.
 
 ## Tech Stack
 - **Frontend**: React Native (Expo)
-- **Backend**: React Router server routes on Node.js
+- **Backend**: React Router server routes on Node.js plus FastAPI realtime backend
 - **Database**: PostgreSQL via `pg` / node-postgres
 - **Authentication**: Auth.js credentials flow with role-based onboarding
 - **Maps/Location Provider**: Ola Maps (Krutrim Cloud) via backend-only REST integration
@@ -63,11 +63,17 @@ For production-grade location search and routing, configure the backend with:
 ```env
 AUTH_SECRET=replace_with_a_long_random_secret
 OLAMAPS_API_KEY=your_ola_maps_api_key
-DRIVER_RIDE_RADIUS_KM=8
-DRIVER_LOCATION_MAX_AGE_MINUTES=10
+PASSENGER_REQUEST_COOLDOWN_SECONDS=30
+PASSENGER_POST_CANCEL_COOLDOWN_SECONDS=60
+DRIVER_HEARTBEAT_TIMEOUT_SECONDS=120
+ACCEPTED_RIDE_TIMEOUT_MINUTES=45
 RATE_LIMIT_MAX_REQUESTS=120
 RATE_LIMIT_WINDOW_MS=60000
 ```
+
+Ride matching uses admin-managed PostGIS service zones. Run `npm run db:migrate`,
+then create at least one active zone from the Admin Zones tab before testing new
+passenger requests or driver online status.
 
 The mobile app does not call Ola Maps directly. Expo screens call backend routes under `/api/locations/*` and `/api/routes/estimate`, keeping the provider key out of the client bundle.
 
@@ -97,8 +103,66 @@ npm run db:check
 
 Focused API tests cover auth resolution, ride authorization conflicts, admin driver validation, and nearby driver filtering.
 
+## FastAPI Realtime Backend
+
+The production realtime backend lives in `/backend`. Deploy it on a single
+always-on VPS while the product is single-city/single-region:
+
+```powershell
+cd backend
+python -m pip install -r requirements.txt
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
+```
+
+Use `--workers 1` intentionally. Active WebSocket connections are stored in
+in-memory Python dictionaries, so multiple workers would split connection state.
+PostgreSQL remains the durable source of truth for rides, drivers, tokens,
+zones, notification attempts, OTP challenges, and audit trails.
+
+Configure the mobile app with the FastAPI WebSocket URL:
+
+```env
+EXPO_PUBLIC_REALTIME_WS_URL=wss://your-api.example.com
+```
+
+The current bridge is:
+- Existing Node/Auth.js session issues short-lived realtime tokens through
+  `POST /api/auth/realtime-token`.
+- FastAPI validates those opaque tokens against PostgreSQL.
+- Driver WebSocket reconnect replays pending ride requests.
+- Driver heartbeat and ride timeout maintenance run as in-process asyncio tasks.
+- MSG91 OTP and transactional SMS hooks are present and activated by environment
+  variables.
+
+Horizontal scaling is intentionally deferred. When multi-city expansion requires
+multiple backend instances, add Redis/pub-sub or an equivalent broker to sync
+WebSocket delivery state across instances.
+
+## Pending Production Work
+
+The app currently runs as a hybrid backend: existing Node/React Router API routes
+continue to serve stable auth, admin, location, and REST flows, while FastAPI
+handles realtime WebSocket, heartbeat, OTP groundwork, MSG91 hooks, and
+in-process maintenance.
+
+Pending items:
+
+- Add real MSG91 template IDs/auth key in backend environment and test OTP/SMS on approved MSG91 templates.
+- Decide whether to keep hybrid backend or gradually migrate existing Node API routes to FastAPI.
+- If migrating to FastAPI, move endpoints in phases: rides first, admin second, locations third, auth last.
+- Complete real-device E2E testing for passenger, driver, and admin flows.
+- Verify WebSocket ride alert delivery on the deployed VPS with `--workers 1`.
+- Verify driver reconnect replay after app background/foreground and network drops.
+- Verify SMS fallback when driver WebSocket is unavailable.
+- Verify passenger ride-accepted fallback SMS after WebSocket delivery failure.
+- Replace rectangle-only zone creation with polygon drawing/editing when operations need non-rectangular service areas.
+- Add production observability for ride dispatch, WebSocket disconnects, MSG91 failures, and maintenance actions.
+- Update Neon/Postgres SSL mode if needed to remove the `sslmode=require` driver warning.
+- Add Redis/pub-sub only when horizontal scaling or multi-city deployment requires multiple backend instances.
+
 ## Project Structure
 - `/mobile/src`: Expo application code.
+- `/backend/app`: FastAPI realtime, heartbeat, OTP, MSG91, and WebSocket service.
 - `/web/src/app/api`: Backend server routes.
 - `/web/src/app/account`: Web-based authentication pages used by the mobile app.
 - `/web/db/migrations`: PostgreSQL schema migrations.

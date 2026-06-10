@@ -6,9 +6,10 @@ import {
   ActivityIndicator,
   RefreshControl,
   TouchableOpacity,
+  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CheckCircle2,
   XCircle,
@@ -50,7 +51,7 @@ const STATUS_CONFIG = {
   },
 };
 
-function RideRow({ ride }) {
+function RideRow({ ride, onCancel, isCancelling }) {
   const [expanded, setExpanded] = useState(false);
   const config = STATUS_CONFIG[ride.status] || STATUS_CONFIG.requested;
   const { Icon } = config;
@@ -290,6 +291,26 @@ function RideRow({ ride }) {
               </View>
             )}
           </View>
+          {(ride.status === "requested" || ride.status === "accepted") && (
+            <TouchableOpacity
+              onPress={() => onCancel(ride.id)}
+              disabled={isCancelling}
+              style={{
+                marginTop: 12,
+                paddingVertical: 10,
+                borderRadius: 10,
+                alignItems: "center",
+                backgroundColor: `${ERROR}20`,
+                borderWidth: 1,
+                borderColor: `${ERROR}40`,
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={{ color: ERROR, fontSize: 12, fontWeight: "700" }}>
+                {isCancelling ? "Cancelling..." : "Cancel Stuck Ride"}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
     </View>
@@ -298,6 +319,7 @@ function RideRow({ ride }) {
 
 export default function AdminRides() {
   const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
   const [filter, setFilter] = useState("all");
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
@@ -308,6 +330,31 @@ export default function AdminRides() {
       return res.json();
     },
     refetchInterval: 15000,
+  });
+
+  const cancelRide = useMutation({
+    mutationFn: async (rideId) => {
+      const res = await fetch("/api/admin/rides", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ride_id: rideId,
+          action: "cancel",
+          reason: "admin_stuck_ride_cancelled",
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to cancel ride");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["adminRides"] });
+      queryClient.invalidateQueries({ queryKey: ["adminStats"] });
+      Alert.alert("Ride Cancelled", "The stuck ride has been cancelled.");
+    },
+    onError: (err) => Alert.alert("Cancel Failed", err.message),
   });
 
   const allRides = data?.rides || [];
@@ -452,7 +499,27 @@ export default function AdminRides() {
               </Text>
             </View>
           ) : (
-            filtered.map((ride) => <RideRow key={ride.id} ride={ride} />)
+            filtered.map((ride) => (
+              <RideRow
+                key={ride.id}
+                ride={ride}
+                onCancel={(rideId) =>
+                  Alert.alert(
+                    "Cancel stuck ride?",
+                    "This will close the ride and write an admin audit log entry.",
+                    [
+                      { text: "Keep Ride", style: "cancel" },
+                      {
+                        text: "Cancel Ride",
+                        style: "destructive",
+                        onPress: () => cancelRide.mutate(rideId),
+                      },
+                    ],
+                  )
+                }
+                isCancelling={cancelRide.isPending}
+              />
+            ))
           )}
         </ScrollView>
       )}

@@ -36,6 +36,8 @@ describe("ride detail route", () => {
     mocks.auth.mockResolvedValue({ user: { id: "user-1" } });
     mocks.sql.mockResolvedValueOnce([]);
     mocks.sql.mockResolvedValueOnce([]);
+    mocks.sql.mockResolvedValueOnce([]);
+    mocks.sql.mockResolvedValueOnce([]);
     const { PATCH } = await import("@/app/api/rides/[id]/route.js");
 
     const response = await PATCH(
