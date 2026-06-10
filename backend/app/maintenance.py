@@ -1,11 +1,12 @@
 import asyncio
 from .config import get_settings
 from .db import get_pool
+from .logging import log_event, status_count
 
 
 async def offline_stale_or_expired_drivers() -> None:
     settings = get_settings()
-    await get_pool().execute(
+    status = await get_pool().execute(
         """
         UPDATE drivers
         SET is_online = false,
@@ -21,11 +22,14 @@ async def offline_stale_or_expired_drivers() -> None:
         """,
         settings.driver_heartbeat_timeout_seconds,
     )
+    count = status_count(status)
+    if count:
+        log_event("maintenance.drivers_offlined", count=count)
 
 
 async def cancel_ghost_rides() -> None:
     settings = get_settings()
-    await get_pool().execute(
+    status = await get_pool().execute(
         """
         UPDATE rides
         SET status = 'cancelled',
@@ -37,10 +41,16 @@ async def cancel_ghost_rides() -> None:
         """,
         settings.accepted_ride_timeout_minutes,
     )
+    count = status_count(status)
+    if count:
+        log_event("maintenance.ghost_rides_cancelled", count=count)
 
 
 async def cleanup_realtime_tokens() -> None:
-    await get_pool().execute("DELETE FROM realtime_tokens WHERE expires_at <= CURRENT_TIMESTAMP")
+    status = await get_pool().execute("DELETE FROM realtime_tokens WHERE expires_at <= CURRENT_TIMESTAMP")
+    count = status_count(status)
+    if count:
+        log_event("maintenance.realtime_tokens_deleted", count=count)
 
 
 async def run_once() -> None:
@@ -55,7 +65,7 @@ async def maintenance_loop(stop_event: asyncio.Event) -> None:
         try:
             await run_once()
         except Exception as exc:
-            print(f"maintenance loop error: {exc}")
+            log_event("maintenance.error", error=str(exc))
         try:
             await asyncio.wait_for(stop_event.wait(), timeout=settings.maintenance_interval_seconds)
         except asyncio.TimeoutError:

@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from .auth import hash_token
 from .db import get_pool
+from .logging import log_event, mask_phone
 from .msg91 import send_otp_sms
 
 router = APIRouter(prefix="/api/otp", tags=["otp"])
@@ -36,6 +37,7 @@ async def send_otp(body: OtpSend):
         phone,
     )
     if cooldown:
+        log_event("otp.send.rejected", phone=mask_phone(phone), reason="cooldown")
         raise HTTPException(status_code=429, detail="OTP cooldown active")
 
     otp = f"{secrets.randbelow(1_000_000):06d}"
@@ -61,6 +63,7 @@ async def send_otp(body: OtpSend):
             )
 
     await send_otp_sms(phone, otp)
+    log_event("otp.send.accepted", phone=mask_phone(phone))
     return {"sent": True}
 
 
@@ -91,6 +94,7 @@ async def verify_otp(body: OtpVerify):
                 otp_hash,
             )
             if not challenge:
+                log_event("otp.verify.rejected", phone=mask_phone(phone), reason="invalid_or_expired")
                 raise HTTPException(status_code=401, detail="Invalid or expired OTP")
             user = await conn.fetchrow(
                 """
@@ -121,4 +125,5 @@ async def verify_otp(body: OtpVerify):
                 hash_token(token),
                 datetime.now(timezone.utc) + timedelta(days=7),
             )
+    log_event("otp.verify.accepted", phone=mask_phone(phone), user_id=user["id"])
     return {"token": token, "user": dict(user)}

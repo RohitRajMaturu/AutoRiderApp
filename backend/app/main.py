@@ -6,6 +6,7 @@ from .auth import websocket_user
 from .config import get_settings
 from .db import close_db, connect_db, get_pool
 from .drivers import router as drivers_router
+from .logging import log_event
 from .maintenance import maintenance_loop
 from .otp import router as otp_router
 from .rides import router as rides_router
@@ -76,6 +77,7 @@ async def replay_pending(driver_id: str) -> None:
     )
     for row in rows:
         await manager.send_driver(driver_id, {"type": "ride_request", "ride_id": row["ride_id"], "replay": True})
+    log_event("websocket.replay", driver_id=driver_id, count=len(rows))
 
 
 @app.websocket("/ws")
@@ -84,6 +86,7 @@ async def websocket_endpoint(websocket: WebSocket):
     driver_id = await get_driver_id(user.id) if user.role == "driver" else None
     await manager.connect(user.id, websocket, driver_id)
     try:
+        log_event("websocket.connect", user_id=user.id, role=user.role, driver_id=driver_id)
         await websocket.send_json({"type": "connected", "user_id": user.id, "role": user.role})
         if driver_id:
             await replay_pending(driver_id)
@@ -101,7 +104,9 @@ async def websocket_endpoint(websocket: WebSocket):
                     message["ride_id"],
                     driver_id,
                 )
+                log_event("websocket.ack", user_id=user.id, driver_id=driver_id, ride_id=message["ride_id"])
     except WebSocketDisconnect:
         pass
     finally:
         await manager.disconnect(user.id, websocket, driver_id)
+        log_event("websocket.disconnect", user_id=user.id, role=user.role, driver_id=driver_id)

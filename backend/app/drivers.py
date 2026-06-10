@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 from .auth import CurrentUser, current_user
 from .config import get_settings
 from .db import get_pool
+from .logging import log_event
 from .maintenance import offline_stale_or_expired_drivers
 
 router = APIRouter(prefix="/api/drivers", tags=["drivers"])
@@ -41,10 +42,13 @@ async def heartbeat(body: Heartbeat, user: CurrentUser = Depends(current_user)):
         user.id,
     )
     if not driver:
+        log_event("driver.heartbeat.rejected", user_id=user.id, reason="missing_profile")
         raise HTTPException(status_code=404, detail="Driver profile not found")
     if not driver["is_approved"]:
+        log_event("driver.heartbeat.rejected", user_id=user.id, driver_id=driver["id"], reason="not_approved")
         raise HTTPException(status_code=403, detail="Driver is not approved")
     if not driver["subscription_expiry"]:
+        log_event("driver.heartbeat.rejected", user_id=user.id, driver_id=driver["id"], reason="inactive_subscription")
         raise HTTPException(status_code=403, detail="Subscription is inactive")
 
     zone_id = None
@@ -55,6 +59,7 @@ async def heartbeat(body: Heartbeat, user: CurrentUser = Depends(current_user)):
                 "UPDATE drivers SET is_online = false, online_since = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1",
                 driver["id"],
             )
+            log_event("driver.heartbeat.rejected", user_id=user.id, driver_id=driver["id"], reason="outside_zone")
             raise HTTPException(status_code=422, detail="Driver is outside active service zones")
         zone_id = zone["id"]
 
@@ -78,7 +83,9 @@ async def heartbeat(body: Heartbeat, user: CurrentUser = Depends(current_user)):
         body.lng,
     )
     if not row:
+        log_event("driver.heartbeat.rejected", user_id=user.id, driver_id=driver["id"], reason="subscription_expired")
         raise HTTPException(status_code=403, detail="Subscription expired")
+    log_event("driver.heartbeat.accepted", user_id=user.id, driver_id=driver["id"], zone_id=row["zone_id"])
     return {"driver": dict(row), "heartbeat_timeout_seconds": get_settings().driver_heartbeat_timeout_seconds}
 
 
@@ -89,6 +96,7 @@ async def pending_requests(user: CurrentUser = Depends(current_user)):
         user.id,
     )
     if not driver:
+        log_event("driver.pending_requests", user_id=user.id, driver_id=None, count=0)
         return {"rides": []}
     rows = await get_pool().fetch(
         """
@@ -104,4 +112,5 @@ async def pending_requests(user: CurrentUser = Depends(current_user)):
         """,
         driver["id"],
     )
+    log_event("driver.pending_requests", user_id=user.id, driver_id=driver["id"], count=len(rows))
     return {"rides": [dict(row) for row in rows]}

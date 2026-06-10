@@ -155,9 +155,7 @@ Pending items:
 - Verify driver reconnect replay after app background/foreground and network drops.
 - Verify SMS fallback when driver WebSocket is unavailable.
 - Verify passenger ride-accepted fallback SMS after WebSocket delivery failure.
-- Replace rectangle-only zone creation with polygon drawing/editing when operations need non-rectangular service areas.
-- Add production observability for ride dispatch, WebSocket disconnects, MSG91 failures, and maintenance actions.
-- Update Neon/Postgres SSL mode if needed to remove the `sslmode=require` driver warning.
+- Replace GeoJSON polygon import with map-based polygon drawing/editing when operations need visual zone editing.
 - Add Redis/pub-sub only when horizontal scaling or multi-city deployment requires multiple backend instances.
 
 ## Project Structure

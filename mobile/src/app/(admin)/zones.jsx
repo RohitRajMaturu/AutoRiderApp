@@ -41,15 +41,35 @@ function buildRectangleBoundary(swLat, swLng, neLat, neLng) {
   };
 }
 
+function parseGeoJsonBoundary(value) {
+  let parsed;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    throw new Error("GeoJSON is not valid JSON.");
+  }
+
+  const geometry = parsed?.type === "Feature" ? parsed.geometry : parsed;
+  if (!geometry || !["Polygon", "MultiPolygon"].includes(geometry.type)) {
+    throw new Error("Paste a GeoJSON Polygon, MultiPolygon, or Feature with polygon geometry.");
+  }
+  if (!Array.isArray(geometry.coordinates) || geometry.coordinates.length === 0) {
+    throw new Error("GeoJSON polygon coordinates are required.");
+  }
+  return geometry;
+}
+
 export default function AdminZones() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
+  const [mode, setMode] = useState("rectangle");
   const [name, setName] = useState("");
   const [maxDrivers, setMaxDrivers] = useState("25");
   const [swLat, setSwLat] = useState("");
   const [swLng, setSwLng] = useState("");
   const [neLat, setNeLat] = useState("");
   const [neLng, setNeLng] = useState("");
+  const [geoJson, setGeoJson] = useState("");
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["adminZones"],
@@ -62,23 +82,26 @@ export default function AdminZones() {
 
   const createZone = useMutation({
     mutationFn: async () => {
-      const south = toNumber(swLat);
-      const west = toNumber(swLng);
-      const north = toNumber(neLat);
-      const east = toNumber(neLng);
       const cap = Number(maxDrivers);
-      if (
-        !name.trim() ||
-        south === null ||
-        west === null ||
-        north === null ||
-        east === null ||
-        !Number.isInteger(cap)
-      ) {
-        throw new Error("Enter a name, cap, and all four coordinates.");
+      if (!name.trim() || !Number.isInteger(cap) || cap < 1 || cap > 500) {
+        throw new Error("Enter a zone name and a cap between 1 and 500.");
       }
-      if (south >= north || west >= east) {
-        throw new Error("SW coordinates must be lower than NE coordinates.");
+
+      let boundary;
+      if (mode === "geojson") {
+        boundary = parseGeoJsonBoundary(geoJson);
+      } else {
+        const south = toNumber(swLat);
+        const west = toNumber(swLng);
+        const north = toNumber(neLat);
+        const east = toNumber(neLng);
+        if (south === null || west === null || north === null || east === null) {
+          throw new Error("Enter all four rectangle coordinates.");
+        }
+        if (south >= north || west >= east) {
+          throw new Error("SW coordinates must be lower than NE coordinates.");
+        }
+        boundary = buildRectangleBoundary(south, west, north, east);
       }
 
       const res = await fetch("/api/admin/zones", {
@@ -87,7 +110,7 @@ export default function AdminZones() {
         body: JSON.stringify({
           name: name.trim(),
           max_online_drivers: cap,
-          boundary: buildRectangleBoundary(south, west, north, east),
+          boundary,
         }),
       });
       if (!res.ok) {
@@ -102,6 +125,7 @@ export default function AdminZones() {
       setSwLng("");
       setNeLat("");
       setNeLng("");
+      setGeoJson("");
       queryClient.invalidateQueries({ queryKey: ["adminZones"] });
       Alert.alert("Zone Created", "Drivers can now be matched inside this boundary.");
     },
@@ -168,8 +192,38 @@ export default function AdminZones() {
           <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
             <Plus size={18} color={PRIMARY} />
             <Text style={{ fontSize: 15, fontWeight: "800", color: TEXT }}>
-              Create Rectangle Zone
+              Create Service Zone
             </Text>
+          </View>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            {[
+              { key: "rectangle", label: "Rectangle" },
+              { key: "geojson", label: "GeoJSON" },
+            ].map((item) => (
+              <TouchableOpacity
+                key={item.key}
+                onPress={() => setMode(item.key)}
+                style={{
+                  flex: 1,
+                  paddingVertical: 9,
+                  borderRadius: 10,
+                  alignItems: "center",
+                  backgroundColor: mode === item.key ? PRIMARY : BG,
+                  borderWidth: 1,
+                  borderColor: mode === item.key ? PRIMARY : BORDER,
+                }}
+              >
+                <Text
+                  style={{
+                    color: mode === item.key ? "#fff" : TEXT_SECONDARY,
+                    fontWeight: "800",
+                    fontSize: 12,
+                  }}
+                >
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
           <TextInput
             placeholder="Zone name"
@@ -186,42 +240,64 @@ export default function AdminZones() {
             keyboardType="number-pad"
             style={{ backgroundColor: BG, color: TEXT, borderRadius: 10, padding: 12 }}
           />
-          <View style={{ flexDirection: "row", gap: 8 }}>
+          {mode === "rectangle" ? (
+            <>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                <TextInput
+                  placeholder="SW lat"
+                  placeholderTextColor={TEXT_SECONDARY}
+                  value={swLat}
+                  onChangeText={setSwLat}
+                  keyboardType="decimal-pad"
+                  style={{ flex: 1, backgroundColor: BG, color: TEXT, borderRadius: 10, padding: 12 }}
+                />
+                <TextInput
+                  placeholder="SW lng"
+                  placeholderTextColor={TEXT_SECONDARY}
+                  value={swLng}
+                  onChangeText={setSwLng}
+                  keyboardType="decimal-pad"
+                  style={{ flex: 1, backgroundColor: BG, color: TEXT, borderRadius: 10, padding: 12 }}
+                />
+              </View>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                <TextInput
+                  placeholder="NE lat"
+                  placeholderTextColor={TEXT_SECONDARY}
+                  value={neLat}
+                  onChangeText={setNeLat}
+                  keyboardType="decimal-pad"
+                  style={{ flex: 1, backgroundColor: BG, color: TEXT, borderRadius: 10, padding: 12 }}
+                />
+                <TextInput
+                  placeholder="NE lng"
+                  placeholderTextColor={TEXT_SECONDARY}
+                  value={neLng}
+                  onChangeText={setNeLng}
+                  keyboardType="decimal-pad"
+                  style={{ flex: 1, backgroundColor: BG, color: TEXT, borderRadius: 10, padding: 12 }}
+                />
+              </View>
+            </>
+          ) : (
             <TextInput
-              placeholder="SW lat"
+              placeholder='Paste GeoJSON Polygon, MultiPolygon, or Feature'
               placeholderTextColor={TEXT_SECONDARY}
-              value={swLat}
-              onChangeText={setSwLat}
-              keyboardType="decimal-pad"
-              style={{ flex: 1, backgroundColor: BG, color: TEXT, borderRadius: 10, padding: 12 }}
+              value={geoJson}
+              onChangeText={setGeoJson}
+              multiline
+              textAlignVertical="top"
+              autoCapitalize="none"
+              style={{
+                minHeight: 150,
+                backgroundColor: BG,
+                color: TEXT,
+                borderRadius: 10,
+                padding: 12,
+                fontFamily: "monospace",
+              }}
             />
-            <TextInput
-              placeholder="SW lng"
-              placeholderTextColor={TEXT_SECONDARY}
-              value={swLng}
-              onChangeText={setSwLng}
-              keyboardType="decimal-pad"
-              style={{ flex: 1, backgroundColor: BG, color: TEXT, borderRadius: 10, padding: 12 }}
-            />
-          </View>
-          <View style={{ flexDirection: "row", gap: 8 }}>
-            <TextInput
-              placeholder="NE lat"
-              placeholderTextColor={TEXT_SECONDARY}
-              value={neLat}
-              onChangeText={setNeLat}
-              keyboardType="decimal-pad"
-              style={{ flex: 1, backgroundColor: BG, color: TEXT, borderRadius: 10, padding: 12 }}
-            />
-            <TextInput
-              placeholder="NE lng"
-              placeholderTextColor={TEXT_SECONDARY}
-              value={neLng}
-              onChangeText={setNeLng}
-              keyboardType="decimal-pad"
-              style={{ flex: 1, backgroundColor: BG, color: TEXT, borderRadius: 10, padding: 12 }}
-            />
-          </View>
+          )}
           <TouchableOpacity
             onPress={() => createZone.mutate()}
             disabled={createZone.isPending}

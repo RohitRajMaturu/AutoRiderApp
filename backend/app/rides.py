@@ -8,6 +8,7 @@ from .db import get_pool
 from .maintenance import cancel_ghost_rides, offline_stale_or_expired_drivers
 from .msg91 import send_transactional_sms
 from .ws_manager import manager
+from .logging import log_event
 
 router = APIRouter(prefix="/api", tags=["rides"])
 
@@ -64,6 +65,9 @@ async def dispatch_ride(ride_id: str, zone_id: str) -> None:
         zone_id,
         settings.driver_heartbeat_timeout_seconds,
     )
+    websocket_delivered = 0
+    sms_attempted = 0
+    sms_delivered = 0
     for driver in drivers:
         await get_pool().execute(
             """
@@ -80,6 +84,7 @@ async def dispatch_ride(ride_id: str, zone_id: str) -> None:
             {"type": "ride_request", "ride_id": ride_id},
         )
         if delivered:
+            websocket_delivered += 1
             await get_pool().execute(
                 """
                 UPDATE ride_driver_notifications
@@ -90,6 +95,7 @@ async def dispatch_ride(ride_id: str, zone_id: str) -> None:
                 driver["id"],
             )
         else:
+            sms_attempted += 1
             await get_pool().execute(
                 """
                 INSERT INTO ride_driver_notifications (ride_id, driver_id, channel, status, payload)
@@ -101,6 +107,8 @@ async def dispatch_ride(ride_id: str, zone_id: str) -> None:
                 '{"type":"ride_request_sms"}',
             )
             ok = await send_transactional_sms(driver["phone"], "New AutoRide request available. Open the app to accept.")
+            if ok:
+                sms_delivered += 1
             await get_pool().execute(
                 """
                 UPDATE ride_driver_notifications
@@ -111,6 +119,15 @@ async def dispatch_ride(ride_id: str, zone_id: str) -> None:
                 driver["id"],
                 "sent" if ok else "failed",
             )
+    log_event(
+        "ride.dispatch",
+        ride_id=ride_id,
+        zone_id=zone_id,
+        candidate_drivers=len(drivers),
+        websocket_delivered=websocket_delivered,
+        sms_attempted=sms_attempted,
+        sms_delivered=sms_delivered,
+    )
 
 
 @router.post("/rides", status_code=202)
@@ -122,6 +139,7 @@ async def create_ride(body: RideCreate, user: CurrentUser = Depends(current_user
         user.id,
     )
     if active:
+        log_event("ride.create.rejected", user_id=user.id, reason="active_ride")
         raise HTTPException(status_code=400, detail="You already have an active ride request")
 
     settings = get_settings()
@@ -136,6 +154,7 @@ async def create_ride(body: RideCreate, user: CurrentUser = Depends(current_user
         settings.passenger_request_cooldown_seconds,
     )
     if recent:
+        log_event("ride.create.rejected", user_id=user.id, reason="request_cooldown")
         raise HTTPException(status_code=429, detail="Request cooldown active")
 
     cancelled = await pool.fetchrow(
@@ -150,10 +169,12 @@ async def create_ride(body: RideCreate, user: CurrentUser = Depends(current_user
         settings.passenger_post_cancel_cooldown_seconds,
     )
     if cancelled:
+        log_event("ride.create.rejected", user_id=user.id, reason="post_cancel_cooldown")
         raise HTTPException(status_code=429, detail="Post-cancellation cooldown active")
 
     zone = await find_zone(body.pickup_lat, body.pickup_lng)
     if not zone:
+        log_event("ride.create.rejected", user_id=user.id, reason="no_zone")
         raise HTTPException(status_code=422, detail="Pickup is outside all active service zones")
 
     ride = await pool.fetchrow(
@@ -181,6 +202,7 @@ async def create_ride(body: RideCreate, user: CurrentUser = Depends(current_user
         zone["id"],
     )
     asyncio.create_task(dispatch_ride(ride["id"], ride["zone_id"]))
+    log_event("ride.create.accepted", user_id=user.id, ride_id=ride["id"], zone_id=ride["zone_id"])
     return {"ride": dict(ride), "zone": dict(zone)}
 
 
@@ -221,8 +243,10 @@ async def update_ride(ride_id: str, body: RideAction, user: CurrentUser = Depend
             driver["zone_id"],
         )
         if not ride:
+            log_event("ride.accept.rejected", ride_id=ride_id, driver_id=driver_id)
             raise HTTPException(status_code=409, detail="Ride already accepted, cancelled, or unavailable")
         asyncio.create_task(manager.send_user(str(ride["passenger_id"]), {"type": "ride_accepted", "ride_id": ride_id}))
+        log_event("ride.accepted", ride_id=ride_id, driver_id=driver_id, passenger_id=str(ride["passenger_id"]))
         return {"ride": dict(ride)}
 
     if body.action == "complete":
@@ -237,7 +261,9 @@ async def update_ride(ride_id: str, body: RideAction, user: CurrentUser = Depend
             driver_id,
         )
         if not ride:
+            log_event("ride.complete.rejected", ride_id=ride_id, driver_id=driver_id)
             raise HTTPException(status_code=409, detail="Ride cannot be completed")
+        log_event("ride.completed", ride_id=ride_id, driver_id=driver_id)
         return {"ride": dict(ride)}
 
     if body.action == "cancel":
@@ -258,7 +284,9 @@ async def update_ride(ride_id: str, body: RideAction, user: CurrentUser = Depend
             driver_id,
         )
         if not ride:
+            log_event("ride.cancel.rejected", ride_id=ride_id, user_id=user.id, driver_id=driver_id)
             raise HTTPException(status_code=409, detail="Ride cannot be cancelled")
+        log_event("ride.cancelled", ride_id=ride_id, user_id=user.id, driver_id=driver_id)
         return {"ride": dict(ride)}
 
     raise HTTPException(status_code=400, detail="Invalid action")
