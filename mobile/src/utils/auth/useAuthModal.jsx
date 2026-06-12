@@ -28,7 +28,7 @@ import { useAuthStore, useAuthModal } from './store';
  *
  */
 export const AuthModal = () => {
-  const { isOpen, mode } = useAuthModal();
+  const { isOpen, mode, params } = useAuthModal();
   const { auth } = useAuthStore();
 
   const proxyURL = process.env.EXPO_PUBLIC_PROXY_BASE_URL;
@@ -57,6 +57,7 @@ export const AuthModal = () => {
       >
         <AuthWebView
           mode={mode}
+          params={params}
           proxyURL={proxyURL}
           baseURL={baseURL}
         />

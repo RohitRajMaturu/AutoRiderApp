@@ -6,6 +6,13 @@ import {
   offlineExpiredDrivers,
 } from "@/app/api/utils/dispatch";
 
+function readCancellationReason(value, fallback) {
+  if (typeof value !== "string") return fallback;
+  const trimmed = value.trim();
+  if (!trimmed) return fallback;
+  return trimmed.slice(0, 180);
+}
+
 export async function PATCH(request, { params }) {
   try {
     const session = await auth(request);
@@ -14,7 +21,8 @@ export async function PATCH(request, { params }) {
     }
 
     const { id } = params;
-    const { action } = await request.json();
+    const body = await request.json();
+    const { action } = body;
     await autoCancelGhostRides();
     await offlineExpiredDrivers();
 
@@ -111,17 +119,34 @@ export async function PATCH(request, { params }) {
 
     if (action === "cancel") {
       // Both passenger and driver can cancel requested/accepted rides
-      const result = await sql`
-        UPDATE rides 
-        SET status = 'cancelled',
-            cancelled_at = CURRENT_TIMESTAMP,
-            cancellation_reason = 'user_cancelled',
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = ${id} 
-        AND (passenger_id = ${session.user.id} OR driver_id = ${driverId})
-        AND status IN ('requested', 'accepted')
-        RETURNING *
-      `;
+      const actorReason = readCancellationReason(
+        body.reason,
+        driverId ? "driver_cancelled" : "passenger_cancelled",
+      );
+      const result = await sql.transaction(async (tx) => {
+        const rows = await tx`
+          UPDATE rides
+          SET status = 'cancelled',
+              cancelled_at = CURRENT_TIMESTAMP,
+              cancellation_reason = ${actorReason},
+              updated_at = CURRENT_TIMESTAMP
+          WHERE id = ${id}
+          AND (passenger_id = ${session.user.id} OR driver_id = ${driverId})
+          AND status IN ('requested', 'accepted')
+          RETURNING *
+        `;
+        if (rows.length > 0) {
+          await tx`
+            UPDATE ride_driver_notifications
+            SET status = 'skipped',
+                error = ${`Ride cancelled: ${actorReason}`},
+                delivered_at = COALESCE(delivered_at, CURRENT_TIMESTAMP)
+            WHERE ride_id = ${id}
+              AND status IN ('pending', 'failed', 'sent')
+          `;
+        }
+        return rows;
+      });
       if (result.length === 0) {
         return Response.json(
           { error: "Ride cannot be cancelled because it was not found, is already closed, or is not accessible to this user" },

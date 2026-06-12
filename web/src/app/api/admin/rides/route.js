@@ -2,6 +2,12 @@ import { auth } from "@/auth";
 import sql from "@/app/api/utils/sql";
 import { writeAdminAudit } from "@/app/api/utils/admin";
 
+function readCancellationReason(value) {
+  if (typeof value !== "string") return "admin_cancelled";
+  const trimmed = value.trim();
+  return trimmed ? trimmed.slice(0, 180) : "admin_cancelled";
+}
+
 async function requireAdminSession(request) {
   const session = await auth(request);
   if (!session?.user?.id)
@@ -43,6 +49,7 @@ export async function PATCH(request) {
     if (response) return response;
 
     const { ride_id, action, reason } = await request.json();
+    const cancellationReason = readCancellationReason(reason);
     if (typeof ride_id !== "string" || !ride_id.trim() || action !== "cancel") {
       return Response.json(
         { error: "ride_id and action=cancel are required" },
@@ -55,15 +62,23 @@ export async function PATCH(request) {
         UPDATE rides
         SET status = 'cancelled',
             cancelled_at = CURRENT_TIMESTAMP,
-            cancellation_reason = COALESCE(${reason || null}, 'admin_cancelled'),
+            cancellation_reason = ${cancellationReason},
             updated_at = CURRENT_TIMESTAMP
         WHERE id = ${ride_id}
           AND status IN ('requested', 'accepted')
         RETURNING *
       `;
       if (updated.length > 0) {
+        await tx`
+          UPDATE ride_driver_notifications
+          SET status = 'skipped',
+              error = ${`Ride cancelled: ${cancellationReason}`},
+              delivered_at = COALESCE(delivered_at, CURRENT_TIMESTAMP)
+          WHERE ride_id = ${ride_id}
+            AND status IN ('pending', 'failed', 'sent')
+        `;
         await writeAdminAudit(session.user.id, "ride.cancel", "ride", updated[0].id, {
-          reason: reason || "admin_cancelled",
+          reason: cancellationReason,
         }, tx);
       }
       return updated;

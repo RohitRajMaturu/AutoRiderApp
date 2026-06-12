@@ -13,13 +13,14 @@ import {
 } from "react-native";
 import {
   ArrowRight,
-  CircleDollarSign,
   FlaskConical,
   Gauge,
+  IndianRupee,
   ShieldCheck,
   UserRound,
   CarFront,
   Settings,
+  Crown,
 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -206,7 +207,7 @@ function RolePickerModal({ visible, onClose, onSelect }) {
 }
 
 export default function Index() {
-  const { auth, signIn, isReady } = useAuth();
+  const { auth, signIn, signUp, isReady } = useAuth();
   const insets = useSafeAreaInsets();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(40)).current;
@@ -380,7 +381,7 @@ export default function Index() {
             {[
               { label: "Instant", Icon: Gauge },
               { label: "Safe", Icon: ShieldCheck },
-              { label: "Fair", Icon: CircleDollarSign },
+              { label: "Fair", Icon: IndianRupee },
             ].map(({ label, Icon }) => (
               <View
                 key={label}
@@ -460,6 +461,26 @@ export default function Index() {
               }}
             >
               Continue with Email / Number
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => signUp({ params: { role: "admin" } })}
+            style={{
+              backgroundColor: "#111827",
+              borderRadius: 14,
+              paddingVertical: 15,
+              alignItems: "center",
+              marginTop: 12,
+              flexDirection: "row",
+              justifyContent: "center",
+              gap: 8,
+            }}
+            activeOpacity={0.85}
+          >
+            <Crown size={18} color="#FBBF24" />
+            <Text style={{ color: "#fff", fontSize: 15, fontWeight: "800" }}>
+              Continue as Admin
             </Text>
           </TouchableOpacity>
 

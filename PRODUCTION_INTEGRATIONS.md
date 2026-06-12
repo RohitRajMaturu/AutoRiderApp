@@ -116,6 +116,9 @@ Acceptance criteria:
 ## 5. Notifications
 
 Current state:
+- SMS is implemented behind a provider-neutral backend module.
+- `SMS_PROVIDER=fast2sms` uses Fast2SMS for OTP and SMS fallback testing.
+- `SMS_PROVIDER=msg91` uses MSG91 OTP and transactional templates when production-ready.
 - No production push notification workflow.
 
 Production requirement:
@@ -132,6 +135,7 @@ Acceptance criteria:
 - Driver receives nearby ride request notification.
 - Passenger receives driver accepted notification.
 - Notifications are not sent to logged-out/stale devices.
+- SMS provider can be changed by environment configuration without touching OTP, ride dispatch, or mobile flows.
 
 ## 6. Admin Operations
 

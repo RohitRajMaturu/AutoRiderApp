@@ -51,6 +51,13 @@ const STATUS_CONFIG = {
   },
 };
 
+function formatCancellationReason(reason) {
+  if (!reason) return null;
+  return String(reason)
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 function RideRow({ ride, onCancel, isCancelling }) {
   const [expanded, setExpanded] = useState(false);
   const config = STATUS_CONFIG[ride.status] || STATUS_CONFIG.requested;
@@ -287,6 +294,25 @@ function RideRow({ ride, onCancel, isCancelling }) {
                     hour: "2-digit",
                     minute: "2-digit",
                   })}
+                </Text>
+              </View>
+            )}
+            {ride.status === "cancelled" && ride.cancellation_reason && (
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: "600",
+                    color: TEXT_SECONDARY,
+                    textTransform: "uppercase",
+                    letterSpacing: 0.5,
+                    width: 80,
+                  }}
+                >
+                  Reason
+                </Text>
+                <Text style={{ fontSize: 12, color: ERROR, flex: 1 }}>
+                  {formatCancellationReason(ride.cancellation_reason)}
                 </Text>
               </View>
             )}

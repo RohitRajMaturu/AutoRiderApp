@@ -4,6 +4,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     database_url: str
+    sms_provider: str = "fast2sms"
+    fast2sms_api_key: str | None = None
+    fast2sms_route: str = "q"
+    fast2sms_otp_route: str = "q"
+    fast2sms_language: str = "english"
+    fast2sms_sender_id: str | None = None
     msg91_auth_key: str | None = None
     msg91_otp_template_id: str | None = None
     msg91_transactional_template_id: str | None = None

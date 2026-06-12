@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -41,6 +41,13 @@ const TEXT_MUTED = "#A8A29E";
 const SUCCESS = "#16A34A";
 const SUCCESS_LIGHT = "#DCFCE7";
 const DARK = "#1C1917";
+
+function formatCancellationReason(reason) {
+  if (!reason) return "Ride was cancelled.";
+  return String(reason)
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
 
 // ─── Registration Form ────────────────────────────────────────────────────────
 function RegistrationScreen() {
@@ -927,6 +934,7 @@ function ActiveRideCard({ ride, onComplete, isCompleting }) {
 export default function DriverHome() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
+  const notifiedCancelledRideIds = useRef(new Set());
 
   const { data: driverData, isLoading: driverLoading } = useQuery({
     queryKey: ["driverMe"],
@@ -952,20 +960,36 @@ export default function DriverHome() {
     staleTime: 3000,
   });
 
+  useEffect(() => {
+    const cancelledRide = (ridesData?.rides || []).find(
+      (ride) =>
+        ride.status === "cancelled" &&
+        ride.driver_id &&
+        !notifiedCancelledRideIds.current.has(ride.id),
+    );
+    if (!cancelledRide) return;
+    notifiedCancelledRideIds.current.add(cancelledRide.id);
+    Alert.alert(
+      "Ride Cancelled",
+      formatCancellationReason(cancelledRide.cancellation_reason),
+    );
+  }, [ridesData?.rides]);
+
   const toggleStatus = useMutation({
     mutationFn: async (online) => {
       let coords = null;
       if (online) {
         const permission = await Location.requestForegroundPermissionsAsync();
-        if (permission.status === "granted") {
-          const position = await Location.getCurrentPositionAsync({
-            accuracy: Location.Accuracy.Balanced,
-          });
-          coords = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          };
+        if (permission.status !== "granted") {
+          throw new Error("LOCATION_PERMISSION_REQUIRED");
         }
+        const position = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        coords = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        };
       }
 
       const res = await fetch("/api/drivers/status", {
@@ -988,6 +1012,16 @@ export default function DriverHome() {
         Alert.alert(
           "Subscription Required",
           "Please renew your subscription to go online.",
+        );
+      } else if (err.message === "LOCATION_PERMISSION_REQUIRED") {
+        Alert.alert(
+          "Location Required",
+          "Allow location access so Auto Ride can place you inside a service zone.",
+        );
+      } else if (err.message === "NO_SERVICE_ZONE") {
+        Alert.alert(
+          "Outside Service Zone",
+          "Your current location is not inside any active service zone.",
         );
       } else {
         Alert.alert("Error", err.message);
@@ -1039,7 +1073,7 @@ export default function DriverHome() {
     enabled:
       !!driverData?.driver?.is_approved && !!driverData?.driver?.is_online,
     onRideRequest: handleRealtimeRideRequest,
-    heartbeatPayload: useCallback(() => ({ is_online: true }), []),
+    heartbeatPayload: useCallback(() => ({}), []),
   });
 
   if (driverLoading) {

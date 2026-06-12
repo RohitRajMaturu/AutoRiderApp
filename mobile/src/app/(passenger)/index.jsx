@@ -39,6 +39,12 @@ const TEXT_MUTED = "#A8A29E";
 const SUCCESS = "#16A34A";
 const SUCCESS_LIGHT = "#DCFCE7";
 
+const CANCEL_REASONS = [
+  { label: "Driver taking too long", value: "driver_taking_too_long" },
+  { label: "Booked by mistake", value: "booked_by_mistake" },
+  { label: "Plans changed", value: "plans_changed" },
+];
+
 function formatLocationAddress(location) {
   const parts = [
     location.name,
@@ -351,11 +357,11 @@ export default function PassengerHome() {
 
   // ── Cancel ride ──
   const cancelRide = useMutation({
-    mutationFn: async (rideId) => {
+    mutationFn: async ({ rideId, reason }) => {
       const res = await fetch(`/api/rides/${rideId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "cancel" }),
+        body: JSON.stringify({ action: "cancel", reason }),
       });
       if (!res.ok) throw new Error("Failed to cancel");
       return res.json();
@@ -373,6 +379,26 @@ export default function PassengerHome() {
     !!pickupCoords &&
     !!destinationCoords &&
     !requestRide.isPending;
+
+  const promptCancelRide = (rideId) => {
+    Alert.alert("Cancel Ride?", "Do you want to cancel this ride request?", [
+      { text: "No", style: "cancel" },
+      {
+        text: "Choose Reason",
+        style: "destructive",
+        onPress: () =>
+          Alert.alert(
+            "Cancellation Reason",
+            "This reason will be visible to the other side.",
+            CANCEL_REASONS.map((item) => ({
+              text: item.label,
+              style: "destructive",
+              onPress: () => cancelRide.mutate({ rideId, reason: item.value }),
+            })),
+          ),
+      },
+    ]);
+  };
 
   const mapRegion =
     pickupCoords || destinationCoords
@@ -773,20 +799,7 @@ export default function PassengerHome() {
 
                 {/* Cancel */}
                 <TouchableOpacity
-                  onPress={() => {
-                    Alert.alert(
-                      "Cancel Ride?",
-                      "Are you sure you want to cancel?",
-                      [
-                        { text: "No", style: "cancel" },
-                        {
-                          text: "Yes, Cancel",
-                          style: "destructive",
-                          onPress: () => cancelRide.mutate(activeRide.id),
-                        },
-                      ],
-                    );
-                  }}
+                  onPress={() => promptCancelRide(activeRide.id)}
                   disabled={cancelRide.isPending}
                   style={{
                     marginTop: 16,

@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 from .auth import hash_token
 from .db import get_pool
 from .logging import log_event, mask_phone
-from .msg91 import send_otp_sms
+from .sms import send_otp_sms
 
 router = APIRouter(prefix="/api/otp", tags=["otp"])
 

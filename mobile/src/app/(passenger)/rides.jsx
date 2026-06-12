@@ -43,6 +43,13 @@ const STATUS_CONFIG = {
   },
 };
 
+function formatCancellationReason(reason) {
+  if (!reason) return null;
+  return String(reason)
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 function RideCard({ ride }) {
   const config = STATUS_CONFIG[ride.status] || STATUS_CONFIG.requested;
   const { Icon } = config;
@@ -187,6 +194,23 @@ function RideCard({ ride }) {
               style={{ fontSize: 12, color: TEXT_SECONDARY, fontWeight: "500" }}
             >
               {ride.vehicle_number}
+            </Text>
+          </View>
+        )}
+        {ride.status === "cancelled" && ride.cancellation_reason && (
+          <View
+            style={{
+              marginTop: 10,
+              paddingTop: 10,
+              borderTopWidth: 1,
+              borderTopColor: "#F5F5F4",
+            }}
+          >
+            <Text style={{ fontSize: 11, color: TEXT_MUTED, fontWeight: "700" }}>
+              Cancellation reason
+            </Text>
+            <Text style={{ fontSize: 12, color: "#DC2626", fontWeight: "600", marginTop: 3 }}>
+              {formatCancellationReason(ride.cancellation_reason)}
             </Text>
           </View>
         )}

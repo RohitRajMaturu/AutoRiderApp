@@ -1,20 +1,37 @@
-import { router } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Platform, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, Image, Platform, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { useAuthStore } from './store';
+import { useAuthModal, useAuthStore } from './store';
 
 const callbackUrl = '/api/auth/token';
-const callbackQueryString = `callbackUrl=${callbackUrl}`;
+const onboardingUrl = '/onboarding';
+
+function buildAuthPath(mode, params = {}, callback = callbackUrl) {
+  const query = new URLSearchParams({ callbackUrl: callback });
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      query.set(key, String(value));
+    }
+  });
+  return `/account/${mode}?${query.toString()}`;
+}
 
 /**
  * This renders a WebView for authentication and handles both web and native platforms.
  */
-export const AuthWebView = ({ mode, proxyURL, baseURL }) => {
-  const [currentURI, setURI] = useState(`${baseURL}/account/${mode}?${callbackQueryString}`);
+export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
+  const isAdminSignup = mode === 'signup' && params?.role === 'admin';
+  const authCallback = mode === 'signup' && !isAdminSignup ? onboardingUrl : callbackUrl;
+  const authParams = useMemo(
+    () => (mode === 'signup' && !isAdminSignup ? { ...params, finalCallbackUrl: callbackUrl } : params),
+    [mode, params, isAdminSignup],
+  );
+  const [currentURI, setURI] = useState(`${baseURL}${buildAuthPath(mode, authParams, authCallback)}`);
   const [isPageReady, setIsPageReady] = useState(false);
+  const [authError, setAuthError] = useState(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const { auth, setAuth, isReady } = useAuthStore();
+  const { close } = useAuthModal();
   const isAuthenticated = isReady ? !!auth : null;
   const iframeRef = useRef(null);
   useEffect(() => {
@@ -22,19 +39,35 @@ export const AuthWebView = ({ mode, proxyURL, baseURL }) => {
       return;
     }
     if (isAuthenticated) {
-      router.back();
+      close();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, close]);
   useEffect(() => {
     if (isAuthenticated) {
       return;
     }
     setIsPageReady(false);
+    setAuthError(null);
     fadeAnim.setValue(0);
-    setURI(`${baseURL}/account/${mode}?${callbackQueryString}`);
-  }, [mode, baseURL, isAuthenticated, fadeAnim]);
+    const nextUri = `${baseURL}${buildAuthPath(mode, authParams, authCallback)}`;
+    console.log('[AuthWebView] opening', { mode, nextUri, authCallback, authParams });
+    setURI(nextUri);
+  }, [mode, authParams, authCallback, baseURL, isAuthenticated, fadeAnim]);
+
+  useEffect(() => {
+    if (isPageReady || isAuthenticated) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      setAuthError('Still loading. Check the server URL and try again.');
+      setIsPageReady(true);
+      fadeAnim.setValue(1);
+    }, 8000);
+    return () => clearTimeout(timer);
+  }, [isPageReady, isAuthenticated, currentURI, fadeAnim]);
 
   const handlePageLoaded = () => {
+    console.log('[AuthWebView] page loaded', currentURI);
     setIsPageReady(true);
     Animated.timing(fadeAnim, {
       toValue: 1,
@@ -69,14 +102,38 @@ export const AuthWebView = ({ mode, proxyURL, baseURL }) => {
           marginBottom: 18,
         }}
       >
-        <Text style={{ color: '#fff', fontSize: 24, fontWeight: '900' }}>AC</Text>
+        <Image
+          source={require('../../../assets/images/icon.png')}
+          style={{ width: 58, height: 58, resizeMode: 'contain' }}
+        />
       </View>
       <ActivityIndicator color="#F97316" />
       <Text style={{ marginTop: 12, color: '#D6D3D1', fontSize: 13, fontWeight: '700' }}>
-        Opening Auto Ride...
+        {authError || 'Opening Auto Ride...'}
       </Text>
     </View>
   );
+
+  const errorBanner = authError ? (
+    <View
+      style={{
+        position: 'absolute',
+        left: 16,
+        right: 16,
+        bottom: 24,
+        zIndex: 3,
+        borderRadius: 14,
+        backgroundColor: '#FEF2F2',
+        borderWidth: 1,
+        borderColor: '#FECACA',
+        padding: 12,
+      }}
+    >
+      <Text style={{ color: '#B91C1C', fontSize: 13, fontWeight: '800', textAlign: 'center' }}>
+        {authError}
+      </Text>
+    </View>
+  ) : null;
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.addEventListener) {
@@ -88,12 +145,14 @@ export const AuthWebView = ({ mode, proxyURL, baseURL }) => {
         return;
       }
       if (event.data.type === 'AUTH_SUCCESS') {
+        console.log('[AuthWebView] web auth success', event.data.user);
         setAuth({
           jwt: event.data.jwt,
           user: event.data.user,
         });
       } else if (event.data.type === 'AUTH_ERROR') {
-        console.error('Auth error:', event.data.error);
+        console.error('[AuthWebView] web auth error', event.data.error);
+        setAuthError(event.data.error || 'Authentication failed');
       }
     };
 
@@ -116,12 +175,19 @@ export const AuthWebView = ({ mode, proxyURL, baseURL }) => {
           <iframe
             ref={iframeRef}
             title="Auto Ride authentication"
-            src={`${proxyURL}/account/${mode}?callbackUrl=/api/auth/expo-web-success`}
+            src={`${proxyURL}${buildAuthPath(
+              mode,
+              mode === 'signup' && params?.role !== 'admin'
+                ? { ...params, finalCallbackUrl: '/api/auth/expo-web-success' }
+                : params,
+              mode === 'signup' && params?.role !== 'admin' ? onboardingUrl : '/api/auth/expo-web-success',
+            )}`}
             style={{ width: '100%', height: '100%', border: 'none' }}
             onLoad={handlePageLoaded}
             onError={handleIframeError}
           />
         </Animated.View>
+        {errorBanner}
       </View>
     );
   }
@@ -141,44 +207,67 @@ export const AuthWebView = ({ mode, proxyURL, baseURL }) => {
             'x-createxyz-host': process.env.EXPO_PUBLIC_HOST,
           }}
           onLoadStart={() => {
+            console.log('[AuthWebView] load start', currentURI);
             setIsPageReady(false);
             fadeAnim.setValue(0);
           }}
           onLoadEnd={handlePageLoaded}
+          onError={(event) => {
+            console.error('[AuthWebView] webview load error', event.nativeEvent);
+            setAuthError(event.nativeEvent?.description || 'WebView failed to load');
+            setIsPageReady(true);
+            fadeAnim.setValue(1);
+          }}
+          onHttpError={(event) => {
+            console.error('[AuthWebView] webview HTTP error', event.nativeEvent);
+            setAuthError(`HTTP ${event.nativeEvent?.statusCode || ''} while loading auth`);
+            setIsPageReady(true);
+            fadeAnim.setValue(1);
+          }}
           onShouldStartLoadWithRequest={(request) => {
-            if (request.url === `${baseURL}${callbackUrl}`) {
+            console.log('[AuthWebView] nav request', request.url);
+            const requestPath = (() => {
+              try {
+                return new URL(request.url).pathname;
+              } catch {
+                return "";
+              }
+            })();
+            if (requestPath === callbackUrl) {
+              setAuthError(null);
               fetch(request.url, { credentials: 'include' }).then(async (response) => {
                 if (!response.ok) {
-                  console.error('[AuthWebView] Token fetch failed:', response.status);
+                  const body = await response.text().catch(() => '');
+                  console.error('[AuthWebView] token fetch failed', response.status, body);
+                  setAuthError('Login did not complete. Please try again.');
+                  setIsPageReady(true);
+                  setURI(`${baseURL}${buildAuthPath(mode, authParams, authCallback)}`);
                   return;
                 }
                 response.json().then((data) => {
                   if (!data.jwt) {
-                    console.error('[AuthWebView] Token response missing jwt');
+                    console.error('[AuthWebView] token response missing jwt', data);
+                    setAuthError('Login response was incomplete. Please try again.');
+                    setIsPageReady(true);
+                    setURI(`${baseURL}${buildAuthPath(mode, authParams, authCallback)}`);
                     return;
                   }
                   setAuth({ jwt: data.jwt, user: data.user });
                 });
               }).catch((err) => {
-                console.error('[AuthWebView] Token fetch error:', err);
+                console.error('[AuthWebView] token fetch error', err);
+                setAuthError('Login failed. Please try again.');
+                setIsPageReady(true);
+                setURI(`${baseURL}${buildAuthPath(mode, authParams, authCallback)}`);
               });
               return false;
             }
-            if (request.url === currentURI) return true;
-
-            const hasParams = request.url.includes('?');
-            const separator = hasParams ? '&' : '?';
-            const newURL = request.url.replaceAll(proxyURL, baseURL);
-            if (newURL.endsWith(callbackUrl)) {
-              setURI(newURL);
-              return false;
-            }
-            setURI(`${newURL}${separator}${callbackQueryString}`);
-            return false;
+            return true;
           }}
           style={{ flex: 1, backgroundColor: '#1C1917' }}
         />
       </Animated.View>
+      {errorBanner}
     </View>
   );
 };

@@ -47,11 +47,12 @@ Current verified local state:
 
 ### 2. Admin Setup
 To become an admin for testing:
-1. Sign up as a regular user in the app.
-2. Temporarily set `ENABLE_ADMIN_SETUP=true` in the backend environment.
-3. Call the setup endpoint: `POST /api/admin/setup`.
-4. Remove `ENABLE_ADMIN_SETUP` before production. The route is blocked once an admin exists.
-5. Restart the app to see the Admin Panel.
+1. Temporarily set `ENABLE_ADMIN_SETUP=true` in the web/backend environment.
+2. Optionally set `ADMIN_SETUP_PHONES=919999999999` to restrict admin creation to your real phone number.
+3. Tap `Continue as Admin` from the mobile welcome screen.
+4. Create the account with your real phone number, email, and password.
+5. After setup, use normal sign-in with that phone number or email.
+6. Remove `ENABLE_ADMIN_SETUP` before production. The route is blocked once an admin exists.
 
 The setup route is also hard-disabled when `NODE_ENV=production`.
 
@@ -63,6 +64,10 @@ For production-grade location search and routing, configure the backend with:
 ```env
 AUTH_SECRET=replace_with_a_long_random_secret
 OLAMAPS_API_KEY=your_ola_maps_api_key
+SMS_PROVIDER=fast2sms
+FAST2SMS_API_KEY=your_fast2sms_api_key
+ENABLE_ADMIN_SETUP=true
+ADMIN_SETUP_PHONES=919999999999
 PASSENGER_REQUEST_COOLDOWN_SECONDS=30
 PASSENGER_POST_CANCEL_COOLDOWN_SECONDS=60
 DRIVER_HEARTBEAT_TIMEOUT_SECONDS=120
@@ -131,8 +136,10 @@ The current bridge is:
 - FastAPI validates those opaque tokens against PostgreSQL.
 - Driver WebSocket reconnect replays pending ride requests.
 - Driver heartbeat and ride timeout maintenance run as in-process asyncio tasks.
-- MSG91 OTP and transactional SMS hooks are present and activated by environment
-  variables.
+- OTP and transactional SMS calls go through a provider-neutral backend module.
+  Set `SMS_PROVIDER=fast2sms` for testing with Fast2SMS credits. When ready for
+  MSG91, switch to `SMS_PROVIDER=msg91` and provide the MSG91 template settings
+  without changing OTP, ride dispatch, or mobile flows.
 
 Horizontal scaling is intentionally deferred. When multi-city expansion requires
 multiple backend instances, add Redis/pub-sub or an equivalent broker to sync
@@ -148,6 +155,7 @@ in-process maintenance.
 Pending items:
 
 - Add real MSG91 template IDs/auth key in backend environment and test OTP/SMS on approved MSG91 templates.
+- Add real Fast2SMS API key in backend environment for current OTP testing.
 - Decide whether to keep hybrid backend or gradually migrate existing Node API routes to FastAPI.
 - If migrating to FastAPI, move endpoints in phases: rides first, admin second, locations third, auth last.
 - Complete real-device E2E testing for passenger, driver, and admin flows.

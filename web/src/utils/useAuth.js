@@ -21,14 +21,28 @@ function useAuth() {
   const signInWithCredentials = useCallback((options) => {
     return signIn("credentials-signin", {
       ...options,
-      callbackUrl: callbackUrl ?? options.callbackUrl
+      callbackUrl: options.callbackUrl ?? callbackUrl
     });
   }, [callbackUrl])
 
   const signUpWithCredentials = useCallback((options) => {
     return signIn("credentials-signup", {
       ...options,
-      callbackUrl: callbackUrl ?? options.callbackUrl
+      callbackUrl: options.callbackUrl ?? callbackUrl
+    });
+  }, [callbackUrl])
+
+  const signInWithPhoneOtp = useCallback((options) => {
+    return signIn("phone-otp", {
+      ...options,
+      callbackUrl: options.callbackUrl ?? callbackUrl
+    });
+  }, [callbackUrl])
+
+  const signInWithTestRegister = useCallback((options) => {
+    return signIn("test-register", {
+      ...options,
+      callbackUrl: options.callbackUrl ?? callbackUrl
     });
   }, [callbackUrl])
 
@@ -55,6 +69,8 @@ function useAuth() {
 
   return {
     signInWithCredentials,
+    signInWithPhoneOtp,
+    signInWithTestRegister,
     signUpWithCredentials,
     signInWithGoogle,
     signInWithFacebook,

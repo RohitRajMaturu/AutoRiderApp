@@ -12,22 +12,37 @@ function OnboardingPage() {
     const finalizeOnboarding = async () => {
       const pendingRole = localStorage.getItem("pending_role") || "passenger";
       const pendingPhone = localStorage.getItem("pending_phone") || "";
+      const finalCallbackUrl = localStorage.getItem("pending_final_callback") || "/";
 
       try {
         const response = await fetch("/api/user-profile", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ role: pendingRole, phone: pendingPhone }),
+          body: JSON.stringify({
+            role: pendingRole === "admin" ? undefined : pendingRole,
+            phone: pendingPhone,
+          }),
         });
 
         if (!response.ok) throw new Error("Failed to update profile");
 
+        if (pendingRole === "admin") {
+          const adminResponse = await fetch("/api/admin/setup", {
+            method: "POST",
+          });
+          if (!adminResponse.ok) {
+            const body = await adminResponse.json().catch(() => ({}));
+            throw new Error(body.error || "Failed to create admin account");
+          }
+        }
+
         // Cleanup
         localStorage.removeItem("pending_role");
         localStorage.removeItem("pending_phone");
+        localStorage.removeItem("pending_final_callback");
 
         // Redirect based on role
-        window.location.href = "/"; // Mobile auth flow will handle closing modal
+        window.location.href = finalCallbackUrl;
       } catch (err) {
         setError(err.message);
         setLoading(false);

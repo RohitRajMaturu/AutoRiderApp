@@ -6,7 +6,7 @@ from .auth import CurrentUser, current_user
 from .config import get_settings
 from .db import get_pool
 from .maintenance import cancel_ghost_rides, offline_stale_or_expired_drivers
-from .msg91 import send_transactional_sms
+from .sms import send_transactional_sms
 from .ws_manager import manager
 from .logging import log_event
 
