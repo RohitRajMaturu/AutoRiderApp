@@ -179,9 +179,9 @@ function SignInPage() {
           </div>
         </section>
 
-        <section className="rounded-[24px] border border-stone-200 bg-white px-6 pb-7 pt-7 shadow-[0_18px_55px_rgba(28,25,23,0.10)]">
+        <section className="rounded-[24px] border border-stone-200 bg-white px-6 pb-6 pt-6 shadow-[0_18px_55px_rgba(28,25,23,0.10)]">
           {enableOtpVerification && (
-            <div className="mb-5 grid grid-cols-2 gap-1 rounded-[16px] border border-stone-200 bg-[#FFFBF5] p-1">
+            <div className="mb-4 grid grid-cols-2 gap-1 rounded-[14px] border border-stone-200 bg-[#FFFBF5] p-1">
               {[
                 { id: "email", label: "Email", Icon: Mail },
                 { id: "phone", label: "Phone", Icon: Smartphone },
@@ -193,7 +193,7 @@ function SignInPage() {
                     setMode(id);
                     setError(null);
                   }}
-                  className={`flex items-center justify-center gap-2 rounded-[12px] py-2.5 text-sm font-extrabold transition ${
+                  className={`flex items-center justify-center gap-2 rounded-[10px] py-2 text-sm font-extrabold transition ${
                     mode === id ? "bg-[#F97316] text-white shadow" : "text-stone-500"
                   }`}
                 >
@@ -204,7 +204,7 @@ function SignInPage() {
             </div>
           )}
 
-          <form onSubmit={onSubmit} className="space-y-4">
+          <form onSubmit={onSubmit} className="space-y-3.5">
             {mode === "email" || !enableOtpVerification ? (
               <>
                 <div className="space-y-1.5">
@@ -216,7 +216,7 @@ function SignInPage() {
                     inputMode="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-[12px] border border-stone-200 bg-[#FFFBF5] px-4 py-4 text-[15px] font-semibold text-stone-900 outline-none transition focus:border-[#F97316] focus:ring-4 focus:ring-orange-100"
+                    className="h-12 w-full rounded-[10px] border border-stone-200 bg-[#FFFBF5] px-3.5 text-sm font-semibold text-stone-900 outline-none transition focus:border-[#F97316] focus:ring-4 focus:ring-orange-100"
                     placeholder="name@example.com or +91 99999 99999"
                     autoComplete="username"
                     required
@@ -231,7 +231,7 @@ function SignInPage() {
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full rounded-[12px] border border-stone-200 bg-[#FFFBF5] px-4 py-4 text-[15px] font-semibold text-stone-900 outline-none transition focus:border-[#F97316] focus:ring-4 focus:ring-orange-100"
+                    className="h-12 w-full rounded-[10px] border border-stone-200 bg-[#FFFBF5] px-3.5 text-sm font-semibold text-stone-900 outline-none transition focus:border-[#F97316] focus:ring-4 focus:ring-orange-100"
                     placeholder="Enter your password"
                     autoComplete="current-password"
                     required
@@ -253,7 +253,7 @@ function SignInPage() {
                         setPhone(e.target.value);
                         setOtpSent(false);
                       }}
-                      className="min-w-0 flex-1 rounded-[12px] border border-stone-200 bg-[#FFFBF5] px-4 py-4 text-[15px] font-semibold text-stone-900 outline-none transition focus:border-[#F97316] focus:ring-4 focus:ring-orange-100"
+                      className="h-12 min-w-0 flex-1 rounded-[10px] border border-stone-200 bg-[#FFFBF5] px-3.5 text-sm font-semibold text-stone-900 outline-none transition focus:border-[#F97316] focus:ring-4 focus:ring-orange-100"
                       placeholder="+91 99999 99999"
                       autoComplete="tel"
                       required
@@ -262,7 +262,7 @@ function SignInPage() {
                       type="button"
                       onClick={sendOtp}
                       disabled={loading || !phone.trim()}
-                      className="rounded-[12px] border border-orange-200 bg-orange-50 px-4 text-sm font-extrabold text-[#EA580C] disabled:opacity-50"
+                      className="h-12 rounded-[10px] border border-orange-200 bg-orange-50 px-4 text-sm font-extrabold text-[#EA580C] disabled:opacity-50"
                     >
                       {otpSent ? "Resend" : "OTP"}
                     </button>
@@ -278,7 +278,7 @@ function SignInPage() {
                     inputMode="numeric"
                     value={otp}
                     onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                    className="w-full rounded-[12px] border border-stone-200 bg-[#FFFBF5] px-4 py-4 text-center text-[18px] font-extrabold tracking-normal text-stone-900 outline-none transition focus:border-[#F97316] focus:ring-4 focus:ring-orange-100"
+                    className="h-12 w-full rounded-[10px] border border-stone-200 bg-[#FFFBF5] px-3.5 text-center text-base font-extrabold tracking-normal text-stone-900 outline-none transition focus:border-[#F97316] focus:ring-4 focus:ring-orange-100"
                     placeholder="000000"
                     autoComplete="one-time-code"
                     required
@@ -296,7 +296,7 @@ function SignInPage() {
             <button
               type="submit"
               disabled={loading || (mode === "phone" && !otpSent)}
-              className="group flex w-full items-center justify-center rounded-[12px] border-b-2 border-b-[#138808] bg-[#F97316] py-[17px] text-[17px] font-extrabold text-white shadow-[0_10px_24px_rgba(249,115,22,0.28)] transition hover:bg-[#EA580C] disabled:opacity-60"
+              className="group flex h-12 w-full items-center justify-center rounded-[10px] border-b-2 border-b-[#138808] bg-[#F97316] text-base font-extrabold text-white shadow-[0_10px_24px_rgba(249,115,22,0.22)] transition hover:bg-[#EA580C] disabled:opacity-60"
             >
               {loading ? (
                 <AutoRiderLoader label="Please wait" />
