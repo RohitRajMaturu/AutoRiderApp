@@ -97,18 +97,26 @@ export function createBackgroundTask(task) {
 
 export async function dispatchRideRequest(ride, scopedSql = sql) {
   const drivers = await selectZoneDrivers(ride.zone_id, scopedSql);
-  for (const driver of drivers) {
-    await scopedSql`
-      INSERT INTO ride_driver_notifications (ride_id, driver_id, channel, status, payload)
-      VALUES (
-        ${ride.id},
-        ${driver.id},
-        'websocket',
-        'pending',
-        ${JSON.stringify({ type: "ride_request", ride_id: ride.id })}::jsonb
-      )
-      ON CONFLICT (ride_id, driver_id, channel) DO NOTHING
-    `;
+  if (drivers.length === 0) {
+    return 0;
   }
+
+  const payload = JSON.stringify({ type: "ride_request", ride_id: ride.id });
+  const values = [];
+  const placeholders = drivers.map((driver, index) => {
+    const offset = index * 5;
+    values.push(ride.id, driver.id, "websocket", "pending", payload);
+    return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}::jsonb)`;
+  });
+
+  await scopedSql(
+    `
+      INSERT INTO ride_driver_notifications (ride_id, driver_id, channel, status, payload)
+      VALUES ${placeholders.join(", ")}
+      ON CONFLICT (ride_id, driver_id, channel) DO NOTHING
+    `,
+    values,
+  );
+
   return drivers.length;
 }
