@@ -145,7 +145,7 @@ for (const method of ['post', 'put', 'patch'] as const) {
   app[method](
     '*',
     bodyLimit({
-      maxSize: 4.5 * 1024 * 1024, // 4.5mb to match vercel limit
+      maxSize: 4.5 * 1024 * 1024, // Keep request bodies bounded on the VPS.
       onError: (c) => {
         return c.json({ error: 'Body size limit exceeded' }, 413);
       },
