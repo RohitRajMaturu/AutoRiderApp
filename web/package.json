@@ -8,7 +8,8 @@
 		"typecheck": "react-router typegen && tsc --noEmit",
 		"test:api": "vitest run --config src/app/api/vitest.config.ts",
 		"db:check": "node scripts/db-check.mjs",
-		"db:migrate": "node scripts/db-migrate.mjs"
+		"db:migrate": "node scripts/db-migrate.mjs",
+		"maintenance": "node scripts/maintenance.mjs"
 	},
 	"dependencies": {
 		"@auth/core": "^0.37.2",

@@ -1,9 +1,7 @@
 import sql from "@/app/api/utils/sql";
 import { auth } from "@/auth";
 import {
-  autoCancelGhostRides,
   getAcceptedRideTimeoutMinutes,
-  offlineExpiredDrivers,
 } from "@/app/api/utils/dispatch";
 
 function readCancellationReason(value, fallback) {
@@ -23,8 +21,6 @@ export async function PATCH(request, { params }) {
     const { id } = params;
     const body = await request.json();
     const { action } = body;
-    await autoCancelGhostRides();
-    await offlineExpiredDrivers();
 
     const driverRows =
       await sql`

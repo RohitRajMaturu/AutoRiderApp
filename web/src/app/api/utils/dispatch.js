@@ -73,7 +73,6 @@ export async function autoCancelGhostRides(scopedSql = sql) {
 
 export async function selectZoneDrivers(zoneId, scopedSql = sql) {
   if (!zoneId) return [];
-  await offlineExpiredDrivers(scopedSql);
   const rows = await scopedSql`
     SELECT d.id, d.user_id, u.phone, d.online_since, z.max_online_drivers
     FROM drivers d

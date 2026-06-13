@@ -6,13 +6,11 @@ import {
   readBoundedString,
 } from "@/app/api/utils/validation";
 import {
-  autoCancelGhostRides,
   createBackgroundTask,
   dispatchRideRequest,
   findZoneForPoint,
   getPassengerPostCancelCooldownSeconds,
   getPassengerSpamCooldownSeconds,
-  offlineExpiredDrivers,
 } from "@/app/api/utils/dispatch";
 import { auth } from "@/auth";
 
@@ -55,8 +53,6 @@ export async function POST(request) {
         { status: 400 },
       );
     }
-
-    await autoCancelGhostRides();
 
     // Check if user already has an active ride.
     const active = await sql`
@@ -188,8 +184,6 @@ export async function GET(request) {
 
     let rides;
     if (role === "driver") {
-      await autoCancelGhostRides();
-      await offlineExpiredDrivers();
       const driverRows =
         await sql`SELECT id, zone_id FROM drivers WHERE user_id = ${session.user.id} LIMIT 1`;
       const driver = driverRows[0];

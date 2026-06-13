@@ -1,0 +1,135 @@
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import pg from "pg";
+
+const { Pool } = pg;
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const WEB_ROOT = resolve(__dirname, "..");
+
+function loadDotEnv() {
+  const envPath = resolve(WEB_ROOT, ".env");
+  try {
+    const contents = readFileSync(envPath, "utf8");
+    for (const line of contents.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const separator = trimmed.indexOf("=");
+      if (separator === -1) continue;
+      const key = trimmed.slice(0, separator).trim();
+      const value = trimmed.slice(separator + 1).trim();
+      if (!process.env[key]) {
+        process.env[key] = value.replace(/^["']|["']$/g, "");
+      }
+    }
+  } catch {
+    // External DATABASE_URL is also supported.
+  }
+}
+
+function readIntervalMs() {
+  const seconds = Number(process.env.MAINTENANCE_INTERVAL_SECONDS || 30);
+  if (!Number.isFinite(seconds) || seconds < 5) return 30000;
+  return seconds * 1000;
+}
+
+function readHeartbeatTimeoutSeconds() {
+  const seconds = Number(process.env.DRIVER_HEARTBEAT_TIMEOUT_SECONDS || 120);
+  if (!Number.isFinite(seconds) || seconds < 30 || seconds > 1800) return 120;
+  return seconds;
+}
+
+function readAcceptedRideTimeoutMinutes() {
+  const minutes = Number(process.env.ACCEPTED_RIDE_TIMEOUT_MINUTES || 45);
+  if (!Number.isFinite(minutes) || minutes < 1 || minutes > 720) return 45;
+  return minutes;
+}
+
+async function runMaintenance(pool) {
+  const heartbeatTimeoutSeconds = readHeartbeatTimeoutSeconds();
+  const acceptedRideTimeoutMinutes = readAcceptedRideTimeoutMinutes();
+
+  await pool.query(
+    `
+      UPDATE drivers
+      SET is_online = false,
+          online_since = NULL,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE is_online = true
+        AND (
+          last_heartbeat_at IS NULL
+          OR last_heartbeat_at < CURRENT_TIMESTAMP - make_interval(secs => $1)
+          OR subscription_expiry IS NULL
+          OR subscription_expiry <= CURRENT_TIMESTAMP
+        )
+    `,
+    [heartbeatTimeoutSeconds],
+  );
+
+  await pool.query(
+    `
+      UPDATE rides
+      SET status = 'cancelled',
+          cancelled_at = CURRENT_TIMESTAMP,
+          cancellation_reason = 'accepted_timeout',
+          updated_at = CURRENT_TIMESTAMP
+      WHERE status = 'accepted'
+        AND accepted_at < CURRENT_TIMESTAMP - make_interval(mins => $1)
+    `,
+    [acceptedRideTimeoutMinutes],
+  );
+
+  await pool.query("DELETE FROM realtime_tokens WHERE expires_at <= CURRENT_TIMESTAMP");
+  await pool.query("DELETE FROM auth_sessions WHERE expires <= CURRENT_TIMESTAMP");
+  await pool.query("DELETE FROM auth_verification_tokens WHERE expires <= CURRENT_TIMESTAMP");
+  await pool.query(
+    `
+      DELETE FROM otp_challenges
+      WHERE expires_at <= CURRENT_TIMESTAMP
+         OR consumed_at IS NOT NULL
+    `,
+  );
+}
+
+async function main() {
+  loadDotEnv();
+
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) {
+    throw new Error("DATABASE_URL is missing. Set it in web/.env or the shell.");
+  }
+
+  const intervalMs = readIntervalMs();
+  const pool = new Pool({ connectionString: databaseUrl, max: 2 });
+  let running = false;
+
+  async function tick() {
+    if (running) return;
+    running = true;
+    try {
+      await runMaintenance(pool);
+    } catch (error) {
+      console.error("Maintenance tick failed:", error.message);
+    } finally {
+      running = false;
+    }
+  }
+
+  const timer = setInterval(tick, intervalMs);
+  await tick();
+  console.log(`Maintenance worker running every ${intervalMs / 1000}s.`);
+
+  async function shutdown() {
+    clearInterval(timer);
+    await pool.end();
+    process.exit(0);
+  }
+
+  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", shutdown);
+}
+
+main().catch((error) => {
+  console.error("Maintenance worker failed:", error.message);
+  process.exitCode = 1;
+});

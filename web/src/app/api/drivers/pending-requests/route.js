@@ -1,6 +1,5 @@
 import sql from "@/app/api/utils/sql";
 import { auth } from "@/auth";
-import { autoCancelGhostRides, offlineExpiredDrivers } from "@/app/api/utils/dispatch";
 
 export async function GET(request) {
   try {
@@ -8,9 +7,6 @@ export async function GET(request) {
     if (!session?.user?.id) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    await autoCancelGhostRides();
-    await offlineExpiredDrivers();
 
     const driverRows = await sql`
       SELECT id

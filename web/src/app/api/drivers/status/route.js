@@ -3,7 +3,6 @@ import { auth } from "@/auth";
 import {
   findZoneForPoint,
   getDriverHeartbeatTimeoutSeconds,
-  offlineExpiredDrivers,
 } from "@/app/api/utils/dispatch";
 
 function isFiniteLatitude(value) {
@@ -43,8 +42,6 @@ export async function PATCH(request) {
         { status: 400 },
       );
     }
-
-    await offlineExpiredDrivers();
 
     // Check if subscription is active
     const driver =
