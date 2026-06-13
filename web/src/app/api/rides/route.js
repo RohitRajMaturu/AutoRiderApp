@@ -214,7 +214,13 @@ export async function GET(request) {
       `;
     } else {
       rides = await sql`
-        SELECT r.*, d.vehicle_number, d.auto_photo_url, u.phone as driver_phone
+        SELECT
+          r.*,
+          d.vehicle_number,
+          d.auto_photo_url,
+          d.last_lat as driver_last_lat,
+          d.last_lng as driver_last_lng,
+          u.phone as driver_phone
         FROM rides r
         LEFT JOIN drivers d ON r.driver_id = d.id
         LEFT JOIN auth_users u ON d.user_id = u.id

@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  Image,
   Linking,
   Platform,
 } from "react-native";
@@ -62,6 +63,28 @@ function withTimeout(promise, ms) {
       setTimeout(() => reject(new Error("Timed out")), ms),
     ),
   ]);
+}
+
+function buildMapRegion(points) {
+  const validPoints = points.filter(
+    (point) =>
+      point &&
+      Number.isFinite(point.lat) &&
+      Number.isFinite(point.lng),
+  );
+  if (validPoints.length === 0) return null;
+
+  const minLat = Math.min(...validPoints.map((point) => point.lat));
+  const maxLat = Math.max(...validPoints.map((point) => point.lat));
+  const minLng = Math.min(...validPoints.map((point) => point.lng));
+  const maxLng = Math.max(...validPoints.map((point) => point.lng));
+
+  return {
+    latitude: (minLat + maxLat) / 2,
+    longitude: (minLng + maxLng) / 2,
+    latitudeDelta: Math.max((maxLat - minLat) * 2.5, 0.025),
+    longitudeDelta: Math.max((maxLng - minLng) * 2.5, 0.025),
+  };
 }
 
 function StatusBadge({ status }) {
@@ -400,33 +423,26 @@ export default function PassengerHome() {
     ]);
   };
 
-  const mapRegion =
-    pickupCoords || destinationCoords
-      ? {
-          latitude:
-            pickupCoords && destinationCoords
-              ? (pickupCoords.lat + destinationCoords.lat) / 2
-              : (pickupCoords || destinationCoords).lat,
-          longitude:
-            pickupCoords && destinationCoords
-              ? (pickupCoords.lng + destinationCoords.lng) / 2
-              : (pickupCoords || destinationCoords).lng,
-          latitudeDelta:
-            pickupCoords && destinationCoords
-              ? Math.max(
-                  Math.abs(pickupCoords.lat - destinationCoords.lat) * 2.5,
-                  0.025,
-                )
-              : 0.025,
-          longitudeDelta:
-            pickupCoords && destinationCoords
-              ? Math.max(
-                  Math.abs(pickupCoords.lng - destinationCoords.lng) * 2.5,
-                  0.025,
-                )
-              : 0.025,
-        }
+  const mapRegion = buildMapRegion([pickupCoords, destinationCoords]);
+  const activePickupCoords = activeRide
+    ? { lat: Number(activeRide.pickup_lat), lng: Number(activeRide.pickup_lng) }
+    : null;
+  const activeDestinationCoords = activeRide
+    ? { lat: Number(activeRide.dest_lat), lng: Number(activeRide.dest_lng) }
+    : null;
+  const activeDriverLat = Number(activeRide?.driver_last_lat);
+  const activeDriverLng = Number(activeRide?.driver_last_lng);
+  const activeDriverCoords =
+    activeRide?.status === "accepted" &&
+    Number.isFinite(activeDriverLat) &&
+    Number.isFinite(activeDriverLng)
+      ? { lat: activeDriverLat, lng: activeDriverLng }
       : null;
+  const activeRideMapRegion = buildMapRegion([
+    activePickupCoords,
+    activeDestinationCoords,
+    activeDriverCoords,
+  ]);
 
   const updatePickupFromMap = async ({ latitude, longitude }) => {
     setPickupCoords({ lat: latitude, lng: longitude });
@@ -656,6 +672,57 @@ export default function PassengerHome() {
                 <StatusBadge status={activeRide.status} />
               </View>
 
+              {Platform.OS !== "web" && activeRideMapRegion && (
+                <View
+                  style={{
+                    height: 220,
+                    borderBottomWidth: 1,
+                    borderBottomColor: BORDER,
+                    backgroundColor: SURFACE,
+                  }}
+                >
+                  <MapView
+                    style={{ flex: 1 }}
+                    initialRegion={activeRideMapRegion}
+                    region={activeRideMapRegion}
+                    showsUserLocation
+                    showsMyLocationButton
+                  >
+                    {activePickupCoords && (
+                      <Marker
+                        coordinate={{
+                          latitude: activePickupCoords.lat,
+                          longitude: activePickupCoords.lng,
+                        }}
+                        title="Pickup"
+                        pinColor={PRIMARY}
+                      />
+                    )}
+                    {activeDestinationCoords && (
+                      <Marker
+                        coordinate={{
+                          latitude: activeDestinationCoords.lat,
+                          longitude: activeDestinationCoords.lng,
+                        }}
+                        title="Destination"
+                        pinColor={SUCCESS}
+                      />
+                    )}
+                    {activeDriverCoords && (
+                      <Marker
+                        coordinate={{
+                          latitude: activeDriverCoords.lat,
+                          longitude: activeDriverCoords.lng,
+                        }}
+                        title="Driver"
+                        description={activeRide.vehicle_number || "Your driver"}
+                        pinColor="#2563EB"
+                      />
+                    )}
+                  </MapView>
+                </View>
+              )}
+
               {/* Route info */}
               <View style={{ padding: 20 }}>
                 <View style={{ flexDirection: "row", gap: 16 }}>
@@ -758,9 +825,17 @@ export default function PassengerHome() {
                             backgroundColor: PRIMARY,
                             justifyContent: "center",
                             alignItems: "center",
+                            overflow: "hidden",
                           }}
                         >
-                          <Car size={22} color="#fff" />
+                          {activeRide.auto_photo_url ? (
+                            <Image
+                              source={{ uri: activeRide.auto_photo_url }}
+                              style={{ width: 44, height: 44 }}
+                            />
+                          ) : (
+                            <Car size={22} color="#fff" />
+                          )}
                         </View>
                         <View>
                           <Text
@@ -773,7 +848,7 @@ export default function PassengerHome() {
                             {activeRide.vehicle_number}
                           </Text>
                           <Text style={{ fontSize: 12, color: TEXT_SECONDARY }}>
-                            Your driver
+                            {activeRide.driver_phone || "Your driver"}
                           </Text>
                         </View>
                       </View>

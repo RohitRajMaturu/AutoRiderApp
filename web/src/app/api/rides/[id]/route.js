@@ -168,7 +168,14 @@ export async function GET(request, { params }) {
 
     const { id } = params;
     const rows = await sql`
-      SELECT r.*, d.vehicle_number, d.auto_photo_url, du.phone as driver_phone, pu.phone as passenger_phone
+      SELECT
+        r.*,
+        d.vehicle_number,
+        d.auto_photo_url,
+        d.last_lat as driver_last_lat,
+        d.last_lng as driver_last_lng,
+        du.phone as driver_phone,
+        pu.phone as passenger_phone
       FROM rides r
       LEFT JOIN drivers d ON r.driver_id = d.id
       LEFT JOIN auth_users du ON d.user_id = du.id
