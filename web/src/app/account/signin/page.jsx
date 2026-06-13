@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { ChevronRight, Mail, Smartphone } from "lucide-react";
 import useAuth from "@/utils/useAuth";
-import AnimatedAuto from "@/components/AnimatedAuto";
 import AutoRiderLoader from "@/components/AutoRiderLoader";
 
 function getAdminIntent() {
@@ -138,43 +137,49 @@ function SignInPage() {
   return (
     <div className="min-h-screen bg-[#FFFBF5] font-inter text-[#1C1917]">
       <div className="h-1 w-full bg-gradient-to-r from-[#F97316] via-white to-[#138808]" />
-      <main className="mx-auto flex min-h-[calc(100vh-4px)] w-full max-w-[440px] flex-col justify-center px-5 py-8">
-        <section className="mb-5 text-center">
-          <div className="mx-auto mb-3 inline-flex items-center gap-2 rounded-full border border-orange-200 bg-white px-3 py-1 text-[11px] font-extrabold uppercase tracking-normal text-stone-500 shadow-sm">
-            <span className="h-2 w-2 rounded-full bg-[#F97316]" />
-            Secunderabad single-zone
-          </div>
-
-          <div className="relative overflow-hidden rounded-[30px] border border-orange-100 bg-white shadow-[0_24px_70px_rgba(249,115,22,0.14)]">
-            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#F97316] via-white to-[#138808]" />
-            <AnimatedAuto />
-            <div className="grid grid-cols-3 border-t border-orange-100 bg-[#FFFBF5]">
-              {["Fast login", "Fair fares", "Live rides"].map((item) => (
-                <div
-                  key={item}
-                  className="border-r border-orange-100 px-2 py-3 text-center text-[11px] font-extrabold text-stone-600 last:border-r-0"
-                >
-                  {item}
-                </div>
-              ))}
+      <main className="mx-auto flex min-h-[calc(100vh-4px)] w-full max-w-[430px] flex-col justify-center px-5 py-8">
+        <section className="mb-5 overflow-hidden rounded-[24px] border border-stone-800 bg-[#1C1917] text-white shadow-[0_20px_60px_rgba(28,25,23,0.22)]">
+          <div className="flex items-center justify-between px-5 pt-5">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-[14px] bg-[#F97316] shadow-[0_10px_24px_rgba(249,115,22,0.28)]">
+                <img src="/auto-ride-icon.png" alt="Auto Ride" className="h-9 w-9 object-contain" />
+              </div>
+              <div>
+                <div className="text-base font-extrabold tracking-normal">Auto Ride</div>
+                <div className="text-xs font-semibold text-stone-400">Secunderabad pilot</div>
+              </div>
+            </div>
+            <div className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[11px] font-extrabold uppercase tracking-normal text-stone-200">
+              Single-zone
             </div>
           </div>
-        </section>
 
-        <section className="rounded-[28px] border border-stone-200 bg-white px-6 pb-7 pt-7 shadow-[0_24px_70px_rgba(28,25,23,0.12)]">
-          <div className="mb-6">
-            <h1 className="text-[30px] font-extrabold leading-tight tracking-normal text-stone-950">
+          <div className="px-5 pb-6 pt-7">
+            <div className="relative h-24 overflow-hidden rounded-[18px] border border-white/10 bg-white/[0.06]">
+              <svg aria-hidden="true" className="h-full w-full" viewBox="0 0 390 110" fill="none">
+                <path d="M-18 86C44 44 91 39 138 70C187 101 224 99 271 62C313 29 353 27 412 53" stroke="#FED7AA" strokeWidth="5" strokeLinecap="round" opacity="0.5" />
+                <path d="M-20 88C43 46 91 41 138 72C187 103 225 101 273 64C313 33 353 29 412 55" stroke="#F97316" strokeWidth="2" strokeLinecap="round" strokeDasharray="8 10" />
+                <circle cx="74" cy="50" r="9" fill="#F97316" />
+                <circle cx="74" cy="50" r="16" stroke="#F97316" strokeOpacity="0.22" strokeWidth="7" />
+                <circle cx="299" cy="47" r="9" fill="#138808" />
+                <circle cx="299" cy="47" r="16" stroke="#138808" strokeOpacity="0.22" strokeWidth="7" />
+                <path d="M30 23h58M49 36h26M285 76h54M304 88h24" stroke="#FAFAF9" strokeWidth="3" strokeLinecap="round" opacity="0.2" />
+              </svg>
+            </div>
+            <h1 className="mt-5 text-[34px] font-extrabold leading-tight tracking-normal">
               Welcome back
             </h1>
-            <p className="mt-2 text-sm font-medium leading-6 text-stone-500">
+            <p className="mt-2 text-sm font-medium leading-6 text-stone-300">
               {adminIntent
                 ? "Sign in with your existing account to enable first-admin access."
                 : enableOtpVerification
-                  ? "Choose email password or phone OTP to continue."
+                  ? "Use email password or phone OTP to continue."
                   : "Sign in with your email or phone and password."}
             </p>
           </div>
+        </section>
 
+        <section className="rounded-[24px] border border-stone-200 bg-white px-6 pb-7 pt-7 shadow-[0_18px_55px_rgba(28,25,23,0.10)]">
           {enableOtpVerification && (
             <div className="mb-5 grid grid-cols-2 gap-1 rounded-[16px] border border-stone-200 bg-[#FFFBF5] p-1">
               {[
