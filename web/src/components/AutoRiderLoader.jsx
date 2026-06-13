@@ -32,43 +32,52 @@ export default function AutoRiderLoader({ label = "Loading" }) {
             repeatCount="indefinite"
           />
           <path
-            d="M23 31c1.4-10.4 8.6-17 19.5-17h14c8.2 0 15.2 5 17.6 12.8L76 31"
+            d="M25 30c1.6-11.2 9.5-18.5 21-18.5h15c10.5 0 18.6 7.2 20.8 18.5"
             stroke="currentColor"
             strokeWidth="4"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
           <path
-            d="M30 30h38l-3.8-10.5H43c-6.8 0-11.4 3.6-13 10.5Z"
-            fill="currentColor"
-            opacity="0.18"
+            d="M35 29c2.3-7 7.6-11.2 15.3-11.2h10.2c7.1 0 12.3 4.1 15.2 11.2H35Z"
+            fill="white"
+            opacity="0.58"
           />
           <path
-            d="M18 32h60c3.4 0 6 2.7 6 6v3H12v-3c0-3.3 2.7-6 6-6Z"
+            d="M16 31h65c4.6 0 8 3.7 8 8.2V42H11v-5c0-3.3 2.7-6 6-6Z"
             fill="currentColor"
           />
           <path
-            d="M23 32h50"
+            d="M21 34h57"
             stroke="white"
             strokeWidth="2"
             strokeLinecap="round"
             opacity="0.35"
           />
-          <circle cx="29" cy="42" r="6" fill="white" opacity="0.95" />
-          <circle cx="29" cy="42" r="2.5" fill="currentColor" />
-          <circle cx="67" cy="42" r="6" fill="white" opacity="0.95" />
-          <circle cx="67" cy="42" r="2.5" fill="currentColor" />
           <path
-            d="M46 20h12l3.2 10H42l4-10Z"
-            fill="white"
-            opacity="0.55"
+            d="M62 18l5 23"
+            stroke="currentColor"
+            strokeWidth="3"
+            strokeLinecap="round"
+            opacity="0.8"
           />
+          <circle cx="28" cy="43" r="6" fill="white" opacity="0.95" />
+          <circle cx="28" cy="43" r="2.5" fill="currentColor" />
+          <circle cx="68" cy="43" r="6" fill="white" opacity="0.95" />
+          <circle cx="68" cy="43" r="2.5" fill="currentColor" />
           <path
-            d="M15 37h7M74 37h8"
+            d="M13 38h11M77 38h10"
             stroke="white"
             strokeWidth="2"
             strokeLinecap="round"
-            opacity="0.7"
+            opacity="0.72"
+          />
+          <path
+            d="M9 30h10"
+            stroke="white"
+            strokeWidth="2"
+            strokeLinecap="round"
+            opacity="0.45"
           />
         </g>
         <path
