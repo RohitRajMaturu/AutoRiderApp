@@ -51,6 +51,7 @@ cd web; npm run typecheck
 cd web; npm run test:api
 cd web; npm run db:check
 cd web; npm run db:migrate
+cd web; npm run maintenance
 ```
 
 `run-local.ps1` starts the web backend and Expo app, setting mobile API env vars such as `EXPO_PUBLIC_BASE_URL`, `EXPO_PUBLIC_APP_URL`, and `EXPO_PUBLIC_PROXY_BASE_URL`.
@@ -64,6 +65,7 @@ Backend-only secrets and controls:
 - `ENABLE_ADMIN_SETUP`: set to `true` only during local/bootstrap setup. The route is hard-disabled in production.
 - `DRIVER_RIDE_RADIUS_KM`: nearby ride discovery radius, default `8`, allowed `1..50`.
 - `DRIVER_LOCATION_MAX_AGE_MINUTES`: driver coordinate freshness window, default `10`, allowed `1..240`.
+- `MAINTENANCE_INTERVAL_SECONDS`: scheduled cleanup cadence, default `30`.
 - `RATE_LIMIT_MAX_REQUESTS`: API requests per method/path/IP window, default `120`; set `0` to disable locally.
 - `RATE_LIMIT_WINDOW_MS`: rate-limit window, default `60000`.
 
@@ -110,7 +112,7 @@ Passenger location behavior:
 API handlers live under `web/src/app/api`.
 
 Database utility:
-- `web/src/app/api/utils/sql.js` uses `pg.Pool` with `process.env.DATABASE_URL`.
+- `web/src/app/api/utils/sql.js` uses `pg.Pool` with `process.env.DATABASE_URL` and an explicit VPS-sized pool max of 10.
 - The local `sql\`...\`` tagged-template style is preserved.
 - `sql.transaction(async (tx) => { ... })` now runs a real PostgreSQL transaction with `BEGIN`, `COMMIT`, and `ROLLBACK`.
 
@@ -124,6 +126,8 @@ Server controls:
 - API body size is limited for write methods.
 - API rate limiting is enabled for `/api/*`.
 - Security headers are added globally: content-type sniffing protection, referrer policy, frame policy, and a restricted permissions policy.
+- Scheduled maintenance runs through `web/scripts/maintenance.mjs` / `npm run maintenance`, independent of request volume.
+- The maintenance worker marks expired drivers offline, auto-cancels timed-out accepted rides, and deletes expired auth, verification, OTP, and retired realtime token rows.
 
 Major API groups:
 - `POST/GET /api/rides`
@@ -148,14 +152,14 @@ Passenger ride request:
 1. Mobile resolves pickup and destination through backend location endpoints.
 2. Native map pins allow pickup adjustment without exposing provider keys.
 3. `POST /api/rides` validates addresses and coordinates, prevents duplicate active rides, stores optional place IDs, and stores route estimate metadata.
-4. Passenger polls `/api/rides` for active status.
+4. Passenger polls `/api/rides` for active status every 6 seconds.
 5. Passenger cancels through `PATCH /api/rides/:id` with `{ action: "cancel" }`.
 
 Driver ride handling:
 1. Approved driver toggles online via `PATCH /api/drivers/status`.
 2. Backend requires active subscription before online status is allowed.
 3. Driver coordinates are stored from device location when available.
-4. Driver ride feed returns assigned rides plus nearby unassigned requested rides only when the driver's coordinates are fresh.
+4. Driver ride feed polls `/api/rides` every 5 seconds and returns assigned rides plus dispatched unassigned requests for the driver's active service zone.
 5. Driver accepts through `{ action: "accept" }` and completes through `{ action: "complete" }`.
 
 Admin:
@@ -178,7 +182,7 @@ Fare metadata:
 - Currency: `INR`.
 - `/api/routes/estimate` returns `distanceKm`, `durationMins`, `estimatedFare`, `polyline`, `provider`, and `currency`.
 - `POST /api/rides` stores fare/route metadata for future use.
-- Passenger-facing fare, ETA, and surge UI are intentionally not enabled yet.
+- Passenger-facing fare and ETA preview is enabled; surge pricing remains intentionally out of scope.
 
 ## Test Coverage
 
@@ -188,7 +192,7 @@ Current coverage:
 - Auth session resolution and missing-token behavior.
 - Ride detail authorization and cancel conflict behavior.
 - Admin driver update validation, admin-only access, and missing-row handling.
-- Driver nearby ride filtering radius and location freshness behavior.
+- Driver ride discovery filtering by zone and dispatch notification record.
 
 Run with:
 

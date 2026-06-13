@@ -4,7 +4,7 @@ A lightweight auto-rickshaw ride connection platform for India.
 
 ## Tech Stack
 - **Frontend**: React Native (Expo)
-- **Backend**: React Router server routes on Node.js plus FastAPI realtime backend
+- **Backend**: React Router server routes on Node.js
 - **Database**: PostgreSQL via `pg` / node-postgres
 - **Authentication**: Auth.js credentials flow with role-based onboarding
 - **Maps/Location Provider**: Ola Maps (Krutrim Cloud) via backend-only REST integration
@@ -47,7 +47,7 @@ Current verified local state:
 
 ### 2. Admin Setup
 To become an admin for testing:
-1. Temporarily set `ENABLE_ADMIN_SETUP=true` in the web/backend environment.
+1. Temporarily set `ENABLE_ADMIN_SETUP=true` in the web environment.
 2. Optionally set `ADMIN_SETUP_PHONES=919999999999` to restrict admin creation to your real phone number.
 3. Tap `Continue as Admin` from the mobile welcome screen.
 4. Create the account with your real phone number, email, and password.
@@ -64,14 +64,13 @@ For production-grade location search and routing, configure the backend with:
 ```env
 AUTH_SECRET=replace_with_a_long_random_secret
 OLAMAPS_API_KEY=your_ola_maps_api_key
-SMS_PROVIDER=fast2sms
-FAST2SMS_API_KEY=your_fast2sms_api_key
 ENABLE_ADMIN_SETUP=true
 ADMIN_SETUP_PHONES=919999999999
 PASSENGER_REQUEST_COOLDOWN_SECONDS=30
 PASSENGER_POST_CANCEL_COOLDOWN_SECONDS=60
 DRIVER_HEARTBEAT_TIMEOUT_SECONDS=120
 ACCEPTED_RIDE_TIMEOUT_MINUTES=45
+MAINTENANCE_INTERVAL_SECONDS=30
 RATE_LIMIT_MAX_REQUESTS=120
 RATE_LIMIT_WINDOW_MS=60000
 ```
@@ -85,6 +84,11 @@ The mobile app does not call Ola Maps directly. Expo screens call backend routes
 Mobile auth stores `{ jwt, user }` in SecureStore under the stable key `auto-ride-auth`. `/api/auth/token` returns this shape after WebView sign-in, and mobile API calls send the JWT as a bearer token.
 
 Backend `/api/*` routes include basic rate limiting and security headers. Set `RATE_LIMIT_MAX_REQUESTS=0` only for local debugging.
+
+Ride discovery is polling-based by design for the Secunderabad pilot:
+- Drivers poll `/api/rides` every 5 seconds while online.
+- Passengers poll `/api/rides` every 6 seconds while watching an active ride.
+- `npm run maintenance` runs the independent cleanup worker every 30 seconds by default, marking expired drivers offline, cancelling ghost accepted rides, and deleting expired auth/OTP/realtime-token rows.
 
 ## Completed Backend Location Work
 
@@ -108,71 +112,45 @@ npm run db:check
 
 Focused API tests cover auth resolution, ride authorization conflicts, admin driver validation, and nearby driver filtering.
 
-## FastAPI Realtime Backend
+## Single VPS Backend
 
-The production realtime backend lives in `/backend`. Deploy it on a single
-always-on VPS while the product is single-city/single-region:
+The production backend is the React Router/Node app in `/web`. Deploy it on one
+always-on VPS for the single-zone Secunderabad pilot, with PostgreSQL as the
+durable source of truth for auth, rides, drivers, zones, notification attempts,
+OTP challenges, and audit trails.
+
+Run the web server and the maintenance worker as separate long-running processes:
 
 ```powershell
-cd backend
-python -m pip install -r requirements.txt
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
+cd web
+npm run dev
+npm run maintenance
 ```
 
-Use `--workers 1` intentionally. Active WebSocket connections are stored in
-in-memory Python dictionaries, so multiple workers would split connection state.
-PostgreSQL remains the durable source of truth for rides, drivers, tokens,
-zones, notification attempts, OTP challenges, and audit trails.
-
-Configure the mobile app with the FastAPI WebSocket URL:
-
-```env
-EXPO_PUBLIC_REALTIME_WS_URL=wss://your-api.example.com
-```
-
-The current bridge is:
-- Existing Node/Auth.js session issues short-lived realtime tokens through
-  `POST /api/auth/realtime-token`.
-- FastAPI validates those opaque tokens against PostgreSQL.
-- Driver WebSocket reconnect replays pending ride requests.
-- Driver heartbeat and ride timeout maintenance run as in-process asyncio tasks.
-- OTP and transactional SMS calls go through a provider-neutral backend module.
-  Set `SMS_PROVIDER=fast2sms` for testing with Fast2SMS credits. When ready for
-  MSG91, switch to `SMS_PROVIDER=msg91` and provide the MSG91 template settings
-  without changing OTP, ride dispatch, or mobile flows.
-
-Horizontal scaling is intentionally deferred. When multi-city expansion requires
-multiple backend instances, add Redis/pub-sub or an equivalent broker to sync
-WebSocket delivery state across instances.
+Use the production server command chosen by the VPS process manager for the web
+app, and keep `npm run maintenance` running alongside it. Horizontal scaling,
+push delivery, and multi-city coordination are intentionally deferred.
 
 ## Pending Production Work
 
-The app currently runs as a hybrid backend: existing Node/React Router API routes
-continue to serve stable auth, admin, location, and REST flows, while FastAPI
-handles realtime WebSocket, heartbeat, OTP groundwork, MSG91 hooks, and
-in-process maintenance.
+The app currently runs as a lightweight Node/React Router backend. Ride
+discovery is polling-based, and cleanup runs in the scheduled maintenance
+worker rather than inside request handlers.
 
 Pending items:
 
-- Add real MSG91 template IDs/auth key in backend environment and test OTP/SMS on approved MSG91 templates.
-- Add real Fast2SMS API key in backend environment for current OTP testing.
-- Decide whether to keep hybrid backend or gradually migrate existing Node API routes to FastAPI.
-- If migrating to FastAPI, move endpoints in phases: rides first, admin second, locations third, auth last.
 - Complete real-device E2E testing for passenger, driver, and admin flows.
-- Verify WebSocket ride alert delivery on the deployed VPS with `--workers 1`.
-- Verify driver reconnect replay after app background/foreground and network drops.
-- Verify SMS fallback when driver WebSocket is unavailable.
-- Verify passenger ride-accepted fallback SMS after WebSocket delivery failure.
+- Verify polling-based ride discovery on the deployed VPS.
+- Verify the maintenance worker marks expired drivers offline and cancels timed-out accepted rides.
 - Replace GeoJSON polygon import with map-based polygon drawing/editing when operations need visual zone editing.
-- Add Redis/pub-sub only when horizontal scaling or multi-city deployment requires multiple backend instances.
+- Add push notifications only when the pilot needs out-of-app ride alerts.
 
 ## Project Structure
 - `/mobile/src`: Expo application code.
-- `/backend/app`: FastAPI realtime, heartbeat, OTP, MSG91, and WebSocket service.
 - `/web/src/app/api`: Backend server routes.
 - `/web/src/app/account`: Web-based authentication pages used by the mobile app.
 - `/web/db/migrations`: PostgreSQL schema migrations.
-- `/web/scripts`: Database check/migration helper scripts.
+- `/web/scripts`: Database check/migration/maintenance helper scripts.
 
 ## Design Philosophy
 This app follows a "High-Fidelity SaaS" design system, focusing on structural clarity through micro-details, ghost borders, and a clean typographic hierarchy.
