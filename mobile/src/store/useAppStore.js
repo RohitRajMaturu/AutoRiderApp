@@ -4,6 +4,15 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const TEST_MODE_KEY = "@autoconnect_test_mode";
 const TEST_ROLE_KEY = "@autoconnect_test_role";
 
+function isTestModeAllowed() {
+  const envEnabled =
+    typeof process !== "undefined" &&
+    process.env?.EXPO_PUBLIC_ENABLE_TEST_MODE === "true";
+  return (
+    typeof __DEV__ !== "undefined" && __DEV__
+  ) || envEnabled;
+}
+
 const useAppStore = create((set, get) => ({
   // Theme
   theme: {
@@ -44,9 +53,18 @@ const useAppStore = create((set, get) => ({
   testMode: false,
   testRole: null, // "passenger" | "driver" | "admin"
   testModeLoaded: false,
+  isTestModeAllowed: isTestModeAllowed(),
 
   loadTestMode: async () => {
     try {
+      if (!isTestModeAllowed()) {
+        await Promise.all([
+          AsyncStorage.removeItem(TEST_MODE_KEY),
+          AsyncStorage.removeItem(TEST_ROLE_KEY),
+        ]);
+        set({ testMode: false, testRole: null, testModeLoaded: true });
+        return;
+      }
       const [mode, role] = await Promise.all([
         AsyncStorage.getItem(TEST_MODE_KEY),
         AsyncStorage.getItem(TEST_ROLE_KEY),
@@ -62,6 +80,10 @@ const useAppStore = create((set, get) => ({
   },
 
   enableTestMode: async (role) => {
+    if (!isTestModeAllowed()) {
+      set({ testMode: false, testRole: null, testModeLoaded: true });
+      return;
+    }
     try {
       await Promise.all([
         AsyncStorage.setItem(TEST_MODE_KEY, "true"),
