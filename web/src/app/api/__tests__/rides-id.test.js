@@ -18,6 +18,7 @@ describe("ride detail route", () => {
     vi.resetModules();
     mocks.auth.mockReset();
     mocks.sql.mockReset();
+    mocks.sql.transaction = vi.fn((callback) => callback(mocks.sql));
   });
 
   it("requires auth before returning ride details", async () => {
