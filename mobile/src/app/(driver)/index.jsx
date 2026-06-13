@@ -677,7 +677,7 @@ function RideRequestCard({ ride, onAccept, isAccepting }) {
                   marginBottom: 2,
                 }}
               >
-                Pickup
+                Pickup / పికప్ / पिकअप
               </Text>
               <Text
                 style={{ fontSize: 14, fontWeight: "600", color: TEXT }}
@@ -726,7 +726,7 @@ function RideRequestCard({ ride, onAccept, isAccepting }) {
           activeOpacity={0.85}
         >
           <Text style={{ color: "#fff", fontSize: 15, fontWeight: "700" }}>
-            {isAccepting ? "Accepting..." : "✅ Accept Ride"}
+            {isAccepting ? "Accepting..." : "✅ Accept Ride / రైడ్ తీసుకోండి / राइड लें"}
           </Text>
         </TouchableOpacity>
       </View>
@@ -823,7 +823,7 @@ function ActiveRideCard({ ride, onComplete, isCompleting }) {
                   letterSpacing: 0.5,
                 }}
               >
-                Pickup
+                Pickup / పికప్ / पिकअप
               </Text>
               <Text
                 style={{
@@ -864,7 +864,7 @@ function ActiveRideCard({ ride, onComplete, isCompleting }) {
                   letterSpacing: 0.5,
                 }}
               >
-                Drop-off
+                Drop-off / డ్రాప్ / ड्रॉप
               </Text>
               <Text
                 style={{
@@ -920,7 +920,7 @@ function ActiveRideCard({ ride, onComplete, isCompleting }) {
             activeOpacity={0.85}
           >
             <Text style={{ color: "#fff", fontSize: 14, fontWeight: "700" }}>
-              {isCompleting ? "Completing..." : "✓ Complete Ride"}
+              {isCompleting ? "Completing..." : "✓ Complete Ride / పూర్తి / पूरा करें"}
             </Text>
           </TouchableOpacity>
         </View>
@@ -1133,6 +1133,11 @@ export default function DriverHome() {
               {driver.vehicle_number} ·{" "}
               {driver.is_online ? "You're Online" : "You're Offline"}
             </Text>
+            <Text style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 3 }}>
+              {driver.is_online
+                ? "మీరు ఆన్‌లైన్‌లో ఉన్నారు / आप ऑनलाइन हैं"
+                : "ఆఫ్‌లైన్ / ऑफलाइन"}
+            </Text>
           </View>
           <TouchableOpacity
             onPress={() => {
@@ -1251,6 +1256,17 @@ export default function DriverHome() {
             >
               Toggle online to start{"\n"}receiving ride requests
             </Text>
+            <Text
+              style={{
+                fontSize: 13,
+                color: TEXT_MUTED,
+                textAlign: "center",
+                marginTop: 10,
+                lineHeight: 20,
+              }}
+            >
+              ఆన్‌లైన్ చేయండి / ऑनलाइन जाएं
+            </Text>
           </View>
         ) : (
           <>
@@ -1321,7 +1337,10 @@ export default function DriverHome() {
                 marginBottom: 12,
               }}
             >
-              Nearby Requests ({availableRides.length})
+              Nearby Requests ({availableRides.length}){"\n"}
+              <Text style={{ fontSize: 12, color: TEXT_MUTED }}>
+                సమీప రైడ్లు / नज़दीकी राइड्स
+              </Text>
             </Text>
 
             {availableRides.length === 0 ? (
@@ -1338,6 +1357,16 @@ export default function DriverHome() {
                 <Text style={{ fontSize: 40, marginBottom: 12 }}>🔍</Text>
                 <Text style={{ fontSize: 16, fontWeight: "700", color: TEXT }}>
                   No requests yet
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: TEXT_MUTED,
+                    textAlign: "center",
+                    marginTop: 4,
+                  }}
+                >
+                  ఇంకా రైడ్లు లేవు / अभी कोई राइड नहीं
                 </Text>
                 <Text
                   style={{

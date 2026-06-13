@@ -124,6 +124,9 @@ export default function DriverWallet() {
         <Text style={{ fontSize: 13, color: TEXT_SECONDARY, marginTop: 2 }}>
           View your driver access
         </Text>
+        <Text style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 3 }}>
+          సభ్యత్వ స్థితి / सदस्यता स्थिति
+        </Text>
       </View>
 
       <ScrollView
@@ -256,6 +259,9 @@ export default function DriverWallet() {
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 14, fontWeight: "700", color: TEXT }}>
                 Admin-managed pilot access
+              </Text>
+              <Text style={{ fontSize: 12, color: PRIMARY, marginTop: 3 }}>
+                అడ్మిన్ ద్వారా పొడిగింపు / एडमिन से बढ़ेगा
               </Text>
               <Text
                 style={{

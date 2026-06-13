@@ -299,27 +299,30 @@ export default function DriverProfile() {
                 >
                   Vehicle Details
                 </Text>
+                <Text style={{ fontSize: 12, color: "#9A3412", marginTop: 4 }}>
+                  వాహన వివరాలు / वाहन विवरण
+                </Text>
               </View>
               {[
                 {
-                  label: "Vehicle Number",
+                  label: "Vehicle Number / వాహనం / वाहन",
                   value: driver.vehicle_number,
                   icon: Car,
                 },
                 {
-                  label: "Contact Phone",
+                  label: "Contact Phone / ఫోన్ / फोन",
                   value: auth?.user?.phone || "Not added",
                   icon: Phone,
                 },
                 {
-                  label: "Approval Status",
+                  label: "Approval Status / అనుమతి / मंज़ूरी",
                   value: driver.is_approved ? "✅ Approved" : "⏳ Pending",
                   icon: Shield,
                 },
                 ...(expiry
                   ? [
                       {
-                        label: "Subscription Expiry",
+                        label: "Subscription Expiry / గడువు / समाप्ति",
                         value: expiry.toLocaleDateString("en-IN", {
                           day: "numeric",
                           month: "long",
