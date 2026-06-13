@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { ShieldCheck, UserRound } from "lucide-react";
+import { ChevronRight, ShieldCheck, UserRound } from "lucide-react";
 import useAuth from "@/utils/useAuth";
+import AnimatedAuto from "@/components/AnimatedAuto";
 import AutoRiderLoader from "@/components/AutoRiderLoader";
 
 function getInitialRole() {
@@ -26,6 +27,18 @@ function buildAuthLink(path, nextRole) {
   if (nextRole) params.set("role", nextRole);
   const query = params.toString();
   return query ? `${path}?${query}` : path;
+}
+
+function AutoRickshawMark() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none">
+      <path d="M5.2 12.3C5.9 8.8 8.6 6.6 12.3 6.6h3.1c2.8 0 5 2 5.5 4.8l.6 3.1H4.4l.8-2.2Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M7.4 11.9c.6-1.9 2.1-3 4.2-3H15c2 0 3.5 1.1 4.1 3H7.4Z" fill="currentColor" opacity="0.18" />
+      <path d="M5.1 14.3h15.6v2H5.1v-2Z" fill="currentColor" />
+      <circle cx="8.4" cy="17" r="1.8" fill="currentColor" />
+      <circle cx="17.2" cy="17" r="1.8" fill="currentColor" />
+    </svg>
+  );
 }
 
 function SignUpPage() {
@@ -138,24 +151,33 @@ function SignUpPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#1C1917] font-inter text-white">
+    <div className="min-h-screen bg-[#FFFBF5] font-inter text-[#1C1917]">
       <div className="h-1 w-full bg-gradient-to-r from-[#F97316] via-white to-[#138808]" />
-      <main className="mx-auto flex min-h-[calc(100vh-4px)] w-full max-w-md flex-col justify-end px-7 pb-5 pt-10">
-        <section className="mb-7">
-          <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-[24px] bg-[#F97316] shadow-[0_12px_30px_rgba(249,115,22,0.35)]">
-            <img src="/auto-ride-icon.png" alt="Auto Ride" className="h-16 w-16 object-contain" />
+      <main className="mx-auto flex min-h-[calc(100vh-4px)] w-full max-w-[440px] flex-col justify-center px-5 py-8">
+        <section className="mb-5 text-center">
+          <div className="mx-auto mb-3 inline-flex items-center gap-2 rounded-full border border-orange-200 bg-white px-3 py-1 text-[11px] font-extrabold uppercase tracking-normal text-stone-500 shadow-sm">
+            <span className="h-2 w-2 rounded-full bg-[#138808]" />
+            {isAdminSetup ? "Restricted admin setup" : "Phone-first signup"}
           </div>
-          <h1 className="text-[38px] font-extrabold leading-[1.02] tracking-normal text-white">
+
+          <div className="relative overflow-hidden rounded-[30px] border border-orange-100 bg-white shadow-[0_24px_70px_rgba(249,115,22,0.14)]">
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#F97316] via-white to-[#138808]" />
+            <AnimatedAuto />
+          </div>
+        </section>
+
+        <section className="rounded-[28px] border border-stone-200 bg-white px-6 pb-7 pt-7 shadow-[0_24px_70px_rgba(28,25,23,0.12)]">
+          <div className="mb-6">
+          <h1 className="text-[30px] font-extrabold leading-tight tracking-normal text-stone-950">
             {isAdminSetup ? "Create admin" : "Join Auto Ride"}
           </h1>
-          <p className="mt-3 text-[15px] leading-6 text-stone-300">
+          <p className="mt-2 text-sm font-medium leading-6 text-stone-500">
             {isAdminSetup
               ? "Create the first admin account with your real phone number."
               : "Set up your rider or driver account in under a minute."}
           </p>
-        </section>
+          </div>
 
-        <section className="rounded-t-[32px] bg-white px-6 pb-7 pt-7 text-[#1C1917] shadow-2xl">
           <form onSubmit={onSubmit} className="space-y-4">
             <div className="space-y-1.5">
               <label className="text-[11px] font-bold uppercase tracking-normal text-stone-400">
@@ -169,7 +191,7 @@ function SignUpPage() {
                   setPhone(e.target.value);
                   setOtpSent(false);
                 }}
-                className="w-full rounded-[14px] border border-stone-200 bg-[#FFFBF5] px-4 py-4 text-[15px] font-semibold text-stone-900 outline-none transition focus:border-[#F97316] focus:ring-4 focus:ring-orange-100"
+                className="w-full rounded-[12px] border border-stone-200 bg-[#FFFBF5] px-4 py-4 text-[15px] font-semibold text-stone-900 outline-none transition focus:border-[#F97316] focus:ring-4 focus:ring-orange-100"
                 placeholder="+91 99999 99999"
                 autoComplete="tel"
                 required
@@ -177,8 +199,8 @@ function SignUpPage() {
             </div>
 
             {isAdminSetup ? (
-              <div className="flex items-center gap-3 rounded-[16px] border border-orange-200 bg-[#FFF7ED] p-3.5">
-                <div className="flex h-11 w-11 items-center justify-center rounded-[13px] bg-[#F97316] text-white">
+              <div className="flex items-center gap-3 rounded-[14px] border border-orange-200 bg-[#FFF7ED] p-3.5">
+                <div className="flex h-11 w-11 items-center justify-center rounded-[12px] bg-[#F97316] text-white">
                   <ShieldCheck size={22} />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -193,18 +215,18 @@ function SignUpPage() {
                 {[
                   { id: "passenger", label: "Passenger", Icon: UserRound },
                   { id: "driver", label: "Driver", emoji: "🛺" },
-                ].map(({ id, label, Icon, emoji }) => (
+                ].map(({ id, label, Icon }) => (
                   <button
                     key={id}
                     type="button"
                     onClick={() => setRole(id)}
-                    className={`flex items-center justify-center gap-2 rounded-[14px] border px-3 py-3 text-sm font-extrabold transition ${
+                    className={`flex items-center justify-center gap-2 rounded-[12px] border px-3 py-3 text-sm font-extrabold transition ${
                       role === id
                         ? "border-[#F97316] bg-[#FFF7ED] text-[#EA580C] shadow-[0_8px_18px_rgba(249,115,22,0.12)]"
                         : "border-stone-200 bg-[#FFFBF5] text-stone-500"
                     }`}
                   >
-                    {Icon ? <Icon size={17} /> : <span className="text-[17px] leading-none">{emoji}</span>}
+                    {Icon ? <Icon size={17} /> : <AutoRickshawMark />}
                     {label}
                   </button>
                 ))}
@@ -224,7 +246,7 @@ function SignUpPage() {
                         inputMode="numeric"
                         value={otp}
                         onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                        className="min-w-0 flex-1 rounded-[14px] border border-stone-200 bg-[#FFFBF5] px-4 py-4 text-center text-[17px] font-extrabold tracking-[0.16em] text-stone-900 outline-none transition focus:border-[#F97316] focus:ring-4 focus:ring-orange-100"
+                        className="min-w-0 flex-1 rounded-[12px] border border-stone-200 bg-[#FFFBF5] px-4 py-4 text-center text-[17px] font-extrabold tracking-normal text-stone-900 outline-none transition focus:border-[#F97316] focus:ring-4 focus:ring-orange-100"
                         placeholder="000000"
                         autoComplete="one-time-code"
                         required
@@ -233,7 +255,7 @@ function SignUpPage() {
                         type="button"
                         onClick={sendOtp}
                         disabled={loading || !phone.trim()}
-                        className="rounded-[14px] border border-orange-200 bg-orange-50 px-4 text-sm font-extrabold text-[#EA580C] disabled:opacity-50"
+                        className="rounded-[12px] border border-orange-200 bg-orange-50 px-4 text-sm font-extrabold text-[#EA580C] disabled:opacity-50"
                       >
                         {otpSent ? "Resend" : "Send"}
                       </button>
@@ -249,7 +271,7 @@ function SignUpPage() {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-[14px] border border-stone-200 bg-[#FFFBF5] px-4 py-4 text-[15px] font-semibold text-stone-900 outline-none transition focus:border-[#F97316] focus:ring-4 focus:ring-orange-100"
+                    className="w-full rounded-[12px] border border-stone-200 bg-[#FFFBF5] px-4 py-4 text-[15px] font-semibold text-stone-900 outline-none transition focus:border-[#F97316] focus:ring-4 focus:ring-orange-100"
                     placeholder="name@example.com"
                     autoComplete="email"
                     required
@@ -264,7 +286,7 @@ function SignUpPage() {
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full rounded-[14px] border border-stone-200 bg-[#FFFBF5] px-4 py-4 text-[15px] font-semibold text-stone-900 outline-none transition focus:border-[#F97316] focus:ring-4 focus:ring-orange-100"
+                    className="w-full rounded-[12px] border border-stone-200 bg-[#FFFBF5] px-4 py-4 text-[15px] font-semibold text-stone-900 outline-none transition focus:border-[#F97316] focus:ring-4 focus:ring-orange-100"
                     placeholder="Create a password"
                     autoComplete="new-password"
                     minLength={8}
@@ -284,14 +306,20 @@ function SignUpPage() {
             <button
               type="submit"
               disabled={loading || !phoneEntered}
-              className="w-full rounded-[14px] border-b-[2px] border-b-[#138808] bg-[#F97316] py-[17px] text-[17px] font-extrabold text-white shadow-[0_10px_24px_rgba(249,115,22,0.28)] transition hover:bg-[#EA580C] disabled:opacity-60"
+              className="group flex w-full items-center justify-center rounded-[12px] border-b-2 border-b-[#138808] bg-[#F97316] py-[17px] text-[17px] font-extrabold text-white shadow-[0_10px_24px_rgba(249,115,22,0.28)] transition hover:bg-[#EA580C] disabled:opacity-60"
             >
               {loading ? (
                 <AutoRiderLoader label="Creating account" />
               ) : isAdminSetup ? (
-                "Create Admin"
+                <>
+                  Create Admin
+                  <ChevronRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                </>
               ) : (
-                "Create Account"
+                <>
+                  Create Account
+                  <ChevronRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                </>
               )}
             </button>
           </form>

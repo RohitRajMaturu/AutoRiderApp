@@ -491,46 +491,6 @@ export default function Index() {
             </Text>
           </TouchableOpacity>
 
-          {isTestModeAllowed && (
-            <>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 12,
-                  marginVertical: 18,
-                }}
-              >
-                <View style={{ flex: 1, height: 1, backgroundColor: "#E7E5E4" }} />
-                <Text style={{ fontSize: 12, color: "#A8A29E", fontWeight: "600" }}>
-                  OR
-                </Text>
-                <View style={{ flex: 1, height: 1, backgroundColor: "#E7E5E4" }} />
-              </View>
-
-              <TouchableOpacity
-                onPress={() => setShowRolePicker(true)}
-                style={{
-                  backgroundColor: "#F5F5F4",
-                  borderRadius: 14,
-                  paddingVertical: 15,
-                  alignItems: "center",
-                  borderWidth: 1.5,
-                  borderColor: "#E7E5E4",
-                  flexDirection: "row",
-                  justifyContent: "center",
-                  gap: 8,
-                }}
-                activeOpacity={0.8}
-              >
-                <FlaskConical size={18} color="#44403C" />
-                <Text style={{ color: "#44403C", fontSize: 15, fontWeight: "700" }}>
-                  Skip Sign In - Test App
-                </Text>
-              </TouchableOpacity>
-            </>
-          )}
-
           <Text
             style={{
               textAlign: "center",
