@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Mail, Smartphone } from "lucide-react";
 import useAuth from "@/utils/useAuth";
+import AutoRiderLoader from "@/components/AutoRiderLoader";
 
 function getAdminIntent() {
   if (typeof window === "undefined") return false;
@@ -272,7 +273,13 @@ function SignInPage() {
               disabled={loading || (mode === "phone" && !otpSent)}
               className="w-full rounded-[14px] bg-[#F97316] py-[17px] text-[17px] font-extrabold text-white shadow-[0_10px_24px_rgba(249,115,22,0.28)] transition hover:bg-[#EA580C] disabled:opacity-60"
             >
-              {loading ? "Please wait..." : mode === "phone" ? "Verify OTP" : "Continue"}
+              {loading ? (
+                <AutoRiderLoader label="Please wait" />
+              ) : mode === "phone" ? (
+                "Verify OTP"
+              ) : (
+                "Continue"
+              )}
             </button>
           </form>
 

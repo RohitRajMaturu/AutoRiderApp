@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  ActivityIndicator,
   Alert,
   Animated,
   Linking,
@@ -26,6 +25,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
 import * as Location from "expo-location";
 import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedView";
+import AutoRiderLoader from "@/components/AutoRiderLoader";
 
 const PRIMARY = "#F97316";
 const PRIMARY_DARK = "#EA580C";
@@ -1073,7 +1073,11 @@ export default function DriverHome() {
           backgroundColor: BG,
         }}
       >
-        <ActivityIndicator size="large" color={PRIMARY} />
+        <AutoRiderLoader
+          label="Loading dashboard..."
+          color={PRIMARY}
+          textColor={TEXT_SECONDARY}
+        />
       </View>
     );
   }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ShieldCheck, UserRound } from "lucide-react";
 import useAuth from "@/utils/useAuth";
+import AutoRiderLoader from "@/components/AutoRiderLoader";
 
 function getInitialRole() {
   if (typeof window === "undefined") return "passenger";
@@ -285,7 +286,13 @@ function SignUpPage() {
               disabled={loading || !phoneEntered}
               className="w-full rounded-[14px] border-b-[2px] border-b-[#138808] bg-[#F97316] py-[17px] text-[17px] font-extrabold text-white shadow-[0_10px_24px_rgba(249,115,22,0.28)] transition hover:bg-[#EA580C] disabled:opacity-60"
             >
-              {loading ? "Creating account..." : isAdminSetup ? "Create Admin" : "Create Account"}
+              {loading ? (
+                <AutoRiderLoader label="Creating account" />
+              ) : isAdminSetup ? (
+                "Create Admin"
+              ) : (
+                "Create Account"
+              )}
             </button>
           </form>
 

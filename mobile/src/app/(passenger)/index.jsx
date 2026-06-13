@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  ActivityIndicator,
   Alert,
   Animated,
   Image,
@@ -28,6 +27,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
 import * as Location from "expo-location";
+import AutoRiderLoader from "@/components/AutoRiderLoader";
 
 const PRIMARY = "#F97316";
 const PRIMARY_LIGHT = "#FFF7ED";
@@ -1220,15 +1220,12 @@ export default function PassengerHome() {
                   )}
                 </View>
                 {isLocating && pickup.length === 0 ? (
-                  <Text
-                    style={{
-                      marginTop: 10,
-                      fontSize: 12,
-                      color: TEXT_SECONDARY,
-                    }}
-                  >
-                    Detecting your current location...
-                  </Text>
+                  <View style={{ marginTop: 12, alignItems: "flex-start" }}>
+                    <AutoRiderLoader
+                      label="Detecting your location..."
+                      textColor={TEXT_SECONDARY}
+                    />
+                  </View>
                 ) : (
                   renderSuggestions(
                     focusedField === "pickup" ? pickupSuggestions : [],
