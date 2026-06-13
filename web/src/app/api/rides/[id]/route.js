@@ -11,6 +11,15 @@ function readCancellationReason(value, fallback) {
   return trimmed.slice(0, 180);
 }
 
+function readRatingFeedback(value) {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (trimmed.length > 280) return undefined;
+  return trimmed;
+}
+
 export async function PATCH(request, { params }) {
   try {
     const session = await auth(request);
@@ -21,6 +30,41 @@ export async function PATCH(request, { params }) {
     const { id } = params;
     const body = await request.json();
     const { action } = body;
+
+    if (action === "rate") {
+      const driverRating = Number(body.driver_rating);
+      const ratingFeedback = readRatingFeedback(body.rating_feedback);
+      if (
+        !Number.isInteger(driverRating) ||
+        driverRating < 1 ||
+        driverRating > 5 ||
+        ratingFeedback === undefined
+      ) {
+        return Response.json(
+          { error: "driver_rating must be 1-5 and rating_feedback must be 280 characters or fewer" },
+          { status: 400 },
+        );
+      }
+
+      const result = await sql`
+        UPDATE rides
+        SET driver_rating = ${driverRating},
+            rating_feedback = ${ratingFeedback},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ${id}
+          AND passenger_id = ${session.user.id}
+          AND status = 'completed'
+          AND driver_rating IS NULL
+        RETURNING *
+      `;
+      if (result.length === 0) {
+        return Response.json(
+          { error: "Ride cannot be rated because it is not completed, already rated, or not accessible to this user" },
+          { status: 409 },
+        );
+      }
+      return Response.json({ ride: result[0] });
+    }
 
     const driverRows =
       await sql`

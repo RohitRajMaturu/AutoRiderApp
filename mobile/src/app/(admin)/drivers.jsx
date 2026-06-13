@@ -253,6 +253,27 @@ function DriverCard({ driver, onApprove, onReject, isUpdating }) {
                   letterSpacing: 0.5,
                 }}
               >
+                Rating
+              </Text>
+              <Text style={{ fontSize: 13, color: TEXT }}>
+                {driver.avg_driver_rating_30d
+                  ? `${Number(driver.avg_driver_rating_30d).toFixed(1)} / 5 (30d)`
+                  : "No ratings in 30d"}
+              </Text>
+            </View>
+            <View
+              style={{ flexDirection: "row", gap: 10, alignItems: "center" }}
+            >
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: "600",
+                  color: TEXT_SECONDARY,
+                  width: 70,
+                  textTransform: "uppercase",
+                  letterSpacing: 0.5,
+                }}
+              >
                 Status
               </Text>
               <View style={{ flexDirection: "row", gap: 8 }}>

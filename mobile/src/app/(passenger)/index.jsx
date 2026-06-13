@@ -23,6 +23,7 @@ import {
   CheckCircle2,
   Clock3,
   Car,
+  Star,
 } from "lucide-react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
@@ -147,6 +148,11 @@ export default function PassengerHome() {
   const [destinationSuggestions, setDestinationSuggestions] = useState([]);
   const [userCoords, setUserCoords] = useState(null);
   const [isLocating, setIsLocating] = useState(false);
+  const [ratingValue, setRatingValue] = useState(0);
+  const [ratingFeedback, setRatingFeedback] = useState("");
+  const [dismissedRatingRideIds, setDismissedRatingRideIds] = useState(
+    () => new Set(),
+  );
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const pulseRef = useRef(null);
 
@@ -159,7 +165,10 @@ export default function PassengerHome() {
       const data = await res.json();
       const ride =
         data.rides?.find(
-          (r) => r.status === "requested" || r.status === "accepted",
+          (r) =>
+            r.status === "requested" ||
+            r.status === "accepted" ||
+            (r.status === "completed" && !r.driver_rating),
         ) || null;
       return ride;
     },
@@ -408,6 +417,37 @@ export default function PassengerHome() {
     onError: () => Alert.alert("Error", "Could not cancel the ride"),
   });
 
+  const rateRide = useMutation({
+    mutationFn: async ({ rideId, rating, feedback }) => {
+      const res = await fetch(`/api/rides/${rideId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "rate",
+          driver_rating: rating,
+          rating_feedback: feedback,
+        }),
+      });
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        throw new Error(error.error || "Failed to submit rating");
+      }
+      return res.json();
+    },
+    onSuccess: (_, variables) => {
+      setRatingValue(0);
+      setRatingFeedback("");
+      setDismissedRatingRideIds((current) => {
+        const next = new Set(current);
+        next.add(variables.rideId);
+        return next;
+      });
+      queryClient.invalidateQueries({ queryKey: ["activeRide"] });
+      queryClient.invalidateQueries({ queryKey: ["passengerRides"] });
+    },
+    onError: (err) => Alert.alert("Rating Failed", err.message),
+  });
+
   const canRequest =
     pickup.trim().length > 0 &&
     destination.trim().length > 0 &&
@@ -455,7 +495,20 @@ export default function PassengerHome() {
     }
   };
 
+  const dismissRatingPrompt = (rideId) => {
+    setDismissedRatingRideIds((current) => {
+      const next = new Set(current);
+      next.add(rideId);
+      return next;
+    });
+  };
+
   const mapRegion = buildMapRegion([pickupCoords, destinationCoords]);
+  const displayRide =
+    activeRide?.status === "completed" &&
+    dismissedRatingRideIds.has(activeRide.id)
+      ? null
+      : activeRide;
   const activePickupCoords = activeRide
     ? { lat: Number(activeRide.pickup_lat), lng: Number(activeRide.pickup_lng) }
     : null;
@@ -640,7 +693,7 @@ export default function PassengerHome() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
-        {activeRide ? (
+        {displayRide ? (
           /* ── Active Ride Card ── */
           <View style={{ margin: 16 }}>
             <View
@@ -698,7 +751,9 @@ export default function PassengerHome() {
                   >
                     {activeRide.status === "requested"
                       ? "Searching for drivers..."
-                      : "Driver is on the way!"}
+                      : activeRide.status === "completed"
+                        ? "Ride completed"
+                        : "Driver is on the way!"}
                   </Text>
                 </View>
                 <StatusBadge status={activeRide.status} />
@@ -930,7 +985,121 @@ export default function PassengerHome() {
                   </TouchableOpacity>
                 )}
 
+                {activeRide.status === "completed" && !activeRide.driver_rating && (
+                  <View
+                    style={{
+                      marginTop: 16,
+                      backgroundColor: "#FFFBEB",
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: "#FDE68A",
+                      padding: 14,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        fontWeight: "700",
+                        color: TEXT,
+                      }}
+                    >
+                      Rate your driver
+                    </Text>
+                    <View
+                      style={{ flexDirection: "row", gap: 8, marginTop: 12 }}
+                    >
+                      {[1, 2, 3, 4, 5].map((value) => (
+                        <TouchableOpacity
+                          key={value}
+                          onPress={() => setRatingValue(value)}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Star
+                            size={28}
+                            color={value <= ratingValue ? "#F59E0B" : TEXT_MUTED}
+                            fill={value <= ratingValue ? "#F59E0B" : "none"}
+                          />
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                    <TextInput
+                      value={ratingFeedback}
+                      onChangeText={(value) =>
+                        setRatingFeedback(value.slice(0, 280))
+                      }
+                      placeholder="Optional feedback"
+                      placeholderTextColor={TEXT_MUTED}
+                      multiline
+                      maxLength={280}
+                      style={{
+                        marginTop: 12,
+                        minHeight: 72,
+                        borderRadius: 10,
+                        borderWidth: 1,
+                        borderColor: "#FDE68A",
+                        backgroundColor: "#fff",
+                        paddingHorizontal: 12,
+                        paddingVertical: 10,
+                        fontSize: 13,
+                        color: TEXT,
+                        textAlignVertical: "top",
+                      }}
+                    />
+                    <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
+                      <TouchableOpacity
+                        onPress={() => dismissRatingPrompt(activeRide.id)}
+                        style={{
+                          flex: 1,
+                          paddingVertical: 12,
+                          alignItems: "center",
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontWeight: "700",
+                            color: TEXT_SECONDARY,
+                          }}
+                        >
+                          Dismiss
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() =>
+                          rateRide.mutate({
+                            rideId: activeRide.id,
+                            rating: ratingValue,
+                            feedback: ratingFeedback,
+                          })
+                        }
+                        disabled={ratingValue === 0 || rateRide.isPending}
+                        style={{
+                          flex: 2,
+                          paddingVertical: 12,
+                          borderRadius: 10,
+                          alignItems: "center",
+                          backgroundColor:
+                            ratingValue === 0 || rateRide.isPending
+                              ? "#D4C4BB"
+                              : PRIMARY,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontWeight: "700",
+                            color: "#fff",
+                          }}
+                        >
+                          {rateRide.isPending ? "Submitting..." : "Submit Rating"}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+
                 {/* Cancel */}
+                {activeRide.status !== "completed" && (
                 <TouchableOpacity
                   onPress={() => promptCancelRide(activeRide.id)}
                   disabled={cancelRide.isPending}
@@ -952,6 +1121,7 @@ export default function PassengerHome() {
                       : "✕  Cancel Request"}
                   </Text>
                 </TouchableOpacity>
+                )}
               </View>
             </View>
           </View>

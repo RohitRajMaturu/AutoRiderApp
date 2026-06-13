@@ -51,4 +51,50 @@ describe("ride detail route", () => {
 
     expect(response.status).toBe(409);
   });
+
+  it("allows a passenger to rate their completed ride once", async () => {
+    mocks.auth.mockResolvedValue({ user: { id: "passenger-1" } });
+    mocks.sql.mockResolvedValueOnce([
+      {
+        id: "ride-1",
+        status: "completed",
+        passenger_id: "passenger-1",
+        driver_rating: 5,
+        rating_feedback: "Great ride",
+      },
+    ]);
+    const { PATCH } = await import("@/app/api/rides/[id]/route.js");
+
+    const response = await PATCH(
+      new Request("http://localhost/api/rides/ride-1", {
+        method: "PATCH",
+        body: JSON.stringify({
+          action: "rate",
+          driver_rating: 5,
+          rating_feedback: "Great ride",
+        }),
+      }),
+      { params: { id: "ride-1" } },
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.ride.driver_rating).toBe(5);
+  });
+
+  it("rejects invalid ride ratings before updating data", async () => {
+    mocks.auth.mockResolvedValue({ user: { id: "passenger-1" } });
+    const { PATCH } = await import("@/app/api/rides/[id]/route.js");
+
+    const response = await PATCH(
+      new Request("http://localhost/api/rides/ride-1", {
+        method: "PATCH",
+        body: JSON.stringify({ action: "rate", driver_rating: 6 }),
+      }),
+      { params: { id: "ride-1" } },
+    );
+
+    expect(response.status).toBe(400);
+    expect(mocks.sql).not.toHaveBeenCalled();
+  });
 });

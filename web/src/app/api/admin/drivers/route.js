@@ -34,9 +34,17 @@ export async function GET(request) {
     }
 
     const drivers = await sql`
-      SELECT d.*, u.email, u.phone 
+      SELECT
+        d.*,
+        u.email,
+        u.phone,
+        ROUND(AVG(r.driver_rating) FILTER (
+          WHERE r.completed_at >= CURRENT_TIMESTAMP - INTERVAL '30 days'
+        )::numeric, 1) as avg_driver_rating_30d
       FROM drivers d
       JOIN auth_users u ON d.user_id = u.id
+      LEFT JOIN rides r ON r.driver_id = d.id AND r.driver_rating IS NOT NULL
+      GROUP BY d.id, u.email, u.phone
       ORDER BY d.created_at DESC
     `;
 
