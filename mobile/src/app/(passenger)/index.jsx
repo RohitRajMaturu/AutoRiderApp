@@ -119,6 +119,18 @@ function StatusBadge({ status }) {
   );
 }
 
+function buildTripStatusMessage(ride) {
+  return [
+    "AutoRide trip status",
+    `Pickup: ${ride.pickup_address}`,
+    `Destination: ${ride.dest_address}`,
+    ride.vehicle_number ? `Vehicle: ${ride.vehicle_number}` : null,
+    ride.driver_phone ? `Driver phone: ${ride.driver_phone}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 export default function PassengerHome() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
@@ -421,6 +433,26 @@ export default function PassengerHome() {
           ),
       },
     ]);
+  };
+
+  const shareTripStatus = async (ride) => {
+    const message = buildTripStatusMessage(ride);
+    const encodedMessage = encodeURIComponent(message);
+    const whatsappUrl = `whatsapp://send?text=${encodedMessage}`;
+    const smsUrl =
+      Platform.OS === "ios"
+        ? `sms:&body=${encodedMessage}`
+        : `sms:?body=${encodedMessage}`;
+
+    try {
+      if (await Linking.canOpenURL(whatsappUrl)) {
+        await Linking.openURL(whatsappUrl);
+        return;
+      }
+      await Linking.openURL(smsUrl);
+    } catch {
+      Alert.alert("Share Failed", "Could not open WhatsApp or SMS.");
+    }
   };
 
   const mapRegion = buildMapRegion([pickupCoords, destinationCoords]);
@@ -871,6 +903,32 @@ export default function PassengerHome() {
                       )}
                     </View>
                   )}
+
+                {activeRide.status === "accepted" && (
+                  <TouchableOpacity
+                    onPress={() => shareTripStatus(activeRide)}
+                    style={{
+                      marginTop: 16,
+                      backgroundColor: SUCCESS_LIGHT,
+                      borderRadius: 12,
+                      paddingVertical: 13,
+                      alignItems: "center",
+                      borderWidth: 1,
+                      borderColor: "#BBF7D0",
+                    }}
+                    activeOpacity={0.85}
+                  >
+                    <Text
+                      style={{
+                        color: SUCCESS,
+                        fontSize: 14,
+                        fontWeight: "700",
+                      }}
+                    >
+                      Share Trip Status
+                    </Text>
+                  </TouchableOpacity>
+                )}
 
                 {/* Cancel */}
                 <TouchableOpacity
