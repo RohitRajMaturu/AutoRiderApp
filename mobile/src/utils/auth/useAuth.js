@@ -49,7 +49,8 @@ export const useAuth = () => {
     setAuth(null);
     close();
     router.replace('/');
-  }, [close, setAuth]);
+    open({ mode: 'signin' });
+  }, [close, open, setAuth]);
 
   return {
     isReady,

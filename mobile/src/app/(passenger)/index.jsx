@@ -43,8 +43,11 @@ const SUCCESS_LIGHT = "#DCFCE7";
 
 const CANCEL_REASONS = [
   { label: "Driver taking too long", value: "driver_taking_too_long" },
+  { label: "Driver asked me to cancel", value: "driver_asked_to_cancel" },
+  { label: "Wrong pickup or destination", value: "wrong_pickup_or_destination" },
   { label: "Booked by mistake", value: "booked_by_mistake" },
   { label: "Plans changed", value: "plans_changed" },
+  { label: "Other", value: "other" },
 ];
 
 function formatLocationAddress(location) {
@@ -150,6 +153,11 @@ export default function PassengerHome() {
   const [isLocating, setIsLocating] = useState(false);
   const [ratingValue, setRatingValue] = useState(0);
   const [ratingFeedback, setRatingFeedback] = useState("");
+  const [showCancelReasons, setShowCancelReasons] = useState(false);
+  const [selectedCancelReason, setSelectedCancelReason] = useState(
+    CANCEL_REASONS[0].value,
+  );
+  const [otherCancelReason, setOtherCancelReason] = useState("");
   const [dismissedRatingRideIds, setDismissedRatingRideIds] = useState(
     () => new Set(),
   );
@@ -411,6 +419,9 @@ export default function PassengerHome() {
       return res.json();
     },
     onSuccess: () => {
+      setShowCancelReasons(false);
+      setSelectedCancelReason(CANCEL_REASONS[0].value);
+      setOtherCancelReason("");
       queryClient.invalidateQueries({ queryKey: ["activeRide"] });
       queryClient.invalidateQueries({ queryKey: ["passengerRides"] });
     },
@@ -455,24 +466,14 @@ export default function PassengerHome() {
     !!destinationCoords &&
     !requestRide.isPending;
 
-  const promptCancelRide = (rideId) => {
-    Alert.alert("Cancel Ride?", "Do you want to cancel this ride request?", [
-      { text: "No", style: "cancel" },
-      {
-        text: "Choose Reason",
-        style: "destructive",
-        onPress: () =>
-          Alert.alert(
-            "Cancellation Reason",
-            "This reason will be visible to the other side.",
-            CANCEL_REASONS.map((item) => ({
-              text: item.label,
-              style: "destructive",
-              onPress: () => cancelRide.mutate({ rideId, reason: item.value }),
-            })),
-          ),
-      },
-    ]);
+  const submitCancelRide = (rideId) => {
+    const reason =
+      selectedCancelReason === "other"
+        ? otherCancelReason.trim()
+        : selectedCancelReason;
+
+    if (!reason) return;
+    cancelRide.mutate({ rideId, reason });
   };
 
   const shareTripStatus = async (ride) => {
@@ -1100,8 +1101,9 @@ export default function PassengerHome() {
 
                 {/* Cancel */}
                 {activeRide.status !== "completed" && (
+                  <>
                 <TouchableOpacity
-                  onPress={() => promptCancelRide(activeRide.id)}
+                  onPress={() => setShowCancelReasons(true)}
                   disabled={cancelRide.isPending}
                   style={{
                     marginTop: 16,
@@ -1121,6 +1123,181 @@ export default function PassengerHome() {
                       : "✕  Cancel Request"}
                   </Text>
                 </TouchableOpacity>
+                {showCancelReasons && (
+                  <View
+                    style={{
+                      marginTop: 4,
+                      borderWidth: 1,
+                      borderColor: "#FECACA",
+                      borderRadius: 14,
+                      backgroundColor: "#FEF2F2",
+                      padding: 14,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 15,
+                        fontWeight: "700",
+                        color: TEXT,
+                        marginBottom: 4,
+                      }}
+                    >
+                      Why are you cancelling?
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        color: TEXT_SECONDARY,
+                        marginBottom: 12,
+                      }}
+                    >
+                      Pick one reason so the driver gets clear context.
+                    </Text>
+
+                    {CANCEL_REASONS.map((item) => {
+                      const selected = selectedCancelReason === item.value;
+
+                      return (
+                        <TouchableOpacity
+                          key={item.value}
+                          onPress={() => setSelectedCancelReason(item.value)}
+                          disabled={cancelRide.isPending}
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            paddingVertical: 8,
+                          }}
+                        >
+                          <View
+                            style={{
+                              width: 18,
+                              height: 18,
+                              borderRadius: 9,
+                              borderWidth: 2,
+                              borderColor: selected ? "#DC2626" : "#D6D3D1",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              marginRight: 10,
+                              backgroundColor: SURFACE,
+                            }}
+                          >
+                            {selected ? (
+                              <View
+                                style={{
+                                  width: 8,
+                                  height: 8,
+                                  borderRadius: 4,
+                                  backgroundColor: "#DC2626",
+                                }}
+                              />
+                            ) : null}
+                          </View>
+                          <Text
+                            style={{
+                              flex: 1,
+                              fontSize: 14,
+                              color: TEXT,
+                              fontWeight: selected ? "700" : "500",
+                            }}
+                          >
+                            {item.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+
+                    {selectedCancelReason === "other" && (
+                      <TextInput
+                        value={otherCancelReason}
+                        onChangeText={setOtherCancelReason}
+                        placeholder="Tell us the reason"
+                        placeholderTextColor={TEXT_MUTED}
+                        multiline
+                        maxLength={180}
+                        style={{
+                          minHeight: 78,
+                          marginTop: 8,
+                          paddingHorizontal: 12,
+                          paddingVertical: 10,
+                          borderRadius: 10,
+                          borderWidth: 1,
+                          borderColor: "#FECACA",
+                          backgroundColor: SURFACE,
+                          color: TEXT,
+                          fontSize: 14,
+                          textAlignVertical: "top",
+                        }}
+                      />
+                    )}
+
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        gap: 10,
+                        marginTop: 14,
+                      }}
+                    >
+                      <TouchableOpacity
+                        onPress={() => {
+                          setShowCancelReasons(false);
+                          setSelectedCancelReason(CANCEL_REASONS[0].value);
+                          setOtherCancelReason("");
+                        }}
+                        disabled={cancelRide.isPending}
+                        style={{
+                          flex: 1,
+                          paddingVertical: 12,
+                          borderRadius: 10,
+                          alignItems: "center",
+                          borderWidth: 1,
+                          borderColor: "#E7E5E4",
+                          backgroundColor: SURFACE,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontWeight: "700",
+                            color: TEXT_SECONDARY,
+                          }}
+                        >
+                          Keep Ride
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => submitCancelRide(activeRide.id)}
+                        disabled={
+                          cancelRide.isPending ||
+                          (selectedCancelReason === "other" &&
+                            otherCancelReason.trim().length === 0)
+                        }
+                        style={{
+                          flex: 1,
+                          paddingVertical: 12,
+                          borderRadius: 10,
+                          alignItems: "center",
+                          backgroundColor:
+                            cancelRide.isPending ||
+                            (selectedCancelReason === "other" &&
+                              otherCancelReason.trim().length === 0)
+                              ? "#E7A3A3"
+                              : "#DC2626",
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontWeight: "700",
+                            color: "#fff",
+                          }}
+                        >
+                          {cancelRide.isPending ? "Cancelling..." : "Cancel Ride"}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+                  </>
                 )}
               </View>
             </View>
