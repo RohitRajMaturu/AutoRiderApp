@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CarFront, ShieldCheck, UserRound } from "lucide-react";
+import { ShieldCheck, UserRound } from "lucide-react";
 import useAuth from "@/utils/useAuth";
 
 function getInitialRole() {
@@ -40,6 +40,7 @@ function SignUpPage() {
 
   const { signUpWithCredentials } = useAuth();
   const isAdminSetup = role === "admin";
+  const phoneEntered = phone.trim().length > 0;
 
   useEffect(() => {
     fetch("/api/auth/config")
@@ -154,41 +155,6 @@ function SignUpPage() {
         </section>
 
         <section className="rounded-t-[32px] bg-white px-6 pb-7 pt-7 text-[#1C1917] shadow-2xl">
-          {isAdminSetup ? (
-            <div className="mb-5 flex items-center gap-3 rounded-[16px] border border-orange-200 bg-[#FFF7ED] p-3.5">
-              <div className="flex h-11 w-11 items-center justify-center rounded-[13px] bg-[#F97316] text-white">
-                <ShieldCheck size={22} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-extrabold text-stone-900">Admin setup</div>
-                <div className="mt-0.5 text-xs font-semibold leading-4 text-stone-500">
-                  Restricted first-admin creation
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="mb-5 grid grid-cols-2 gap-2">
-              {[
-                { id: "passenger", label: "Passenger", Icon: UserRound },
-                { id: "driver", label: "Driver", Icon: CarFront },
-              ].map(({ id, label, Icon }) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setRole(id)}
-                  className={`flex items-center justify-center gap-2 rounded-[14px] border px-3 py-3 text-sm font-extrabold transition ${
-                    role === id
-                      ? "border-[#F97316] bg-[#FFF7ED] text-[#EA580C] shadow-[0_8px_18px_rgba(249,115,22,0.12)]"
-                      : "border-stone-200 bg-[#FFFBF5] text-stone-500"
-                  }`}
-                >
-                  <Icon size={17} />
-                  {label}
-                </button>
-              ))}
-            </div>
-          )}
-
           <form onSubmit={onSubmit} className="space-y-4">
             <div className="space-y-1.5">
               <label className="text-[11px] font-bold uppercase tracking-normal text-stone-400">
@@ -209,63 +175,104 @@ function SignUpPage() {
               />
             </div>
 
-            {enableOtpVerification && (
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold uppercase tracking-normal text-stone-400">
-                  OTP Verification
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                    className="min-w-0 flex-1 rounded-[14px] border border-stone-200 bg-[#FFFBF5] px-4 py-4 text-center text-[17px] font-extrabold tracking-[0.16em] text-stone-900 outline-none transition focus:border-[#F97316] focus:ring-4 focus:ring-orange-100"
-                    placeholder="000000"
-                    autoComplete="one-time-code"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={sendOtp}
-                    disabled={loading || !phone.trim()}
-                    className="rounded-[14px] border border-orange-200 bg-orange-50 px-4 text-sm font-extrabold text-[#EA580C] disabled:opacity-50"
-                  >
-                    {otpSent ? "Resend" : "Send"}
-                  </button>
+            {isAdminSetup ? (
+              <div className="flex items-center gap-3 rounded-[16px] border border-orange-200 bg-[#FFF7ED] p-3.5">
+                <div className="flex h-11 w-11 items-center justify-center rounded-[13px] bg-[#F97316] text-white">
+                  <ShieldCheck size={22} />
                 </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-extrabold text-stone-900">Admin setup</div>
+                  <div className="mt-0.5 text-xs font-semibold leading-4 text-stone-500">
+                    Restricted first-admin creation
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { id: "passenger", label: "Passenger", Icon: UserRound },
+                  { id: "driver", label: "Driver", emoji: "🛺" },
+                ].map(({ id, label, Icon, emoji }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setRole(id)}
+                    className={`flex items-center justify-center gap-2 rounded-[14px] border px-3 py-3 text-sm font-extrabold transition ${
+                      role === id
+                        ? "border-[#F97316] bg-[#FFF7ED] text-[#EA580C] shadow-[0_8px_18px_rgba(249,115,22,0.12)]"
+                        : "border-stone-200 bg-[#FFFBF5] text-stone-500"
+                    }`}
+                  >
+                    {Icon ? <Icon size={17} /> : <span className="text-[17px] leading-none">{emoji}</span>}
+                    {label}
+                  </button>
+                ))}
               </div>
             )}
 
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold uppercase tracking-normal text-stone-400">
-                Email
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-[14px] border border-stone-200 bg-[#FFFBF5] px-4 py-4 text-[15px] font-semibold text-stone-900 outline-none transition focus:border-[#F97316] focus:ring-4 focus:ring-orange-100"
-                placeholder="name@example.com"
-                autoComplete="email"
-                required
-              />
-            </div>
+            {phoneEntered && (
+              <>
+                {enableOtpVerification && (
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-bold uppercase tracking-normal text-stone-400">
+                      OTP Verification
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={otp}
+                        onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                        className="min-w-0 flex-1 rounded-[14px] border border-stone-200 bg-[#FFFBF5] px-4 py-4 text-center text-[17px] font-extrabold tracking-[0.16em] text-stone-900 outline-none transition focus:border-[#F97316] focus:ring-4 focus:ring-orange-100"
+                        placeholder="000000"
+                        autoComplete="one-time-code"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={sendOtp}
+                        disabled={loading || !phone.trim()}
+                        className="rounded-[14px] border border-orange-200 bg-orange-50 px-4 text-sm font-extrabold text-[#EA580C] disabled:opacity-50"
+                      >
+                        {otpSent ? "Resend" : "Send"}
+                      </button>
+                    </div>
+                  </div>
+                )}
 
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold uppercase tracking-normal text-stone-400">
-                Password
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-[14px] border border-stone-200 bg-[#FFFBF5] px-4 py-4 text-[15px] font-semibold text-stone-900 outline-none transition focus:border-[#F97316] focus:ring-4 focus:ring-orange-100"
-                placeholder="Create a password"
-                autoComplete="new-password"
-                required
-              />
-            </div>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold uppercase tracking-normal text-stone-400">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full rounded-[14px] border border-stone-200 bg-[#FFFBF5] px-4 py-4 text-[15px] font-semibold text-stone-900 outline-none transition focus:border-[#F97316] focus:ring-4 focus:ring-orange-100"
+                    placeholder="name@example.com"
+                    autoComplete="email"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold uppercase tracking-normal text-stone-400">
+                    Password
+                  </label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full rounded-[14px] border border-stone-200 bg-[#FFFBF5] px-4 py-4 text-[15px] font-semibold text-stone-900 outline-none transition focus:border-[#F97316] focus:ring-4 focus:ring-orange-100"
+                    placeholder="Create a password"
+                    autoComplete="new-password"
+                    minLength={8}
+                    required
+                  />
+                  <p className="text-xs font-semibold text-stone-400">min 8 characters</p>
+                </div>
+              </>
+            )}
 
             {error && (
               <div className="rounded-[14px] border border-red-100 bg-red-50 p-3 text-sm font-semibold text-red-600">
@@ -275,8 +282,8 @@ function SignUpPage() {
 
             <button
               type="submit"
-              disabled={loading}
-              className="w-full rounded-[14px] bg-[#F97316] py-[17px] text-[17px] font-extrabold text-white shadow-[0_10px_24px_rgba(249,115,22,0.28)] transition hover:bg-[#EA580C] disabled:opacity-60"
+              disabled={loading || !phoneEntered}
+              className="w-full rounded-[14px] border-b-[2px] border-b-[#138808] bg-[#F97316] py-[17px] text-[17px] font-extrabold text-white shadow-[0_10px_24px_rgba(249,115,22,0.28)] transition hover:bg-[#EA580C] disabled:opacity-60"
             >
               {loading ? "Creating account..." : isAdminSetup ? "Create Admin" : "Create Account"}
             </button>
