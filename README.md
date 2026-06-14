@@ -58,7 +58,7 @@ The setup route is also hard-disabled when `NODE_ENV=production`.
 
 ### Test Accounts
 Seeded test users from `web/scripts/seed-test-users.mjs` use temporary password `AutoRide@123` after running `007_seed_account_passwords.sql`:
-- Admin: `admin7893725929@autoride.test`
+- Admin: `admin91XXXXXXXXXX@autoride.test`
 - Driver: `driver9908027984@autoride.test`
 - Passenger: `passenger9885553312@autoride.test`
 
