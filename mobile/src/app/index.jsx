@@ -6,7 +6,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  ActivityIndicator,
   Animated,
   Modal,
   Pressable,
@@ -25,6 +24,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import useAppStore from "../store/useAppStore";
+import AutoRiderLoader from "../components/AutoRiderLoader";
 
 const SAFFRON = "#F97316";
 const INDIA_GREEN = "#138808";
@@ -256,15 +256,14 @@ export default function Index() {
       <View
         style={{
           flex: 1,
-          justifyContent: "center",
-          alignItems: "center",
           backgroundColor: "#FFFBF5",
         }}
       >
-        <ActivityIndicator size="large" color={SAFFRON} />
-        <Text style={{ marginTop: 12, fontSize: 14, color: "#78716C" }}>
-          Loading Auto Ride...
-        </Text>
+        <AutoRiderLoader
+          fullScreen
+          label="Loading Auto Ride..."
+          color={SAFFRON}
+        />
       </View>
     );
   }
