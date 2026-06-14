@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, TouchableOpacity, ScrollView, Alert } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView, Alert, Linking } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/utils/auth/useAuth";
 import { useQuery } from "@tanstack/react-query";
@@ -10,7 +10,6 @@ import {
   Car,
   Shield,
   ChevronRight,
-  Star,
   HelpCircle,
   Calendar,
   FlaskConical,
@@ -30,6 +29,8 @@ const TEXT_MUTED = "#A8A29E";
 const SUCCESS = "#16A34A";
 const SUCCESS_LIGHT = "#DCFCE7";
 const DARK = "#1C1917";
+const SUPPORT_WHATSAPP_URL = "https://wa.me/919999999999";
+const DRIVER_GUIDELINES_URL = "https://autoride.app/driver-guidelines";
 
 function MenuItem({
   icon: Icon,
@@ -397,22 +398,16 @@ export default function DriverProfile() {
             }}
           >
             <MenuItem
-              icon={Star}
-              label="Rate Auto Ride"
-              sublabel="Share your driver experience"
-              onPress={() => {}}
-            />
-            <MenuItem
               icon={HelpCircle}
               label="Help & Support"
               sublabel="Driver assistance center"
-              onPress={() => {}}
+              onPress={() => Linking.openURL(SUPPORT_WHATSAPP_URL)}
             />
             <MenuItem
               icon={Shield}
               label="Driver Guidelines"
               sublabel="Rules & best practices"
-              onPress={() => {}}
+              onPress={() => Linking.openURL(DRIVER_GUIDELINES_URL)}
             />
           </View>
         </View>

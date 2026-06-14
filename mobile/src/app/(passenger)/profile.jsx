@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, TouchableOpacity, ScrollView, Alert } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView, Alert, Linking } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/utils/auth/useAuth";
 import { useQuery } from "@tanstack/react-query";
@@ -9,7 +9,6 @@ import {
   Phone,
   Shield,
   ChevronRight,
-  Star,
   HelpCircle,
   FlaskConical,
 } from "lucide-react-native";
@@ -25,6 +24,8 @@ const BORDER = "#E7E5E4";
 const TEXT = "#1C1917";
 const TEXT_SECONDARY = "#78716C";
 const TEXT_MUTED = "#A8A29E";
+const SUPPORT_WHATSAPP_URL = "https://wa.me/919999999999";
+const PRIVACY_POLICY_URL = "https://autoride.app/privacy";
 
 function MenuItem({
   icon: Icon,
@@ -327,19 +328,13 @@ export default function PassengerProfile() {
               icon={Shield}
               label="Privacy & Safety"
               sublabel="Manage your safety settings"
-              onPress={() => {}}
-            />
-            <MenuItem
-              icon={Star}
-              label="Rate the App"
-              sublabel="Share your feedback"
-              onPress={() => {}}
+              onPress={() => Linking.openURL(PRIVACY_POLICY_URL)}
             />
             <MenuItem
               icon={HelpCircle}
               label="Help & Support"
               sublabel="Get help with your rides"
-              onPress={() => {}}
+              onPress={() => Linking.openURL(SUPPORT_WHATSAPP_URL)}
             />
           </View>
         </View>
