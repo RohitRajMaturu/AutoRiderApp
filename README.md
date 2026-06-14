@@ -75,9 +75,15 @@ EXPO_PUBLIC_SUPPORT_PHONE=91XXXXXXXXXX
 EXPO_PUBLIC_GUIDELINES_URL=https://your-guidelines-url
 EXPO_PUBLIC_PRIVACY_URL=https://your-privacy-url
 NEXT_PUBLIC_APP_DOWNLOAD_URL=https://your-app-store-link
+FAST2SMS_API_KEY=your_fast2sms_api_key
+CORS_ORIGINS=https://your-domain.com,https://your-other-domain.com
 RATE_LIMIT_MAX_REQUESTS=120
 RATE_LIMIT_WINDOW_MS=60000
 ```
+
+FAST2SMS_API_KEY is required for phone OTP on signup and signin. Without it, OTP requests will silently fail. Get a key at fast2sms.com. CORS_ORIGINS should be set to your deployed web domain(s) in production; omitting it disables CORS validation, which is acceptable only for local development.
+
+Before deploying rating support, run `006_ride_ratings.sql` on your production Postgres. Otherwise completed rides will 500 on the rating endpoint.
 
 Ride matching uses admin-managed PostGIS service zones. Run `npm run db:migrate`,
 then create at least one active zone from the Admin Zones tab before testing new
