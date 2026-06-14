@@ -5,6 +5,7 @@
 !.env.sample
 web/.env
 web/.env.*
+!web/.env.example
 mobile/.env
 mobile/.env.*
 

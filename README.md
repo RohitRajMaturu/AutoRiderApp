@@ -64,6 +64,7 @@ Seeded test users from `web/scripts/seed-test-users.mjs` use temporary password 
 
 ### 3. Environment Variables
 The platform handles core environment variables like `DATABASE_URL`.
+Copy `web/.env.example` to `web/.env` and fill in real values.
 
 For production-grade location search and routing, configure the backend with:
 
