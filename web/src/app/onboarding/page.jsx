@@ -54,8 +54,8 @@ function OnboardingPage() {
     if (user) {
       finalizeOnboarding();
     } else {
-      // If no user, maybe session not ready yet
-      setLoading(false);
+      // Session didn't propagate — redirect back to sign in
+      window.location.href = "/account/signin";
     }
   }, [user, userLoading]);
 
