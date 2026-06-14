@@ -9,6 +9,7 @@ import {
   Animated,
   Linking,
   RefreshControl,
+  Image as RNImage,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -20,10 +21,13 @@ import {
   Wifi,
   WifiOff,
   X,
+  Camera,
+  Image as ImageIcon,
 } from "lucide-react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
 import * as Location from "expo-location";
+import * as ImagePicker from "expo-image-picker";
 import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedView";
 import AutoRiderLoader from "@/components/AutoRiderLoader";
 
@@ -55,6 +59,9 @@ function RegistrationScreen() {
   const [vehicle, setVehicle] = useState("");
   const [autoPhotoUrl, setAutoPhotoUrl] = useState("");
   const [licenseUrl, setLicenseUrl] = useState("");
+  const [autoPhotoPreview, setAutoPhotoPreview] = useState("");
+  const [licensePreview, setLicensePreview] = useState("");
+  const [uploadingField, setUploadingField] = useState(null);
   const [step, setStep] = useState(1);
 
   const registerDriver = useMutation({
@@ -77,6 +84,204 @@ function RegistrationScreen() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["driverMe"] }),
     onError: (err) => Alert.alert("Registration Failed", err.message),
   });
+
+  const uploadSelectedImage = async (field, source) => {
+    const isCamera = source === "camera";
+    setUploadingField(field);
+
+    try {
+      const permission = isCamera
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (permission.status !== "granted") {
+        Alert.alert(
+          "Permission Needed",
+          isCamera
+            ? "Allow camera access to take this photo."
+            : "Allow photo access to choose this image.",
+        );
+        return;
+      }
+
+      const result = isCamera
+        ? await ImagePicker.launchCameraAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [4, 3],
+            quality: 0.72,
+            base64: true,
+          })
+        : await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [4, 3],
+            quality: 0.72,
+            base64: true,
+          });
+
+      if (result.canceled) return;
+
+      const asset = result.assets?.[0];
+      if (!asset?.base64) {
+        throw new Error("Could not read the selected image");
+      }
+
+      const mimeType = asset.mimeType || "image/jpeg";
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          base64: `data:${mimeType};base64,${asset.base64}`,
+        }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body.error || "Upload failed");
+      }
+
+      if (field === "auto") {
+        setAutoPhotoUrl(body.url);
+        setAutoPhotoPreview(asset.uri || body.url);
+      } else {
+        setLicenseUrl(body.url);
+        setLicensePreview(asset.uri || body.url);
+      }
+    } catch (err) {
+      Alert.alert("Upload Failed", err.message || "Could not upload image");
+    } finally {
+      setUploadingField(null);
+    }
+  };
+
+  const renderUploadField = ({
+    field,
+    title,
+    required,
+    helper,
+    value,
+    preview,
+  }) => {
+    const isUploading = uploadingField === field;
+    const borderColor = value ? PRIMARY_BORDER : BORDER;
+
+    return (
+      <View>
+        <Text
+          style={{
+            fontSize: 12,
+            fontWeight: "600",
+            color: TEXT_SECONDARY,
+            marginBottom: 8,
+          }}
+        >
+          {title}
+          {required ? " *" : ""}
+        </Text>
+
+        <View
+          style={{
+            borderWidth: 1,
+            borderColor,
+            borderRadius: 14,
+            backgroundColor: "#F5F5F4",
+            padding: 12,
+            gap: 12,
+          }}
+        >
+          {preview || value ? (
+            <RNImage
+              source={{ uri: preview || value }}
+              style={{
+                width: "100%",
+                height: 150,
+                borderRadius: 12,
+                backgroundColor: "#E7E5E4",
+              }}
+              resizeMode="cover"
+            />
+          ) : (
+            <View
+              style={{
+                height: 130,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: "#D6D3D1",
+                borderStyle: "dashed",
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: SURFACE,
+              }}
+            >
+              <ImageIcon size={30} color={TEXT_MUTED} />
+              <Text
+                style={{
+                  marginTop: 8,
+                  fontSize: 12,
+                  fontWeight: "600",
+                  color: TEXT_MUTED,
+                }}
+              >
+                No image selected
+              </Text>
+            </View>
+          )}
+
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            <TouchableOpacity
+              onPress={() => uploadSelectedImage(field, "camera")}
+              disabled={isUploading}
+              style={{
+                flex: 1,
+                borderRadius: 12,
+                paddingVertical: 12,
+                backgroundColor: SURFACE,
+                borderWidth: 1,
+                borderColor: PRIMARY_BORDER,
+                alignItems: "center",
+                justifyContent: "center",
+                flexDirection: "row",
+                gap: 8,
+                opacity: isUploading ? 0.6 : 1,
+              }}
+            >
+              <Camera size={17} color={PRIMARY_DARK} />
+              <Text style={{ color: PRIMARY_DARK, fontSize: 13, fontWeight: "700" }}>
+                {isUploading ? "Uploading..." : "Camera"}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => uploadSelectedImage(field, "gallery")}
+              disabled={isUploading}
+              style={{
+                flex: 1,
+                borderRadius: 12,
+                paddingVertical: 12,
+                backgroundColor: SURFACE,
+                borderWidth: 1,
+                borderColor: PRIMARY_BORDER,
+                alignItems: "center",
+                justifyContent: "center",
+                flexDirection: "row",
+                gap: 8,
+                opacity: isUploading ? 0.6 : 1,
+              }}
+            >
+              <ImageIcon size={17} color={PRIMARY_DARK} />
+              <Text style={{ color: PRIMARY_DARK, fontSize: 13, fontWeight: "700" }}>
+                Gallery
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <Text style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 6 }}>
+          {value ? "Uploaded successfully" : helper}
+        </Text>
+      </View>
+    );
+  };
 
   const steps = [
     { num: 1, label: "Vehicle" },
@@ -255,68 +460,21 @@ function RegistrationScreen() {
               >
                 Upload Documents
               </Text>
-              <View>
-                <Text
-                  style={{
-                    fontSize: 12,
-                    fontWeight: "600",
-                    color: TEXT_SECONDARY,
-                    marginBottom: 8,
-                  }}
-                >
-                  Auto Photo URL
-                </Text>
-                <TextInput
-                  placeholder="https://link-to-auto-photo.jpg"
-                  placeholderTextColor={TEXT_MUTED}
-                  value={autoPhotoUrl}
-                  onChangeText={setAutoPhotoUrl}
-                  style={{
-                    backgroundColor: "#F5F5F4",
-                    borderRadius: 12,
-                    paddingHorizontal: 16,
-                    paddingVertical: 14,
-                    fontSize: 14,
-                    color: TEXT,
-                    borderWidth: 1,
-                    borderColor: autoPhotoUrl ? PRIMARY_BORDER : BORDER,
-                  }}
-                />
-                <Text style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 6 }}>
-                  Share a photo link of your auto-rickshaw
-                </Text>
-              </View>
-              <View>
-                <Text
-                  style={{
-                    fontSize: 12,
-                    fontWeight: "600",
-                    color: TEXT_SECONDARY,
-                    marginBottom: 8,
-                  }}
-                >
-                  License / Permit URL *
-                </Text>
-                <TextInput
-                  placeholder="https://link-to-license.pdf"
-                  placeholderTextColor={TEXT_MUTED}
-                  value={licenseUrl}
-                  onChangeText={setLicenseUrl}
-                  style={{
-                    backgroundColor: "#F5F5F4",
-                    borderRadius: 12,
-                    paddingHorizontal: 16,
-                    paddingVertical: 14,
-                    fontSize: 14,
-                    color: TEXT,
-                    borderWidth: 1,
-                    borderColor: licenseUrl ? PRIMARY_BORDER : BORDER,
-                  }}
-                />
-                <Text style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 6 }}>
-                  Driving license or auto permit document link
-                </Text>
-              </View>
+              {renderUploadField({
+                field: "auto",
+                title: "Auto Photo",
+                helper: "Take or choose a clear photo of your auto-rickshaw",
+                value: autoPhotoUrl,
+                preview: autoPhotoPreview,
+              })}
+              {renderUploadField({
+                field: "license",
+                title: "License / Permit",
+                required: true,
+                helper: "Take or choose a clear photo of your driving license or permit",
+                value: licenseUrl,
+                preview: licensePreview,
+              })}
             </View>
             <View style={{ flexDirection: "row", gap: 12 }}>
               <TouchableOpacity
