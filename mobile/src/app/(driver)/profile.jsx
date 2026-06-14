@@ -29,8 +29,8 @@ const TEXT_MUTED = "#A8A29E";
 const SUCCESS = "#16A34A";
 const SUCCESS_LIGHT = "#DCFCE7";
 const DARK = "#1C1917";
-const SUPPORT_WHATSAPP_URL = "https://wa.me/919999999999";
-const DRIVER_GUIDELINES_URL = "https://autoride.app/driver-guidelines";
+const SUPPORT_WHATSAPP_URL = `https://wa.me/${process.env.EXPO_PUBLIC_SUPPORT_PHONE ?? "919999999999"}`;
+const DRIVER_GUIDELINES_URL = process.env.EXPO_PUBLIC_GUIDELINES_URL ?? "#";
 
 function MenuItem({
   icon: Icon,

@@ -24,8 +24,8 @@ const BORDER = "#E7E5E4";
 const TEXT = "#1C1917";
 const TEXT_SECONDARY = "#78716C";
 const TEXT_MUTED = "#A8A29E";
-const SUPPORT_WHATSAPP_URL = "https://wa.me/919999999999";
-const PRIVACY_POLICY_URL = "https://autoride.app/privacy";
+const SUPPORT_WHATSAPP_URL = `https://wa.me/${process.env.EXPO_PUBLIC_SUPPORT_PHONE ?? "919999999999"}`;
+const PRIVACY_POLICY_URL = process.env.EXPO_PUBLIC_PRIVACY_URL ?? "#";
 
 function MenuItem({
   icon: Icon,

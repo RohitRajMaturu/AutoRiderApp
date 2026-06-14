@@ -1,3 +1,5 @@
+const APP_DOWNLOAD_URL = process.env.NEXT_PUBLIC_APP_DOWNLOAD_URL ?? "#";
+
 export default function Page() {
   return (
     <main className="flex min-h-screen flex-col bg-[#1C1917] font-inter text-white">
@@ -29,7 +31,7 @@ export default function Page() {
 
         <div className="mt-10 grid gap-3 sm:grid-cols-2">
           <a
-            href="#"
+            href={APP_DOWNLOAD_URL}
             className="rounded-[14px] bg-[#F97316] px-5 py-4 text-center text-sm font-extrabold text-white shadow-[0_10px_24px_rgba(249,115,22,0.28)] transition hover:bg-[#EA580C]"
           >
             Download App
