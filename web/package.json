@@ -9,6 +9,7 @@
 		"test:api": "vitest run --config src/app/api/vitest.config.ts",
 		"db:check": "node scripts/db-check.mjs",
 		"db:migrate": "node scripts/db-migrate.mjs",
+		"reset:dev": "node scripts/reset-dev-data.mjs --force",
 		"maintenance": "node scripts/maintenance.mjs"
 	},
 	"dependencies": {

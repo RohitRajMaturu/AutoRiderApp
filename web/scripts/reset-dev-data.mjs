@@ -1,3 +1,19 @@
+if (process.env.NODE_ENV === "production") {
+  console.error("ERROR: reset-dev-data must not run in production.");
+  process.exit(1);
+}
+
+const args = process.argv.slice(2);
+if (!args.includes("--force")) {
+  console.error(
+    "Safety check: pass --force flag to confirm data deletion.\n" +
+      "  node scripts/reset-dev-data.mjs --force"
+  );
+  process.exit(1);
+}
+
+console.warn("WARNING: About to delete ALL dev data. Proceeding...");
+
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
