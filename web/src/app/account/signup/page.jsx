@@ -51,6 +51,7 @@ function SignUpPage() {
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [enableOtpVerification, setEnableOtpVerification] = useState(false);
+  const [configLoaded, setConfigLoaded] = useState(false);
 
   const { signUpWithCredentials } = useAuth();
   const isAdminSetup = role === "admin";
@@ -58,9 +59,15 @@ function SignUpPage() {
 
   useEffect(() => {
     fetch("/api/auth/config")
-      .then((response) => response.json())
-      .then((config) => setEnableOtpVerification(config.enableOtpVerification === true))
-      .catch(() => setEnableOtpVerification(false));
+      .then((r) => r.json())
+      .then((config) => {
+        setEnableOtpVerification(config.enableOtpVerification === true);
+        setConfigLoaded(true);
+      })
+      .catch(() => {
+        setEnableOtpVerification(false);
+        setConfigLoaded(true);
+      });
   }, []);
 
   const requireAuthSuccess = (result, message) => {
@@ -178,6 +185,11 @@ function SignUpPage() {
           </p>
           </div>
 
+          {!configLoaded ? (
+            <div className="flex justify-center py-8">
+              <AutoRiderLoader label="Loading..." />
+            </div>
+          ) : (
           <form onSubmit={onSubmit} className="space-y-4">
             <div className="space-y-1.5">
               <label className="text-[11px] font-bold uppercase tracking-normal text-stone-400">
@@ -323,6 +335,7 @@ function SignUpPage() {
               )}
             </button>
           </form>
+          )}
 
           <p className="mt-5 text-center text-sm text-stone-500">
             Already have an account?{" "}

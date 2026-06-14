@@ -37,6 +37,7 @@ function SignInPage() {
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [enableOtpVerification, setEnableOtpVerification] = useState(false);
+  const [configLoaded, setConfigLoaded] = useState(false);
   const adminIntent = getAdminIntent();
 
   const { signInWithCredentials, signInWithPhoneOtp } = useAuth();
@@ -48,8 +49,13 @@ function SignInPage() {
         const enabled = config.enableOtpVerification === true;
         setEnableOtpVerification(enabled);
         if (!enabled) setMode("email");
+        setConfigLoaded(true);
       })
-      .catch(() => setEnableOtpVerification(false));
+      .catch(() => {
+        setEnableOtpVerification(false);
+        setMode("email");
+        setConfigLoaded(true);
+      });
   }, []);
 
   const requireAuthSuccess = (result, message) => {
@@ -180,6 +186,12 @@ function SignInPage() {
         </section>
 
         <section className="rounded-[24px] border border-stone-200 bg-white px-6 pb-6 pt-6 shadow-[0_18px_55px_rgba(28,25,23,0.10)]">
+          {!configLoaded ? (
+            <div className="flex justify-center py-8">
+              <AutoRiderLoader label="Loading..." />
+            </div>
+          ) : (
+            <>
           {enableOtpVerification && (
             <div className="mb-4 grid grid-cols-2 gap-1 rounded-[14px] border border-stone-200 bg-[#FFFBF5] p-1">
               {[
@@ -313,6 +325,8 @@ function SignInPage() {
               )}
             </button>
           </form>
+            </>
+          )}
 
           <p className="mt-5 text-center text-sm text-stone-500">
             New to Auto Ride?{" "}
