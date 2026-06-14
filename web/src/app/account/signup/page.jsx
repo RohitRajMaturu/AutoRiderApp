@@ -130,7 +130,7 @@ function SignUpPage() {
         phone: phone.trim(),
         role,
         otp: enableOtpVerification ? otp : "",
-        callbackUrl: enableOtpVerification && !isAdminSetup ? "/onboarding" : getFinalCallbackUrl(),
+        callbackUrl: !isAdminSetup ? "/onboarding" : getFinalCallbackUrl(),
         redirect: false,
       });
 
