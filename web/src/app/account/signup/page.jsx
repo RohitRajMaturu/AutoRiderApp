@@ -309,7 +309,7 @@ function SignUpPage() {
               className="group flex w-full items-center justify-center rounded-[12px] border-b-2 border-b-[#138808] bg-[#F97316] py-[17px] text-[17px] font-extrabold text-white shadow-[0_10px_24px_rgba(249,115,22,0.28)] transition hover:bg-[#EA580C] disabled:opacity-60"
             >
               {loading ? (
-                <AutoRiderLoader label="Creating account" />
+                <AutoRiderLoader size={34} label="Creating account" />
               ) : isAdminSetup ? (
                 <>
                   Create Admin

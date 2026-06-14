@@ -299,7 +299,7 @@ function SignInPage() {
               className="group flex h-12 w-full items-center justify-center rounded-[10px] border-b-2 border-b-[#138808] bg-[#F97316] text-base font-extrabold text-white shadow-[0_10px_24px_rgba(249,115,22,0.22)] transition hover:bg-[#EA580C] disabled:opacity-60"
             >
               {loading ? (
-                <AutoRiderLoader label="Please wait" />
+                <AutoRiderLoader size={34} label="Please wait" />
               ) : mode === "phone" ? (
                 <>
                   Verify OTP
