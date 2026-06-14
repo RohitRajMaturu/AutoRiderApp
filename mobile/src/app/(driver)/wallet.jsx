@@ -13,18 +13,18 @@ import {
 } from "lucide-react-native";
 import { StatusBar } from "expo-status-bar";
 
-const PRIMARY = "#F97316";
-const PRIMARY_LIGHT = "#FFF7ED";
-const PRIMARY_BORDER = "#FED7AA";
-const BG = "#FFFBF5";
+const PRIMARY = "#43B8B3";
+const PRIMARY_LIGHT = "#E7F6F4";
+const PRIMARY_BORDER = "#BFE5E0";
+const BG = "#EAF0F1";
 const SURFACE = "#FFFFFF";
-const BORDER = "#E7E5E4";
-const TEXT = "#1C1917";
-const TEXT_SECONDARY = "#78716C";
-const TEXT_MUTED = "#A8A29E";
+const BORDER = "#D8E4E5";
+const TEXT = "#17272B";
+const TEXT_SECONDARY = "#586C70";
+const TEXT_MUTED = "#647678";
 const SUCCESS = "#16A34A";
 const SUCCESS_LIGHT = "#DCFCE7";
-const DARK = "#1C1917";
+const DARK = "#17272B";
 
 const BENEFITS = [
   {
@@ -178,7 +178,7 @@ export default function DriverWallet() {
                   style={{
                     fontSize: 12,
                     fontWeight: "700",
-                    color: isActive ? "#A8A29E" : "#EF4444",
+                    color: isActive ? "#647678" : "#EF4444",
                     textTransform: "uppercase",
                     letterSpacing: 0.8,
                   }}
@@ -219,11 +219,11 @@ export default function DriverWallet() {
             </View>
 
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <Calendar size={14} color={isActive ? "#78716C" : "#991B1B"} />
+              <Calendar size={14} color={isActive ? "#586C70" : "#991B1B"} />
               <Text
                 style={{
                   fontSize: 13,
-                  color: isActive ? "#78716C" : "#991B1B",
+                  color: isActive ? "#586C70" : "#991B1B",
                 }}
               >
                 Expires {formatExpiry(expiry)}
@@ -346,3 +346,4 @@ export default function DriverWallet() {
     </View>
   );
 }
+

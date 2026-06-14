@@ -25,9 +25,9 @@ import { StatusBar } from "expo-status-bar";
 import useAppStore from "../store/useAppStore";
 import AutoRiderLoader from "../components/AutoRiderLoader";
 
-const SAFFRON = "#F97316";
+const SAFFRON = "#43B8B3";
 const INDIA_GREEN = "#138808";
-const DARK = "#1C1917";
+const DARK = "#17272B";
 
 function RolePickerModal({ visible, onClose, onSelect }) {
   const roles = [
@@ -37,8 +37,8 @@ function RolePickerModal({ visible, onClose, onSelect }) {
       title: "Passenger",
       desc: "Book autos, track rides, call drivers",
       color: SAFFRON,
-      bg: "#FFF7ED",
-      border: "#FED7AA",
+      bg: "#E7F6F4",
+      border: "#BFE5E0",
     },
     {
       id: "driver",
@@ -85,7 +85,7 @@ function RolePickerModal({ visible, onClose, onSelect }) {
                 width: 40,
                 height: 4,
                 borderRadius: 2,
-                backgroundColor: "#E7E5E4",
+                backgroundColor: "#D8E4E5",
                 alignSelf: "center",
                 marginBottom: 24,
               }}
@@ -105,7 +105,7 @@ function RolePickerModal({ visible, onClose, onSelect }) {
             <Text
               style={{
                 fontSize: 13,
-                color: "#78716C",
+                color: "#586C70",
                 marginBottom: 24,
                 lineHeight: 20,
               }}
@@ -126,11 +126,11 @@ function RolePickerModal({ visible, onClose, onSelect }) {
                 gap: 10,
               }}
             >
-              <FlaskConical size={18} color="#92400E" />
+              <FlaskConical size={18} color="#286B68" />
               <Text
                 style={{
                   fontSize: 12,
-                  color: "#92400E",
+                  color: "#286B68",
                   flex: 1,
                   lineHeight: 18,
                 }}
@@ -190,7 +190,7 @@ function RolePickerModal({ visible, onClose, onSelect }) {
                     <Text
                       style={{
                         fontSize: 12,
-                        color: "#78716C",
+                        color: "#586C70",
                         marginTop: 3,
                         lineHeight: 18,
                       }}
@@ -259,7 +259,7 @@ export default function Index() {
       <View
         style={{
           flex: 1,
-          backgroundColor: "#FFFBF5",
+          backgroundColor: "#EAF0F1",
         }}
       >
         <AutoRiderLoader
@@ -378,7 +378,7 @@ export default function Index() {
           <Text
             style={{
               fontSize: 16,
-              color: "#A8A29E",
+              color: "#647678",
               marginTop: 12,
               lineHeight: 24,
             }}
@@ -429,7 +429,7 @@ export default function Index() {
             style={{
               fontSize: 22,
               fontWeight: "700",
-              color: "#1C1917",
+              color: "#17272B",
               marginBottom: 6,
             }}
           >
@@ -438,7 +438,7 @@ export default function Index() {
           <Text
             style={{
               fontSize: 14,
-              color: "#78716C",
+              color: "#586C70",
               marginBottom: 24,
               lineHeight: 20,
             }}
@@ -476,7 +476,7 @@ export default function Index() {
           <TouchableOpacity
             onPress={() => signUp({ params: { role: "admin" } })}
             style={{
-              backgroundColor: "#111827",
+              backgroundColor: DARK,
               borderRadius: 14,
               paddingVertical: 15,
               alignItems: "center",
@@ -497,7 +497,7 @@ export default function Index() {
             style={{
               textAlign: "center",
               fontSize: 11,
-              color: "#A8A29E",
+              color: "#647678",
               marginTop: 16,
               lineHeight: 16,
             }}
@@ -509,3 +509,4 @@ export default function Index() {
     </View>
   );
 }
+

@@ -9,12 +9,12 @@ export default function DriverLayout() {
         tabBarStyle: {
           backgroundColor: "#FFFFFF",
           borderTopWidth: 1,
-          borderTopColor: "#E7E5E4",
+          borderTopColor: "#D8E4E5",
           paddingTop: 8,
           paddingBottom: 4,
         },
-        tabBarActiveTintColor: "#F97316",
-        tabBarInactiveTintColor: "#A8A29E",
+        tabBarActiveTintColor: "#43B8B3",
+        tabBarInactiveTintColor: "#647678",
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: "600",
@@ -30,7 +30,7 @@ export default function DriverLayout() {
             <Home
               color={color}
               size={22}
-              strokeWidth={color === "#F97316" ? 2.5 : 1.8}
+              strokeWidth={color === "#43B8B3" ? 2.5 : 1.8}
             />
           ),
         }}
@@ -43,7 +43,7 @@ export default function DriverLayout() {
             <Wallet
               color={color}
               size={22}
-              strokeWidth={color === "#F97316" ? 2.5 : 1.8}
+              strokeWidth={color === "#43B8B3" ? 2.5 : 1.8}
             />
           ),
         }}
@@ -56,7 +56,7 @@ export default function DriverLayout() {
             <User
               color={color}
               size={22}
-              strokeWidth={color === "#F97316" ? 2.5 : 1.8}
+              strokeWidth={color === "#43B8B3" ? 2.5 : 1.8}
             />
           ),
         }}
@@ -64,3 +64,4 @@ export default function DriverLayout() {
     </Tabs>
   );
 }
+

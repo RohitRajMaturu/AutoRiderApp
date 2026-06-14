@@ -23,15 +23,15 @@ import {
 } from "lucide-react-native";
 import { StatusBar } from "expo-status-bar";
 
-const PRIMARY = "#F97316";
-const PRIMARY_LIGHT = "#FFF7ED";
-const PRIMARY_BORDER = "#FED7AA";
-const BG = "#1C1917";
-const SURFACE = "#292524";
+const PRIMARY = "#43B8B3";
+const PRIMARY_LIGHT = "#E7F6F4";
+const PRIMARY_BORDER = "#BFE5E0";
+const BG = "#EAF0F1";
+const SURFACE = "#FFFFFF";
 const SURFACE2 = "#FFFFFF";
-const BORDER = "#44403C";
-const TEXT = "#FAFAF9";
-const TEXT_SECONDARY = "#A8A29E";
+const BORDER = "#D8E4E5";
+const TEXT = "#17272B";
+const TEXT_SECONDARY = "#647678";
 const SUCCESS = "#22C55E";
 const SUCCESS_DARK = "#16A34A";
 const ERROR = "#EF4444";
@@ -111,14 +111,14 @@ function DriverCard({ driver, onApprove, onReject, isUpdating }) {
                 borderRadius: 99,
                 backgroundColor: driver.is_approved
                   ? `${SUCCESS}20`
-                  : "#D9770620",
+                  : "#B8870020",
               }}
             >
               <Text
                 style={{
                   fontSize: 9,
                   fontWeight: "700",
-                  color: driver.is_approved ? SUCCESS : "#D97706",
+                  color: driver.is_approved ? SUCCESS : "#B88700",
                   textTransform: "uppercase",
                   letterSpacing: 0.5,
                 }}
@@ -619,3 +619,4 @@ export default function AdminDrivers() {
     </View>
   );
 }
+

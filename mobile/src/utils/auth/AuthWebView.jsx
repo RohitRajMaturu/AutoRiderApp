@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Image, Platform, Text, View } from 'react-native';
+import { Animated, Platform, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useAuthModal, useAuthStore } from './store';
+import AutoRiderLoader from '@/components/AutoRiderLoader';
 
 const callbackUrl = '/api/auth/token';
 const onboardingUrl = '/onboarding';
@@ -84,33 +85,19 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
         right: 0,
         bottom: 0,
         left: 0,
-        backgroundColor: '#1C1917',
+        backgroundColor: '#EAF0F1',
         justifyContent: 'center',
         alignItems: 'center',
         zIndex: 2,
       }}
       pointerEvents="none"
     >
-      <View
-        style={{
-          width: 76,
-          height: 76,
-          borderRadius: 24,
-          backgroundColor: '#F97316',
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginBottom: 18,
-        }}
-      >
-        <Image
-          source={require('../../../assets/images/icon.png')}
-          style={{ width: 58, height: 58, resizeMode: 'contain' }}
-        />
-      </View>
-      <ActivityIndicator color="#F97316" />
-      <Text style={{ marginTop: 12, color: '#D6D3D1', fontSize: 13, fontWeight: '700' }}>
-        {authError || 'Opening Auto Ride...'}
-      </Text>
+      <AutoRiderLoader
+        size={76}
+        color="#43B8B3"
+        textColor="#586C70"
+        label={authError || 'Opening Auto Ride...'}
+      />
     </View>
   );
 
@@ -169,7 +156,7 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
     };
 
     return (
-      <View style={{ flex: 1, backgroundColor: '#1C1917' }}>
+      <View style={{ flex: 1, backgroundColor: '#EAF0F1' }}>
         {!isPageReady && loadingView}
         <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
           <iframe
@@ -192,7 +179,7 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
     );
   }
   return (
-    <View style={{ flex: 1, backgroundColor: '#1C1917' }}>
+    <View style={{ flex: 1, backgroundColor: '#EAF0F1' }}>
       {!isPageReady && loadingView}
       <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
         <WebView
@@ -264,7 +251,7 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
             }
             return true;
           }}
-          style={{ flex: 1, backgroundColor: '#1C1917' }}
+          style={{ flex: 1, backgroundColor: '#EAF0F1' }}
         />
       </Animated.View>
       {errorBanner}

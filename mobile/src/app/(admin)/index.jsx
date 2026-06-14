@@ -25,15 +25,15 @@ import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import useAppStore from "@/store/useAppStore";
 
-const PRIMARY = "#F97316";
-const PRIMARY_LIGHT = "#FFF7ED";
-const PRIMARY_BORDER = "#FED7AA";
-const BG = "#1C1917";
-const SURFACE = "#292524";
+const PRIMARY = "#43B8B3";
+const PRIMARY_LIGHT = "#E7F6F4";
+const PRIMARY_BORDER = "#BFE5E0";
+const BG = "#EAF0F1";
+const SURFACE = "#FFFFFF";
 const SURFACE2 = "#FFFFFF";
-const BORDER = "#44403C";
-const TEXT = "#FAFAF9";
-const TEXT_SECONDARY = "#A8A29E";
+const BORDER = "#D8E4E5";
+const TEXT = "#17272B";
+const TEXT_SECONDARY = "#647678";
 const SUCCESS = "#22C55E";
 const ERROR = "#EF4444";
 
@@ -238,18 +238,18 @@ export default function AdminDashboard() {
           }}
           activeOpacity={0.8}
         >
-          <FlaskConical size={16} color="#D97706" />
+          <FlaskConical size={16} color="#B88700" />
           <Text
             style={{
               flex: 1,
               fontSize: 12,
-              color: "#92400E",
+              color: "#286B68",
               fontWeight: "600",
             }}
           >
             🧪 Test Mode — Tap to Exit & Sign In for real admin access
           </Text>
-          <Text style={{ fontSize: 12, color: "#D97706", fontWeight: "700" }}>
+          <Text style={{ fontSize: 12, color: "#B88700", fontWeight: "700" }}>
             Exit →
           </Text>
         </TouchableOpacity>
@@ -294,12 +294,12 @@ export default function AdminDashboard() {
               <Text style={{ fontSize: 22 }}>⚠️</Text>
               <View style={{ flex: 1 }}>
                 <Text
-                  style={{ fontSize: 14, fontWeight: "700", color: "#92400E" }}
+                  style={{ fontSize: 14, fontWeight: "700", color: "#286B68" }}
                 >
                   {pendingDrivers.length} Driver
                   {pendingDrivers.length > 1 ? "s" : ""} Awaiting Approval
                 </Text>
-                <Text style={{ fontSize: 12, color: "#B45309", marginTop: 2 }}>
+                <Text style={{ fontSize: 12, color: "#586C70", marginTop: 2 }}>
                   Tap Drivers tab to review
                 </Text>
               </View>
@@ -344,7 +344,7 @@ export default function AdminDashboard() {
               icon={Clock}
               label="Pending Approval"
               value={stats?.pendingDrivers ?? "—"}
-              color="#D97706"
+              color="#B88700"
             />
           </View>
 
@@ -658,9 +658,9 @@ export default function AdminDashboard() {
               }}
               activeOpacity={0.8}
             >
-              <FlaskConical size={18} color="#D97706" />
+              <FlaskConical size={18} color="#B88700" />
               <Text
-                style={{ color: "#D97706", fontSize: 14, fontWeight: "700" }}
+                style={{ color: "#B88700", fontSize: 14, fontWeight: "700" }}
               >
                 Exit Test Mode → Sign In
               </Text>
@@ -691,3 +691,4 @@ export default function AdminDashboard() {
     </View>
   );
 }
+

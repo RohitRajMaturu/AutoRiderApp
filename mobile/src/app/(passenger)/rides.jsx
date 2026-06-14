@@ -12,23 +12,23 @@ import { useQuery } from "@tanstack/react-query";
 import { Clock, CheckCircle2, XCircle, Car } from "lucide-react-native";
 import { StatusBar } from "expo-status-bar";
 
-const PRIMARY = "#F97316";
-const BG = "#FFFBF5";
+const PRIMARY = "#43B8B3";
+const BG = "#EAF0F1";
 const SURFACE = "#FFFFFF";
-const BORDER = "#E7E5E4";
-const TEXT = "#1C1917";
-const TEXT_SECONDARY = "#78716C";
-const TEXT_MUTED = "#A8A29E";
+const BORDER = "#D8E4E5";
+const TEXT = "#17272B";
+const TEXT_SECONDARY = "#586C70";
+const TEXT_MUTED = "#647678";
 const SUCCESS = "#16A34A";
 
 const STATUS_CONFIG = {
   requested: {
     bg: "#FEF3C7",
-    text: "#D97706",
+    text: "#B88700",
     Icon: Clock,
     label: "Searching",
   },
-  accepted: { bg: "#FFF7ED", text: PRIMARY, Icon: Car, label: "Accepted" },
+  accepted: { bg: "#E7F6F4", text: PRIMARY, Icon: Car, label: "Accepted" },
   completed: {
     bg: "#DCFCE7",
     text: SUCCESS,
@@ -351,3 +351,4 @@ export default function PassengerRides() {
     </View>
   );
 }
+

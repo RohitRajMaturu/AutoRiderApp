@@ -7,14 +7,14 @@ export default function AdminLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: "#1C1917",
+          backgroundColor: "#FFFFFF",
           borderTopWidth: 1,
-          borderTopColor: "#292524",
+          borderTopColor: "#D8E4E5",
           paddingTop: 8,
           paddingBottom: 4,
         },
-        tabBarActiveTintColor: "#F97316",
-        tabBarInactiveTintColor: "#78716C",
+        tabBarActiveTintColor: "#43B8B3",
+        tabBarInactiveTintColor: "#647678",
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: "600",
@@ -30,7 +30,7 @@ export default function AdminLayout() {
             <BarChart3
               color={color}
               size={22}
-              strokeWidth={color === "#F97316" ? 2.5 : 1.8}
+              strokeWidth={color === "#43B8B3" ? 2.5 : 1.8}
             />
           ),
         }}
@@ -43,7 +43,7 @@ export default function AdminLayout() {
             <Users
               color={color}
               size={22}
-              strokeWidth={color === "#F97316" ? 2.5 : 1.8}
+              strokeWidth={color === "#43B8B3" ? 2.5 : 1.8}
             />
           ),
         }}
@@ -56,7 +56,7 @@ export default function AdminLayout() {
             <Route
               color={color}
               size={22}
-              strokeWidth={color === "#F97316" ? 2.5 : 1.8}
+              strokeWidth={color === "#43B8B3" ? 2.5 : 1.8}
             />
           ),
         }}
@@ -69,7 +69,7 @@ export default function AdminLayout() {
             <Map
               color={color}
               size={22}
-              strokeWidth={color === "#F97316" ? 2.5 : 1.8}
+              strokeWidth={color === "#43B8B3" ? 2.5 : 1.8}
             />
           ),
         }}
@@ -82,7 +82,7 @@ export default function AdminLayout() {
             <FileText
               color={color}
               size={22}
-              strokeWidth={color === "#F97316" ? 2.5 : 1.8}
+              strokeWidth={color === "#43B8B3" ? 2.5 : 1.8}
             />
           ),
         }}
@@ -90,3 +90,4 @@ export default function AdminLayout() {
     </Tabs>
   );
 }
+

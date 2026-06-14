@@ -15,15 +15,15 @@ import {
 import { StatusBar } from "expo-status-bar";
 import useAppStore from "@/store/useAppStore";
 
-const PRIMARY = "#F97316";
-const PRIMARY_LIGHT = "#FFF7ED";
-const PRIMARY_BORDER = "#FED7AA";
-const BG = "#FFFBF5";
+const PRIMARY = "#43B8B3";
+const PRIMARY_LIGHT = "#E7F6F4";
+const PRIMARY_BORDER = "#BFE5E0";
+const BG = "#EAF0F1";
 const SURFACE = "#FFFFFF";
-const BORDER = "#E7E5E4";
-const TEXT = "#1C1917";
-const TEXT_SECONDARY = "#78716C";
-const TEXT_MUTED = "#A8A29E";
+const BORDER = "#D8E4E5";
+const TEXT = "#17272B";
+const TEXT_SECONDARY = "#586C70";
+const TEXT_MUTED = "#647678";
 const SUPPORT_WHATSAPP_URL = `https://wa.me/${process.env.EXPO_PUBLIC_SUPPORT_PHONE ?? "919999999999"}`;
 const PRIVACY_POLICY_URL = process.env.EXPO_PUBLIC_PRIVACY_URL ?? "#";
 
@@ -141,18 +141,18 @@ export default function PassengerProfile() {
             }}
             activeOpacity={0.8}
           >
-            <FlaskConical size={16} color="#D97706" />
+            <FlaskConical size={16} color="#B88700" />
             <Text
               style={{
                 flex: 1,
                 fontSize: 12,
-                color: "#92400E",
+                color: "#286B68",
                 fontWeight: "600",
               }}
             >
               🧪 Test Mode Active — Tap to Sign In with real account
             </Text>
-            <Text style={{ fontSize: 12, color: "#D97706", fontWeight: "700" }}>
+            <Text style={{ fontSize: 12, color: "#B88700", fontWeight: "700" }}>
               Exit →
             </Text>
           </TouchableOpacity>
@@ -357,9 +357,9 @@ export default function PassengerProfile() {
               }}
               activeOpacity={0.8}
             >
-              <FlaskConical size={18} color="#D97706" />
+              <FlaskConical size={18} color="#B88700" />
               <Text
-                style={{ color: "#D97706", fontSize: 15, fontWeight: "700" }}
+                style={{ color: "#B88700", fontSize: 15, fontWeight: "700" }}
               >
                 Exit Test Mode → Sign In
               </Text>
@@ -413,3 +413,4 @@ export default function PassengerProfile() {
     </View>
   );
 }
+

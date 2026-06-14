@@ -16,12 +16,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { LocateFixed, Map, Plus, Search, ToggleLeft, ToggleRight, X } from "lucide-react-native";
 
-const PRIMARY = "#F97316";
-const BG = "#1C1917";
-const SURFACE = "#292524";
-const BORDER = "#44403C";
-const TEXT = "#FAFAF9";
-const TEXT_SECONDARY = "#A8A29E";
+const PRIMARY = "#43B8B3";
+const BG = "#EAF0F1";
+const SURFACE = "#FFFFFF";
+const BORDER = "#D8E4E5";
+const TEXT = "#17272B";
+const TEXT_SECONDARY = "#647678";
 const SUCCESS = "#22C55E";
 const ERROR = "#EF4444";
 const DEFAULT_REGION = {
@@ -472,7 +472,7 @@ export default function AdminZones() {
                         <Polygon
                           coordinates={selectedPolygon}
                           strokeColor={PRIMARY}
-                          fillColor="rgba(249,115,22,0.22)"
+                          fillColor="rgba(67,184,179,0.22)"
                           strokeWidth={2}
                         />
                       )}
@@ -650,3 +650,4 @@ export default function AdminZones() {
     </View>
   );
 }
+

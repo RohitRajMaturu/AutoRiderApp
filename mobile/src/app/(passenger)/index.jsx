@@ -29,15 +29,15 @@ import { StatusBar } from "expo-status-bar";
 import * as Location from "expo-location";
 import AutoRiderLoader from "@/components/AutoRiderLoader";
 
-const PRIMARY = "#F97316";
-const PRIMARY_LIGHT = "#FFF7ED";
-const PRIMARY_BORDER = "#FED7AA";
-const BG = "#FFFBF5";
+const PRIMARY = "#43B8B3";
+const PRIMARY_LIGHT = "#E7F6F4";
+const PRIMARY_BORDER = "#BFE5E0";
+const BG = "#EAF0F1";
 const SURFACE = "#FFFFFF";
-const BORDER = "#E7E5E4";
-const TEXT = "#1C1917";
-const TEXT_SECONDARY = "#78716C";
-const TEXT_MUTED = "#A8A29E";
+const BORDER = "#D8E4E5";
+const TEXT = "#17272B";
+const TEXT_SECONDARY = "#586C70";
+const TEXT_MUTED = "#647678";
 const SUCCESS = "#16A34A";
 const SUCCESS_LIGHT = "#DCFCE7";
 
@@ -93,7 +93,7 @@ function buildMapRegion(points) {
 
 function StatusBadge({ status }) {
   const configs = {
-    requested: { bg: "#FEF3C7", text: "#D97706", label: "Finding Driver" },
+    requested: { bg: "#FEF3C7", text: "#B88700", label: "Finding Driver" },
     accepted: { bg: SUCCESS_LIGHT, text: SUCCESS, label: "Accepted" },
     completed: { bg: "#DBEAFE", text: "#2563EB", label: "Completed" },
     cancelled: { bg: "#FEE2E2", text: "#DC2626", label: "Cancelled" },
@@ -742,7 +742,7 @@ export default function PassengerHome() {
                     <Animated.View
                       style={{ transform: [{ scale: pulseAnim }] }}
                     >
-                      <Clock3 size={20} color="#D97706" />
+                      <Clock3 size={20} color="#B88700" />
                     </Animated.View>
                   ) : (
                     <CheckCircle2 size={20} color={PRIMARY} />
@@ -1017,8 +1017,8 @@ export default function PassengerHome() {
                         >
                           <Star
                             size={28}
-                            color={value <= ratingValue ? "#F59E0B" : TEXT_MUTED}
-                            fill={value <= ratingValue ? "#F59E0B" : "none"}
+                            color={value <= ratingValue ? "#F3B51B" : TEXT_MUTED}
+                            fill={value <= ratingValue ? "#F3B51B" : "none"}
                           />
                         </TouchableOpacity>
                       ))}
@@ -1081,7 +1081,7 @@ export default function PassengerHome() {
                           alignItems: "center",
                           backgroundColor:
                             ratingValue === 0 || rateRide.isPending
-                              ? "#D4C4BB"
+                              ? "#BFD1D3"
                               : PRIMARY,
                         }}
                       >
@@ -1250,7 +1250,7 @@ export default function PassengerHome() {
                           borderRadius: 10,
                           alignItems: "center",
                           borderWidth: 1,
-                          borderColor: "#E7E5E4",
+                          borderColor: "#D8E4E5",
                           backgroundColor: SURFACE,
                         }}
                       >
@@ -1543,7 +1543,7 @@ export default function PassengerHome() {
               activeOpacity={0.85}
               style={{
                 marginTop: 16,
-                backgroundColor: canRequest ? PRIMARY : "#D4C4BB",
+                backgroundColor: canRequest ? PRIMARY : "#BFD1D3",
                 borderRadius: 14,
                 paddingVertical: 17,
                 flexDirection: "row",
@@ -1672,3 +1672,4 @@ export default function PassengerHome() {
     </View>
   );
 }
+

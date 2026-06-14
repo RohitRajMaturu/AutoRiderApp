@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import useUser from "@/utils/useUser";
 import AutoRiderLoader from "@/components/AutoRiderLoader";
+import { ConceptBackdrop } from "@/components/ConceptVisuals";
 
 function OnboardingPage() {
   const { data: user, loading: userLoading } = useUser();
@@ -60,21 +61,25 @@ function OnboardingPage() {
 
   if (loading || userLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-white font-inter">
-        <AutoRiderLoader label="Completing account setup..." />
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#EAF0F1] px-6 font-inter text-[#17272B]">
+        <ConceptBackdrop />
+        <div className="relative z-10 rounded-[24px] border border-white/80 bg-white/88 px-8 py-7 shadow-[0_22px_60px_rgba(23,39,43,0.12)] backdrop-blur">
+          <AutoRiderLoader label="Completing account setup..." />
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-white font-inter">
-        <div className="flex max-w-sm flex-col items-center gap-4 px-6 text-center">
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#EAF0F1] px-6 font-inter text-[#17272B]">
+        <ConceptBackdrop />
+        <div className="relative z-10 flex max-w-sm flex-col items-center gap-4 rounded-[24px] border border-white/80 bg-white/88 px-8 py-7 text-center shadow-[0_22px_60px_rgba(23,39,43,0.12)] backdrop-blur">
           <AutoRiderLoader label="Setup needs attention" />
           <div className="text-sm font-semibold text-red-600">Error: {error}</div>
           <a
             href="/account/signin"
-            className="rounded-[10px] bg-[#F97316] px-4 py-2 text-sm font-extrabold text-white transition hover:bg-[#EA580C]"
+            className="rounded-[10px] bg-[#43B8B3] px-4 py-2 text-sm font-extrabold text-white shadow-[0_12px_24px_rgba(67,184,179,0.28)] transition hover:bg-[#339E9A]"
           >
             Go back
           </a>

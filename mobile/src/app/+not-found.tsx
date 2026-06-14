@@ -15,7 +15,7 @@ export default function NotFoundScreen() {
       <Stack.Screen options={{ title: 'Not Found', headerShown: false }} />
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.flagBar}>
-          <View style={[styles.flagSegment, { backgroundColor: '#F97316' }]} />
+          <View style={[styles.flagSegment, { backgroundColor: '#43B8B3' }]} />
           <View style={[styles.flagSegment, { backgroundColor: '#FFFFFF22' }]} />
           <View style={[styles.flagSegment, { backgroundColor: '#138808' }]} />
         </View>
@@ -47,7 +47,7 @@ export default function NotFoundScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#1C1917',
+    backgroundColor: '#17272B',
   },
   flagBar: {
     height: 4,
@@ -65,7 +65,7 @@ const styles = StyleSheet.create({
     width: 82,
     height: 82,
     borderRadius: 24,
-    backgroundColor: '#F97316',
+    backgroundColor: '#43B8B3',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 28,
@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
   },
   kicker: {
-    color: '#F97316',
+    color: '#43B8B3',
     fontSize: 12,
     fontWeight: '900',
     textTransform: 'uppercase',
@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
   },
   button: {
     marginTop: 28,
-    backgroundColor: '#F97316',
+    backgroundColor: '#43B8B3',
     borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
@@ -109,3 +109,4 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
 });
+

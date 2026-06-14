@@ -1,12 +1,11 @@
 import React from "react";
-import { Text, View } from "react-native";
-import LottieView from "lottie-react-native";
+import { ActivityIndicator, Text, View } from "react-native";
 
 export default function AutoRiderLoader({
   size = 72,
-  color = "#F97316",
+  color = "#43B8B3",
   label = "Loading",
-  textColor = "#78716C",
+  textColor = "#586C70",
   fullScreen = false,
 }) {
   return (
@@ -18,13 +17,7 @@ export default function AutoRiderLoader({
         gap: fullScreen ? 12 : 8,
       }}
     >
-      <LottieView
-        source={require("../../assets/animations/auto-rickshaw-loader.json")}
-        autoPlay
-        loop
-        style={{ width: size, height: size }}
-        colorFilters={[{ keypath: "*", color }]}
-      />
+      <ActivityIndicator size={size > 48 ? "large" : "small"} color={color} />
       {!!label && (
         <Text style={{ fontSize: 14, fontWeight: "700", color: textColor }}>
           {label}
@@ -33,3 +26,4 @@ export default function AutoRiderLoader({
     </View>
   );
 }
+

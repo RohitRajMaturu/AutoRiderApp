@@ -11,10 +11,10 @@ module.exports = {
     extend: {
       colors: {
         autoconnect: {
-          saffron: '#F97316',
-          saffronDark: '#EA580C',
-          cream: '#FFFBF5',
-          ink: '#1C1917',
+          saffron: '#43B8B3',
+          saffronDark: '#339E9A',
+          cream: '#EAF0F1',
+          ink: '#17272B',
           green: '#138808',
         },
       },

@@ -19,15 +19,15 @@ import {
 } from "lucide-react-native";
 import { StatusBar } from "expo-status-bar";
 
-const PRIMARY = "#F97316";
-const BG = "#1C1917";
-const SURFACE = "#292524";
-const BORDER = "#44403C";
-const TEXT = "#FAFAF9";
-const TEXT_SECONDARY = "#A8A29E";
+const PRIMARY = "#43B8B3";
+const BG = "#EAF0F1";
+const SURFACE = "#FFFFFF";
+const BORDER = "#D8E4E5";
+const TEXT = "#17272B";
+const TEXT_SECONDARY = "#647678";
 const SUCCESS = "#22C55E";
 const ERROR = "#EF4444";
-const WARNING = "#D97706";
+const WARNING = "#B88700";
 
 const STATUS_CONFIG = {
   requested: {
@@ -552,3 +552,4 @@ export default function AdminRides() {
     </View>
   );
 }
+

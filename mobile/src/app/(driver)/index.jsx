@@ -31,19 +31,19 @@ import * as ImagePicker from "expo-image-picker";
 import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedView";
 import AutoRiderLoader from "@/components/AutoRiderLoader";
 
-const PRIMARY = "#F97316";
-const PRIMARY_DARK = "#EA580C";
-const PRIMARY_LIGHT = "#FFF7ED";
-const PRIMARY_BORDER = "#FED7AA";
-const BG = "#FFFBF5";
+const PRIMARY = "#43B8B3";
+const PRIMARY_DARK = "#339E9A";
+const PRIMARY_LIGHT = "#E7F6F4";
+const PRIMARY_BORDER = "#BFE5E0";
+const BG = "#EAF0F1";
 const SURFACE = "#FFFFFF";
-const BORDER = "#E7E5E4";
-const TEXT = "#1C1917";
-const TEXT_SECONDARY = "#78716C";
-const TEXT_MUTED = "#A8A29E";
+const BORDER = "#D8E4E5";
+const TEXT = "#17272B";
+const TEXT_SECONDARY = "#586C70";
+const TEXT_MUTED = "#647678";
 const SUCCESS = "#16A34A";
 const SUCCESS_LIGHT = "#DCFCE7";
-const DARK = "#1C1917";
+const DARK = "#17272B";
 
 function formatCancellationReason(reason) {
   if (!reason) return "Ride was cancelled.";
@@ -196,7 +196,7 @@ function RegistrationScreen() {
                 width: "100%",
                 height: 150,
                 borderRadius: 12,
-                backgroundColor: "#E7E5E4",
+                backgroundColor: "#D8E4E5",
               }}
               resizeMode="cover"
             />
@@ -322,7 +322,7 @@ function RegistrationScreen() {
                 style={{
                   height: 4,
                   borderRadius: 2,
-                  backgroundColor: s.num <= step ? PRIMARY : "#E7E5E4",
+                  backgroundColor: s.num <= step ? PRIMARY : "#D8E4E5",
                 }}
               />
               <Text
@@ -412,7 +412,7 @@ function RegistrationScreen() {
                 style={{
                   flex: 1,
                   fontSize: 13,
-                  color: "#9A3412",
+                  color: "#286B68",
                   lineHeight: 20,
                 }}
               >
@@ -423,7 +423,7 @@ function RegistrationScreen() {
               onPress={() => setStep(2)}
               disabled={!vehicle.trim()}
               style={{
-                backgroundColor: !vehicle.trim() ? "#D4C4BB" : PRIMARY,
+                backgroundColor: !vehicle.trim() ? "#BFD1D3" : PRIMARY,
                 borderRadius: 14,
                 paddingVertical: 17,
                 alignItems: "center",
@@ -504,7 +504,7 @@ function RegistrationScreen() {
                 disabled={!licenseUrl.trim()}
                 style={{
                   flex: 2,
-                  backgroundColor: !licenseUrl.trim() ? "#D4C4BB" : PRIMARY,
+                  backgroundColor: !licenseUrl.trim() ? "#BFD1D3" : PRIMARY,
                   borderRadius: 14,
                   paddingVertical: 17,
                   alignItems: "center",
@@ -692,7 +692,7 @@ function PendingScreen() {
           marginBottom: 24,
         }}
       >
-        <Clock size={48} color="#D97706" strokeWidth={1.5} />
+        <Clock size={48} color="#B88700" strokeWidth={1.5} />
       </View>
       <Text
         style={{
@@ -922,7 +922,7 @@ function ActiveRideCard({ ride, onComplete, isCompleting }) {
               style={{
                 fontSize: 11,
                 fontWeight: "700",
-                color: "#A8A29E",
+                color: "#647678",
                 textTransform: "uppercase",
                 letterSpacing: 0.8,
               }}
@@ -976,7 +976,7 @@ function ActiveRideCard({ ride, onComplete, isCompleting }) {
                 style={{
                   fontSize: 10,
                   fontWeight: "700",
-                  color: "#78716C",
+                  color: "#586C70",
                   textTransform: "uppercase",
                   letterSpacing: 0.5,
                 }}
@@ -1010,14 +1010,14 @@ function ActiveRideCard({ ride, onComplete, isCompleting }) {
                 marginTop: 2,
               }}
             >
-              <MapPin size={16} color="#A8A29E" />
+              <MapPin size={16} color="#647678" />
             </View>
             <View style={{ flex: 1 }}>
               <Text
                 style={{
                   fontSize: 10,
                   fontWeight: "700",
-                  color: "#78716C",
+                  color: "#586C70",
                   textTransform: "uppercase",
                   letterSpacing: 0.5,
                 }}
@@ -1360,7 +1360,7 @@ export default function DriverHome() {
             <Text
               style={{
                 fontSize: 12,
-                color: "#92400E",
+                color: "#286B68",
                 flex: 1,
                 fontWeight: "600",
               }}
@@ -1555,3 +1555,4 @@ export default function DriverHome() {
     </View>
   );
 }
+
