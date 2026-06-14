@@ -8,12 +8,14 @@ import {
   Alert,
   Animated,
   Linking,
+  Platform,
   RefreshControl,
   Image as RNImage,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   MapPin,
+  Navigation,
   Phone,
   Clock,
   Car,
@@ -44,6 +46,18 @@ const TEXT_MUTED = "#647678";
 const SUCCESS = "#16A34A";
 const SUCCESS_LIGHT = "#DCFCE7";
 const DARK = "#17272B";
+
+function openGoogleMaps(destLat, destLng, destLabel) {
+  const label = encodeURIComponent(destLabel || "Destination");
+  const url = Platform.select({
+    ios: `maps://?daddr=${destLat},${destLng}&dirflg=d`,
+    android: `google.navigation:q=${destLat},${destLng}&mode=d`,
+  });
+  const fallback = `https://www.google.com/maps/dir/?api=1&destination=${destLat},${destLng}&destination_place_id=${label}&travelmode=driving`;
+  Linking.canOpenURL(url).then((supported) => {
+    Linking.openURL(supported ? url : fallback);
+  });
+}
 
 function formatCancellationReason(reason) {
   if (!reason) return "Ride was cancelled.";
@@ -996,6 +1010,32 @@ function ActiveRideCard({ ride, onComplete, isCompleting }) {
               </Text>
             </View>
           </View>
+          <TouchableOpacity
+            onPress={() =>
+              openGoogleMaps(
+                ride.pickup_lat,
+                ride.pickup_lng,
+                ride.pickup_address,
+              )
+            }
+            style={{
+              marginTop: 10,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              paddingVertical: 9,
+              borderRadius: 10,
+              borderWidth: 1,
+              borderColor: PRIMARY_BORDER,
+              backgroundColor: PRIMARY_LIGHT,
+            }}
+          >
+            <Navigation size={15} color={PRIMARY} />
+            <Text style={{ fontSize: 13, fontWeight: "700", color: PRIMARY }}>
+              Navigate to Pickup
+            </Text>
+          </TouchableOpacity>
           <View
             style={{ flexDirection: "row", gap: 12, alignItems: "flex-start" }}
           >
