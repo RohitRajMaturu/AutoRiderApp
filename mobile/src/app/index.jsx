@@ -17,7 +17,6 @@ import {
   IndianRupee,
   ShieldCheck,
   UserRound,
-  CarFront,
   Settings,
   Crown,
 } from "lucide-react-native";
@@ -43,7 +42,7 @@ function RolePickerModal({ visible, onClose, onSelect }) {
     },
     {
       id: "driver",
-      Icon: CarFront,
+      emoji: "🛺",
       title: "Driver",
       desc: "Go online, accept rides, manage subscription",
       color: "#16A34A",
@@ -172,7 +171,11 @@ function RolePickerModal({ visible, onClose, onSelect }) {
                       elevation: 2,
                     }}
                   >
-                    <role.Icon size={26} color={role.color} strokeWidth={2.4} />
+                    {role.Icon ? (
+                      <role.Icon size={26} color={role.color} strokeWidth={2.4} />
+                    ) : (
+                      <Text style={{ fontSize: 27, lineHeight: 31 }}>{role.emoji}</Text>
+                    )}
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text
