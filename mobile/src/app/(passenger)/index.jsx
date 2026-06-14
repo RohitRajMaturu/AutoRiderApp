@@ -15,6 +15,7 @@ import MapView, { Marker } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   MapPin,
+  Navigation,
   Navigation2,
   ArrowRight,
   X,
@@ -40,6 +41,18 @@ const TEXT_SECONDARY = "#586C70";
 const TEXT_MUTED = "#647678";
 const SUCCESS = "#16A34A";
 const SUCCESS_LIGHT = "#DCFCE7";
+
+function openGoogleMaps(destLat, destLng, destLabel) {
+  const label = encodeURIComponent(destLabel || "Destination");
+  const url = Platform.select({
+    ios: `maps://?daddr=${destLat},${destLng}&dirflg=d`,
+    android: `google.navigation:q=${destLat},${destLng}&mode=d`,
+  });
+  const fallback = `https://www.google.com/maps/dir/?api=1&destination=${destLat},${destLng}&destination_place_id=${label}&travelmode=driving`;
+  Linking.canOpenURL(url).then((supported) => {
+    Linking.openURL(supported ? url : fallback);
+  });
+}
 
 const CANCEL_REASONS = [
   { label: "Driver taking too long", value: "driver_taking_too_long" },
@@ -808,6 +821,37 @@ export default function PassengerHome() {
                       />
                     )}
                   </MapView>
+                  <TouchableOpacity
+                    onPress={() =>
+                      openGoogleMaps(
+                        activeRide.dest_lat,
+                        activeRide.dest_lng,
+                        activeRide.dest_address,
+                      )
+                    }
+                    style={{
+                      position: "absolute",
+                      top: 10,
+                      right: 10,
+                      zIndex: 10,
+                      backgroundColor: "#FFFFFF",
+                      borderRadius: 8,
+                      padding: 7,
+                      shadowColor: "#000",
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.15,
+                      shadowRadius: 4,
+                      elevation: 4,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 5,
+                    }}
+                  >
+                    <Navigation size={15} color="#43B8B3" />
+                    <Text style={{ fontSize: 11, fontWeight: "700", color: "#17272B" }}>
+                      Navigate
+                    </Text>
+                  </TouchableOpacity>
                 </View>
               )}
 
