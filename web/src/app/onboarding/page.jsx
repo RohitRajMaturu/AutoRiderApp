@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import useUser from "@/utils/useUser";
+import AutoRiderLoader from "@/components/AutoRiderLoader";
 
 function OnboardingPage() {
   const { data: user, loading: userLoading } = useUser();
@@ -60,7 +61,7 @@ function OnboardingPage() {
   if (loading || userLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white font-inter">
-        <div className="text-sm text-gray-500">Completing account setup...</div>
+        <AutoRiderLoader label="Completing account setup..." />
       </div>
     );
   }
@@ -68,7 +69,16 @@ function OnboardingPage() {
   if (error) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white font-inter">
-        <div className="text-sm text-red-500">Error: {error}</div>
+        <div className="flex max-w-sm flex-col items-center gap-4 px-6 text-center">
+          <AutoRiderLoader label="Setup needs attention" />
+          <div className="text-sm font-semibold text-red-600">Error: {error}</div>
+          <a
+            href="/account/signin"
+            className="rounded-[10px] bg-[#F97316] px-4 py-2 text-sm font-extrabold text-white transition hover:bg-[#EA580C]"
+          >
+            Go back
+          </a>
+        </div>
       </div>
     );
   }
