@@ -314,11 +314,11 @@ if (process.env.AUTH_SECRET) {
               (account) => account.provider === 'credentials'
             );
             const accountPassword = matchingAccount?.password;
-            if (!accountPassword && !isOtpVerificationEnabled()) {
-              console.log('[auth] credentials-signin passwordless test login', { userId: user.id });
-              return user;
-            }
             if (!accountPassword) {
+              if (!isOtpVerificationEnabled()) {
+                console.log('[auth] credentials-signin passwordless test login', { userId: user.id });
+                return user;
+              }
               console.error('[auth] credentials-signin missing credentials account', { userId: user.id });
               return null;
             }
