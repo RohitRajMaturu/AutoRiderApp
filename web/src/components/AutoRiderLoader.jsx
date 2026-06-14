@@ -1,5 +1,5 @@
 import Lottie from "lottie-react";
-import animationData from "/animations/auto-rickshaw-loader.json";
+import animationData from "@/assets/animations/auto-rickshaw-loader.json";
 
 export default function AutoRiderLoader({ size = 72, label = "Loading" }) {
   const compact = size <= 40;
