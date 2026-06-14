@@ -250,7 +250,7 @@ function SignUpPage() {
                         role === id ? "text-white" : "text-slate-500"
                       }`}
                     >
-                      {Icon ? <Icon size={16} /> : <span className="text-xs font-black">DR</span>}
+                      {Icon ? <Icon size={16} /> : <span className="text-base">🛺</span>}
                       {label}
                     </button>
                   ))}
