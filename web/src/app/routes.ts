@@ -114,6 +114,13 @@ if (import.meta.env.DEV) {
 }
 const tree = buildRouteTree(__dirname);
 const notFound = route('*?', './__create/not-found.tsx');
-const routes = [...generateRoutes(tree), notFound];
+const generatedRoutes = generateRoutes(tree).filter(
+	(entry) => !('path' in entry) || entry.path !== 'admin-ops',
+);
+const routes = [
+	route('admin-ops', './admin-ops/page.jsx'),
+	...generatedRoutes,
+	notFound,
+];
 
 export default routes;

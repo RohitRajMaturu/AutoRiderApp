@@ -9,6 +9,7 @@ import {
   Animated,
   Easing,
   Alert,
+  Linking,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -465,6 +466,9 @@ export default function AdminDashboard() {
   const { testMode, disableTestMode } = useAppStore();
   const [chartView, setChartView] = useState("today");
   const [chartMetric, setChartMetric] = useState("rides");
+  const webUrl = (
+    process.env.EXPO_PUBLIC_WEB_URL || "http://localhost:4000"
+  ).replace(/\/$/, "");
 
   const {
     data: statsData,
@@ -1218,6 +1222,24 @@ export default function AdminDashboard() {
               </View>
             )}
           </View>
+
+          <TouchableOpacity
+            onPress={() => Linking.openURL(`${webUrl}/admin-ops`)}
+            style={{
+              backgroundColor: PRIMARY,
+              borderRadius: 12,
+              padding: 14,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 10,
+            }}
+            activeOpacity={0.8}
+          >
+            <Text style={{ color: SURFACE, fontSize: 14, fontWeight: "800" }}>
+              Open Ops Dashboard
+            </Text>
+          </TouchableOpacity>
 
           {testMode ? (
             <TouchableOpacity
