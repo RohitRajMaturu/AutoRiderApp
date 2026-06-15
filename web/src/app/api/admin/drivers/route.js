@@ -33,25 +33,39 @@ export async function GET(request) {
       return Response.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const drivers = await sql`
+    const ratingColumn = await sql`
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_name = 'rides' AND column_name = 'driver_rating'
+      LIMIT 1
+    `;
+    const hasDriverRating = ratingColumn.length > 0;
+    const ratingSelect = hasDriverRating
+      ? `ROUND(AVG(r.driver_rating) FILTER (
+          WHERE r.completed_at >= CURRENT_TIMESTAMP - INTERVAL '30 days'
+        )::numeric, 1) as avg_driver_rating_30d`
+      : `NULL::numeric as avg_driver_rating_30d`;
+    const ratingJoin = hasDriverRating
+      ? `LEFT JOIN rides r ON r.driver_id = d.id AND r.driver_rating IS NOT NULL`
+      : "";
+
+    const drivers = await sql(`
       SELECT
         d.*,
         u.email,
         u.phone,
-        ROUND(AVG(r.driver_rating) FILTER (
-          WHERE r.completed_at >= CURRENT_TIMESTAMP - INTERVAL '30 days'
-        )::numeric, 1) as avg_driver_rating_30d,
+        ${ratingSelect},
         COUNT(DISTINCT CASE WHEN r2.status = 'completed' THEN r2.id END) as completed_rides_count,
         COUNT(DISTINCT CASE WHEN r2.status = 'completed'
           AND r2.completed_at >= CURRENT_TIMESTAMP - INTERVAL '30 days'
           THEN r2.id END) as completed_rides_30d
       FROM drivers d
       JOIN auth_users u ON d.user_id = u.id
-      LEFT JOIN rides r ON r.driver_id = d.id AND r.driver_rating IS NOT NULL
+      ${ratingJoin}
       LEFT JOIN rides r2 ON r2.driver_id = d.id
       GROUP BY d.id, u.email, u.phone
       ORDER BY d.created_at DESC
-    `;
+    `);
 
     return Response.json({ drivers });
   } catch (err) {
