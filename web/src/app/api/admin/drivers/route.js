@@ -40,10 +40,15 @@ export async function GET(request) {
         u.phone,
         ROUND(AVG(r.driver_rating) FILTER (
           WHERE r.completed_at >= CURRENT_TIMESTAMP - INTERVAL '30 days'
-        )::numeric, 1) as avg_driver_rating_30d
+        )::numeric, 1) as avg_driver_rating_30d,
+        COUNT(DISTINCT CASE WHEN r2.status = 'completed' THEN r2.id END) as completed_rides_count,
+        COUNT(DISTINCT CASE WHEN r2.status = 'completed'
+          AND r2.completed_at >= CURRENT_TIMESTAMP - INTERVAL '30 days'
+          THEN r2.id END) as completed_rides_30d
       FROM drivers d
       JOIN auth_users u ON d.user_id = u.id
       LEFT JOIN rides r ON r.driver_id = d.id AND r.driver_rating IS NOT NULL
+      LEFT JOIN rides r2 ON r2.driver_id = d.id
       GROUP BY d.id, u.email, u.phone
       ORDER BY d.created_at DESC
     `;
@@ -62,7 +67,8 @@ export async function PATCH(request) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { driver_id, is_approved, subscription_days } = await request.json();
+    const { driver_id, is_approved, subscription_days, force_offline } =
+      await request.json();
     const subscriptionDays = parseSubscriptionDays(subscription_days);
 
     if (typeof driver_id !== "string" || !driver_id.trim()) {
@@ -80,9 +86,19 @@ export async function PATCH(request) {
         { status: 400 },
       );
     }
-    if (is_approved === undefined && subscriptionDays === null) {
+    if (force_offline !== undefined && force_offline !== true) {
       return Response.json(
-        { error: "Provide is_approved or subscription_days" },
+        { error: "force_offline must be true when provided" },
+        { status: 400 },
+      );
+    }
+    if (
+      is_approved === undefined &&
+      subscriptionDays === null &&
+      force_offline !== true
+    ) {
+      return Response.json(
+        { error: "Provide is_approved, subscription_days, or force_offline" },
         { status: 400 },
       );
     }
@@ -95,8 +111,17 @@ export async function PATCH(request) {
 
     const rows = await runTransaction(async (tx) => {
       const updated =
-        subscriptionDays === null
+        force_offline === true
           ? await tx`
+              UPDATE drivers
+              SET is_online = false,
+                  online_since = NULL,
+                  updated_at = CURRENT_TIMESTAMP
+              WHERE id = ${driver_id}
+              RETURNING *
+            `
+          : subscriptionDays === null
+            ? await tx`
               UPDATE drivers
               SET is_approved = COALESCE(${is_approved}, is_approved),
                   is_online = CASE WHEN ${is_approved} = false THEN false ELSE is_online END,
@@ -105,7 +130,7 @@ export async function PATCH(request) {
               WHERE id = ${driver_id}
               RETURNING *
             `
-          : await tx`
+            : await tx`
               UPDATE drivers
               SET is_approved = COALESCE(${is_approved}, is_approved),
                   subscription_expiry = CURRENT_TIMESTAMP + make_interval(days => ${subscriptionDays}),
@@ -115,10 +140,19 @@ export async function PATCH(request) {
             `;
 
       if (updated.length > 0) {
-        await writeAdminAudit(session.user.id, "driver.update", "driver", updated[0].id, {
-          is_approved,
-          subscription_days: subscriptionDays,
-        }, tx);
+        await writeAdminAudit(
+          session.user.id,
+          force_offline === true ? "driver.force_offline" : "driver.update",
+          "driver",
+          updated[0].id,
+          force_offline === true
+            ? { force_offline: true }
+            : {
+                is_approved,
+                subscription_days: subscriptionDays,
+              },
+          tx,
+        );
       }
       return updated;
     });
