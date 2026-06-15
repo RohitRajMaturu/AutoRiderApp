@@ -3,6 +3,7 @@
   "main": "index",
   "version": "1.0.0",
   "scripts": {
+    "animations:build": "node scripts/generate-auto-motion-assets.mjs",
     "postinstall": "patch-package"
   },
   "dependencies": {

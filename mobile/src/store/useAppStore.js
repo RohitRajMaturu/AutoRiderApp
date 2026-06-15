@@ -49,6 +49,13 @@ const useAppStore = create((set, get) => ({
   isDriverOnline: false,
   setDriverOnline: (val) => set({ isDriverOnline: val }),
 
+  resetSessionState: () =>
+    set({
+      location: null,
+      activeRide: null,
+      isDriverOnline: false,
+    }),
+
   // ── Test / Guest Mode ──────────────────────────────────────────
   testMode: false,
   testRole: null, // "passenger" | "driver" | "admin"

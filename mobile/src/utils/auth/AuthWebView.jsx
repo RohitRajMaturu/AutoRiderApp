@@ -9,12 +9,21 @@ const onboardingUrl = '/onboarding';
 
 function buildAuthPath(mode, params = {}, callback = callbackUrl) {
   const query = new URLSearchParams({ callbackUrl: callback });
+  const page = mode === 'signup' ? 'signin' : mode;
+  if (mode === 'signup') {
+    query.set('mode', 'signup');
+  }
   Object.entries(params || {}).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') {
       query.set(key, String(value));
     }
   });
-  return `/account/${mode}?${query.toString()}`;
+  return `/account/${page}?${query.toString()}`;
+}
+
+function buildFreshAuthPath(mode, params = {}, callback = callbackUrl) {
+  const next = buildAuthPath(mode, params, callback);
+  return `/account/logout?next=${encodeURIComponent(next)}`;
 }
 
 /**
@@ -27,7 +36,7 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
     () => (mode === 'signup' && !isAdminSignup ? { ...params, finalCallbackUrl: callbackUrl } : params),
     [mode, params, isAdminSignup],
   );
-  const [currentURI, setURI] = useState(`${baseURL}${buildAuthPath(mode, authParams, authCallback)}`);
+  const [currentURI, setURI] = useState(`${baseURL}${buildFreshAuthPath(mode, authParams, authCallback)}`);
   const [isPageReady, setIsPageReady] = useState(false);
   const [authError, setAuthError] = useState(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -50,7 +59,7 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
     setIsPageReady(false);
     setAuthError(null);
     fadeAnim.setValue(0);
-    const nextUri = `${baseURL}${buildAuthPath(mode, authParams, authCallback)}`;
+    const nextUri = `${baseURL}${buildFreshAuthPath(mode, authParams, authCallback)}`;
     console.log('[AuthWebView] opening', { mode, nextUri, authCallback, authParams });
     setURI(nextUri);
   }, [mode, authParams, authCallback, baseURL, isAuthenticated, fadeAnim]);
@@ -162,7 +171,7 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
           <iframe
             ref={iframeRef}
             title="Auto Ride authentication"
-            src={`${proxyURL}${buildAuthPath(
+            src={`${proxyURL}${buildFreshAuthPath(
               mode,
               mode === 'signup' && params?.role !== 'admin'
                 ? { ...params, finalCallbackUrl: '/api/auth/expo-web-success' }
@@ -228,7 +237,7 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
                   console.error('[AuthWebView] token fetch failed', response.status, body);
                   setAuthError('Login did not complete. Please try again.');
                   setIsPageReady(true);
-                  setURI(`${baseURL}${buildAuthPath(mode, authParams, authCallback)}`);
+                  setURI(`${baseURL}${buildFreshAuthPath(mode, authParams, authCallback)}`);
                   return;
                 }
                 response.json().then((data) => {
@@ -236,7 +245,7 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
                     console.error('[AuthWebView] token response missing jwt', data);
                     setAuthError('Login response was incomplete. Please try again.');
                     setIsPageReady(true);
-                    setURI(`${baseURL}${buildAuthPath(mode, authParams, authCallback)}`);
+                    setURI(`${baseURL}${buildFreshAuthPath(mode, authParams, authCallback)}`);
                     return;
                   }
                   setAuth({ jwt: data.jwt, user: data.user });
@@ -245,7 +254,7 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
                 console.error('[AuthWebView] token fetch error', err);
                 setAuthError('Login failed. Please try again.');
                 setIsPageReady(true);
-                setURI(`${baseURL}${buildAuthPath(mode, authParams, authCallback)}`);
+                setURI(`${baseURL}${buildFreshAuthPath(mode, authParams, authCallback)}`);
               });
               return false;
             }

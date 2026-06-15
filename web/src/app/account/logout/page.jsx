@@ -3,11 +3,26 @@ import { useEffect } from "react";
 import AutoRiderLoader from "@/components/AutoRiderLoader";
 import { ConceptBackdrop } from "@/components/ConceptVisuals";
 
+function getLogoutCallbackUrl() {
+  if (typeof window === "undefined") return "/account/signin";
+  const params = new URLSearchParams(window.location.search);
+  const next = params.get("next");
+  if (next && next.startsWith("/")) return next;
+
+  const signinParams = new URLSearchParams();
+  for (const key of ["callbackUrl", "finalCallbackUrl", "mode", "role"]) {
+    const value = params.get(key);
+    if (value) signinParams.set(key, value);
+  }
+  const query = signinParams.toString();
+  return `/account/signin${query ? `?${query}` : ""}`;
+}
+
 function LogoutPage() {
   const { signOut } = useAuth();
 
   useEffect(() => {
-    signOut({ callbackUrl: "/account/signin", redirect: true });
+    signOut({ callbackUrl: getLogoutCallbackUrl(), redirect: true });
   }, []);
 
   return (

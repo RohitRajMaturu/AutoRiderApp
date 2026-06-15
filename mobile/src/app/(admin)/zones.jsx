@@ -14,7 +14,18 @@ import MapView, { Marker, Polygon } from "react-native-maps";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { LocateFixed, Map, Plus, Search, ToggleLeft, ToggleRight, X } from "lucide-react-native";
+import {
+  ChevronLeft,
+  ChevronRight,
+  LocateFixed,
+  Map,
+  Plus,
+  Search,
+  ToggleLeft,
+  ToggleRight,
+  Trash2,
+  X,
+} from "lucide-react-native";
 
 const PRIMARY = "#43B8B3";
 const BG = "#EAF0F1";
@@ -24,9 +35,10 @@ const TEXT = "#17272B";
 const TEXT_SECONDARY = "#647678";
 const SUCCESS = "#22C55E";
 const ERROR = "#EF4444";
+const PAGE_SIZE = 10;
 const DEFAULT_REGION = {
-  latitude: 12.9716,
-  longitude: 77.5946,
+  latitude: 17.385,
+  longitude: 78.4867,
   latitudeDelta: 0.12,
   longitudeDelta: 0.12,
 };
@@ -110,11 +122,22 @@ export default function AdminZones() {
   const [areaSuggestions, setAreaSuggestions] = useState([]);
   const [searchPin, setSearchPin] = useState(null);
   const [isSearchingArea, setIsSearchingArea] = useState(false);
+  const [zoneSearch, setZoneSearch] = useState("");
+  const [zonePage, setZonePage] = useState(1);
+  const [zoneSort, setZoneSort] = useState("name");
+  const [zoneDirection, setZoneDirection] = useState("asc");
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
-    queryKey: ["adminZones"],
+    queryKey: ["adminZones", zoneSearch, zoneSort, zoneDirection, zonePage],
     queryFn: async () => {
-      const res = await fetch("/api/admin/zones");
+      const params = new URLSearchParams({
+        page: String(zonePage),
+        pageSize: String(PAGE_SIZE),
+        search: zoneSearch.trim(),
+        sort: zoneSort,
+        direction: zoneDirection,
+      });
+      const res = await fetch(`/api/admin/zones?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to fetch zones");
       return res.json();
     },
@@ -167,6 +190,7 @@ export default function AdminZones() {
       setNeLng("");
       setGeoJson("");
       setMapPoints([]);
+      setZonePage(1);
       queryClient.invalidateQueries({ queryKey: ["adminZones"] });
       Alert.alert("Zone Created", "Drivers can now be matched inside this boundary.");
     },
@@ -187,7 +211,36 @@ export default function AdminZones() {
     onError: (err) => Alert.alert("Zone Error", err.message),
   });
 
+  const deleteZone = useMutation({
+    mutationFn: async (zone) => {
+      const res = await fetch("/api/admin/zones", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ zone_id: zone.id }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to delete zone");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      if (zones.length === 1 && zonePage > 1) {
+        setZonePage((page) => Math.max(page - 1, 1));
+      }
+      queryClient.invalidateQueries({ queryKey: ["adminZones"] });
+      Alert.alert("Zone Deleted", "The service zone was removed.");
+    },
+    onError: (err) => Alert.alert("Zone Error", err.message),
+  });
+
   const zones = data?.zones || [];
+  const pagination = data?.pagination || {
+    page: zonePage,
+    pageSize: PAGE_SIZE,
+    total: zones.length,
+    totalPages: 1,
+  };
   const selectedRectangle = normalizeRectangleFromPoints(mapPoints);
   const selectedPolygon = rectanglePolygon(selectedRectangle);
 
@@ -263,6 +316,31 @@ export default function AdminZones() {
     }
   };
 
+  const updateSort = (field) => {
+    setZonePage(1);
+    if (zoneSort === field) {
+      setZoneDirection((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setZoneSort(field);
+    setZoneDirection(field === "created_at" ? "desc" : "asc");
+  };
+
+  const confirmDeleteZone = (zone) => {
+    Alert.alert(
+      "Delete Zone?",
+      `Delete "${zone.name}" permanently? Drivers and rides linked to it will become unzoned.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => deleteZone.mutate(zone),
+        },
+      ],
+    );
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
       <StatusBar style="light" />
@@ -279,7 +357,7 @@ export default function AdminZones() {
           Service Zones
         </Text>
         <Text style={{ fontSize: 13, color: TEXT_SECONDARY, marginTop: 2 }}>
-          {zones.length} configured boundaries
+          {pagination.total} configured boundaries
         </Text>
       </View>
 
@@ -485,9 +563,14 @@ export default function AdminZones() {
                         bottom: 10,
                         padding: 10,
                         borderRadius: 10,
-                        backgroundColor: "rgba(28,25,23,0.88)",
+                        backgroundColor: "rgba(255,255,255,0.96)",
                         borderWidth: 1,
-                        borderColor: BORDER,
+                        borderColor: `${PRIMARY}66`,
+                        shadowColor: "#000",
+                        shadowOffset: { width: 0, height: 6 },
+                        shadowOpacity: 0.14,
+                        shadowRadius: 12,
+                        elevation: 4,
                       }}
                     >
                       <Text style={{ color: TEXT, fontSize: 12, fontWeight: "800" }}>
@@ -598,6 +681,89 @@ export default function AdminZones() {
           </TouchableOpacity>
         </View>
 
+        <View
+          style={{
+            backgroundColor: SURFACE,
+            borderRadius: 14,
+            borderWidth: 1,
+            borderColor: BORDER,
+            padding: 14,
+            marginBottom: 12,
+            gap: 10,
+          }}
+        >
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 10,
+              backgroundColor: BG,
+              borderRadius: 12,
+              paddingHorizontal: 12,
+              paddingVertical: 10,
+            }}
+          >
+            <Search size={16} color={TEXT_SECONDARY} />
+            <TextInput
+              placeholder="Search zones"
+              placeholderTextColor={TEXT_SECONDARY}
+              value={zoneSearch}
+              onChangeText={(value) => {
+                setZoneSearch(value);
+                setZonePage(1);
+              }}
+              style={{ flex: 1, color: TEXT, fontSize: 13, paddingVertical: 0 }}
+            />
+            {zoneSearch.length > 0 && (
+              <TouchableOpacity
+                onPress={() => {
+                  setZoneSearch("");
+                  setZonePage(1);
+                }}
+              >
+                <X size={16} color={TEXT_SECONDARY} />
+              </TouchableOpacity>
+            )}
+          </View>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            {[
+              { key: "name", label: "Name" },
+              { key: "status", label: "Status" },
+              { key: "created_at", label: "Newest" },
+              { key: "drivers", label: "Cap" },
+            ].map((item) => {
+              const active = zoneSort === item.key;
+              return (
+                <TouchableOpacity
+                  key={item.key}
+                  onPress={() => updateSort(item.key)}
+                  style={{
+                    flex: 1,
+                    minHeight: 38,
+                    borderRadius: 10,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: active ? PRIMARY : BG,
+                    borderWidth: 1,
+                    borderColor: active ? PRIMARY : BORDER,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: active ? "#fff" : TEXT_SECONDARY,
+                      fontSize: 11,
+                      fontWeight: "800",
+                    }}
+                  >
+                    {item.label}
+                    {active ? (zoneDirection === "asc" ? " ↑" : " ↓") : ""}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
         {isLoading ? (
           <ActivityIndicator color={PRIMARY} />
         ) : zones.length === 0 ? (
@@ -643,8 +809,78 @@ export default function AdminZones() {
                   <ToggleLeft size={30} color={TEXT_SECONDARY} />
                 )}
               </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => confirmDeleteZone(zone)}
+                disabled={deleteZone.isPending}
+                style={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: 12,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: "#FEF2F2",
+                  borderWidth: 1,
+                  borderColor: "#FECACA",
+                }}
+              >
+                <Trash2 size={18} color={ERROR} />
+              </TouchableOpacity>
             </View>
           ))
+        )}
+        {!isLoading && pagination.totalPages > 1 && (
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginTop: 4,
+              backgroundColor: SURFACE,
+              borderRadius: 14,
+              borderWidth: 1,
+              borderColor: BORDER,
+              padding: 10,
+            }}
+          >
+            <TouchableOpacity
+              onPress={() => setZonePage((page) => Math.max(page - 1, 1))}
+              disabled={zonePage <= 1}
+              style={{
+                width: 42,
+                height: 38,
+                borderRadius: 11,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: zonePage <= 1 ? BG : PRIMARY,
+                opacity: zonePage <= 1 ? 0.6 : 1,
+              }}
+            >
+              <ChevronLeft size={18} color={zonePage <= 1 ? TEXT_SECONDARY : "#fff"} />
+            </TouchableOpacity>
+            <Text style={{ color: TEXT_SECONDARY, fontSize: 12, fontWeight: "800" }}>
+              Page {pagination.page} of {pagination.totalPages}
+            </Text>
+            <TouchableOpacity
+              onPress={() =>
+                setZonePage((page) => Math.min(page + 1, pagination.totalPages))
+              }
+              disabled={zonePage >= pagination.totalPages}
+              style={{
+                width: 42,
+                height: 38,
+                borderRadius: 11,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: zonePage >= pagination.totalPages ? BG : PRIMARY,
+                opacity: zonePage >= pagination.totalPages ? 0.6 : 1,
+              }}
+            >
+              <ChevronRight
+                size={18}
+                color={zonePage >= pagination.totalPages ? TEXT_SECONDARY : "#fff"}
+              />
+            </TouchableOpacity>
+          </View>
         )}
       </ScrollView>
     </View>

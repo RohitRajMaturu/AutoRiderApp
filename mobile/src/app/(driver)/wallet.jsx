@@ -12,6 +12,7 @@ import {
   Zap,
 } from "lucide-react-native";
 import { StatusBar } from "expo-status-bar";
+import { useAuth } from "@/utils/auth/useAuth";
 
 const PRIMARY = "#43B8B3";
 const PRIMARY_LIGHT = "#E7F6F4";
@@ -64,13 +65,19 @@ function formatExpiry(expiry) {
 
 export default function DriverWallet() {
   const insets = useSafeAreaInsets();
+  const { auth } = useAuth();
+  const authUserKey =
+    auth?.user?.id || auth?.user?.email || auth?.user?.phone || "anonymous";
 
   const { data: driverData, isLoading } = useQuery({
-    queryKey: ["driverMe"],
+    queryKey: ["driverMe", authUserKey],
     queryFn: async () => {
       const res = await fetch("/api/drivers");
+      if (!res.ok) throw new Error("Failed to load driver profile");
       return res.json();
     },
+    enabled: !!auth,
+    staleTime: 0,
   });
 
   if (isLoading) {

@@ -57,10 +57,10 @@ To become an admin for testing:
 The setup route is also hard-disabled when `NODE_ENV=production`.
 
 ### Test Accounts
-Seeded test users from `web/scripts/seed-test-users.mjs` use temporary password `AutoRide@123` after running `007_seed_account_passwords.sql`:
-- Admin: `admin91XXXXXXXXXX@autoride.test`
-- Driver: `driver9908027984@autoride.test`
-- Passenger: `passenger9885553312@autoride.test`
+Seeded test users from `web/scripts/seed-test-users.mjs` use temporary password `12345` after running `007_seed_account_passwords.sql`:
+- Admin: `admin7893725929@autoride.test` or phone `7893725929`
+- Passenger: `passenger9908027984@autoride.test` or phone `9908027984`
+- Driver: `driver9885553312@autoride.test` or phone `9885553312`
 
 ### 3. Environment Variables
 The platform handles core environment variables like `DATABASE_URL`.
@@ -128,6 +128,27 @@ npm run db:check
 ```
 
 Focused API tests cover auth resolution, ride authorization conflicts, admin driver validation, and nearby driver filtering.
+
+## Motion And Animation System
+
+AutoRide now has a standalone premium motion system for Indian auto-rickshaw booking states:
+
+- Generated Lottie JSON assets: `mobile/assets/animations/auto-motion`.
+- Asset generator: `mobile/scripts/generate-auto-motion-assets.mjs`.
+- React Native runtime components: `mobile/src/components/motion`.
+- Full storyboard, timing, Lottie, Rive, theme, and implementation guide: `docs/MOTION_SYSTEM.md`.
+
+Regenerate the compact vector Lottie assets after palette changes:
+
+```powershell
+cd mobile
+npm run animations:build
+```
+
+The shipped runtime components use existing `react-native-svg` and React Native
+`Animated` so current passenger, driver, admin, and auth flows do not require new
+native packages. Lottie and Rive integration examples are documented for a later
+renderer adoption step.
 
 ## Single VPS Backend
 

@@ -17,9 +17,9 @@ WHERE NOT EXISTS (
 );
 
 -- Seed/demo accounts can sign in immediately when OTP is enabled.
--- Temporary password: AutoRide@123
+-- Temporary password: 12345
 UPDATE auth_accounts a
-SET password = '$argon2id$v=19$m=65536,t=3,p=4$cO/bsVFn2c1XQGkTVeEJxA$yeVe5nsLTt77yNBBLa9oe9j9HdURicE0wOBgsjQETi4'
+SET password = '$argon2id$v=19$m=65536,t=3,p=4$Pa+RYeA/ztvDriTDTkJ9mQ$24yeu1BTZPDvcvEzBSNlfRMazLbWlccycyfs+GDk+7Q'
 FROM auth_users u
 WHERE a."userId" = u.id
   AND a.provider = 'credentials'

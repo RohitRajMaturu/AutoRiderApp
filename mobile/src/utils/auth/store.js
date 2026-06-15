@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
+import queryClient from '@/utils/queryClient';
 
 export const authKey = 'auto-ride-auth';
 
@@ -32,6 +33,7 @@ export const useAuthStore = create((set) => ({
   isReady: false,
   auth: null,
   setAuth: (auth) => {
+    queryClient.clear();
     if (auth) {
       SecureStore.setItemAsync(
         authKey,

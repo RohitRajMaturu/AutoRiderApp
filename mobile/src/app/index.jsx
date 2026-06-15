@@ -245,13 +245,14 @@ export default function Index() {
   }, [fadeAnim, slideAnim]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["userProfile"],
+    queryKey: ["userProfile", auth?.user?.id || auth?.user?.email || auth?.user?.phone || "anonymous"],
     queryFn: async () => {
       const response = await fetch("/api/user-profile");
       if (!response.ok) throw new Error("Failed to fetch profile");
       return response.json();
     },
     enabled: !!auth,
+    staleTime: 0,
   });
 
   if (!testModeLoaded || !isReady || (auth && isLoading)) {
@@ -278,7 +279,7 @@ export default function Index() {
   }
 
   if (auth) {
-    const role = data?.user?.role || "passenger";
+    const role = data?.user?.role || auth?.user?.role || "passenger";
     if (role === "admin") return <Redirect href="/(admin)" />;
     if (role === "driver") return <Redirect href="/(driver)" />;
     return <Redirect href="/(passenger)" />;

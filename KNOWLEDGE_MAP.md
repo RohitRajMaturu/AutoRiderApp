@@ -52,6 +52,7 @@ cd web; npm run test:api
 cd web; npm run db:check
 cd web; npm run db:migrate
 cd web; npm run maintenance
+cd mobile; npm run animations:build
 ```
 
 `run-local.ps1` starts the web backend and Expo app, setting mobile API env vars such as `EXPO_PUBLIC_BASE_URL`, `EXPO_PUBLIC_APP_URL`, and `EXPO_PUBLIC_PROXY_BASE_URL`.
@@ -95,6 +96,9 @@ Routing is Expo Router based:
 - `mobile/src/app/(passenger)/`: passenger home/profile/rides tabs.
 - `mobile/src/app/(driver)/`: driver dashboard/profile/wallet tabs.
 - `mobile/src/app/(admin)/`: admin dashboard/drivers/rides tabs.
+- `mobile/src/components/motion/`: reusable AutoRide motion components for loaders, success states, empty states, button loaders, and press micro-interactions.
+- `mobile/assets/animations/auto-motion/`: generated vector Lottie JSON assets for ride lifecycle, GPS, payment, empty, button, and splash states.
+- `docs/MOTION_SYSTEM.md`: storyboard, timing, Lottie/Rive handoff, theme, dimensions, performance, and implementation guide for the animation system.
 
 Auth and API behavior:
 - Mobile stores auth as `{ jwt, user }` in SecureStore under `auto-ride-auth`.
@@ -106,6 +110,12 @@ Passenger location behavior:
 - Current location and reverse-geocode calls have timeouts so pickup detection does not hang indefinitely.
 - Autocomplete, place details, reverse geocode, and route estimate all go through backend `/api/locations/*` and `/api/routes/estimate`.
 - Native mobile shows pickup/destination map pins and supports dragging pickup; mobile does not call Ola Maps directly.
+
+Motion system behavior:
+- Runtime animation primitives intentionally use existing `react-native-svg` and React Native `Animated` so no new native renderer is required for current flows.
+- `mobile/scripts/generate-auto-motion-assets.mjs` regenerates all compact Lottie JSON assets from the shared auto-rickshaw palette.
+- Generated Lottie files stay below 100KB each where possible and use flat vector layers with no embedded raster images.
+- Rive integration is documented as an authoring/export handoff in `docs/MOTION_SYSTEM.md`; no `.riv` binary is checked in.
 
 ## Backend/API Architecture
 
@@ -239,3 +249,9 @@ When adding notifications:
 - Add a device push-token table keyed by user/device.
 - Mobile should register and refresh Expo push tokens.
 - Backend should send notifications from ride lifecycle events.
+
+When changing motion:
+- Prefer palette changes in `mobile/scripts/generate-auto-motion-assets.mjs`, then run `cd mobile; npm run animations:build`.
+- Reuse `AutoMotionScene`, `AutoMotionLoader`, `AutoMotionSuccess`, `AutoMotionEmptyState`, and `AutoMotionButtonLoader` before adding new animation primitives.
+- Keep loader/success/empty animations dependency-safe unless the project deliberately adds and verifies `lottie-react-native` or `rive-react-native`.
+- Do not remove existing loaders or animation assets without checking auth, passenger, driver, and admin screens that import them.

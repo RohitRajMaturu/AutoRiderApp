@@ -32,6 +32,7 @@ import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
 import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedView";
 import AutoRiderLoader from "@/components/AutoRiderLoader";
+import { useAuth } from "@/utils/auth/useAuth";
 
 const PRIMARY = "#43B8B3";
 const PRIMARY_DARK = "#339E9A";
@@ -1132,13 +1133,24 @@ export default function DriverHome() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const notifiedCancelledRideIds = useRef(new Set());
+  const { auth } = useAuth();
+  const authUserKey =
+    auth?.user?.id || auth?.user?.email || auth?.user?.phone || "anonymous";
 
-  const { data: driverData, isLoading: driverLoading } = useQuery({
-    queryKey: ["driverMe"],
+  const {
+    data: driverData,
+    isLoading: driverLoading,
+    isError: driverError,
+    refetch: refetchDriver,
+  } = useQuery({
+    queryKey: ["driverMe", authUserKey],
     queryFn: async () => {
       const res = await fetch("/api/drivers");
+      if (!res.ok) throw new Error("Failed to load driver profile");
       return res.json();
     },
+    enabled: !!auth,
+    staleTime: 0,
   });
 
   const {
@@ -1146,9 +1158,10 @@ export default function DriverHome() {
     refetch: refetchRides,
     isRefetching,
   } = useQuery({
-    queryKey: ["driverRides"],
+    queryKey: ["driverRides", authUserKey],
     queryFn: async () => {
       const res = await fetch("/api/rides");
+      if (!res.ok) throw new Error("Failed to load rides");
       return res.json();
     },
     enabled:
@@ -1200,7 +1213,8 @@ export default function DriverHome() {
       }
       return res.json();
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["driverMe"] }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["driverMe", authUserKey] }),
     onError: (err) => {
       if (
         err.message === "SUBSCRIPTION_EXPIRED" ||
@@ -1240,7 +1254,7 @@ export default function DriverHome() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["driverRides"] });
+      queryClient.invalidateQueries({ queryKey: ["driverRides", authUserKey] });
       Alert.alert("🎉 Ride Accepted!", "Head to the pickup location now!");
     },
     onError: (err) => Alert.alert("Accept Failed", err.message),
@@ -1256,7 +1270,7 @@ export default function DriverHome() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["driverRides"] });
+      queryClient.invalidateQueries({ queryKey: ["driverRides", authUserKey] });
       Alert.alert("✅ Ride Completed!", "Great work! Keep earning!");
     },
   });
@@ -1276,6 +1290,54 @@ export default function DriverHome() {
           color={PRIMARY}
           textColor={TEXT_SECONDARY}
         />
+      </View>
+    );
+  }
+
+  if (driverError) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: BG,
+          padding: 24,
+        }}
+      >
+        <Text
+          style={{
+            fontSize: 18,
+            fontWeight: "800",
+            color: TEXT,
+            textAlign: "center",
+          }}
+        >
+          Could not load driver profile
+        </Text>
+        <Text
+          style={{
+            fontSize: 13,
+            color: TEXT_SECONDARY,
+            textAlign: "center",
+            marginTop: 8,
+            lineHeight: 20,
+          }}
+        >
+          Retry after a moment. If it continues, sign out and sign in again.
+        </Text>
+        <TouchableOpacity
+          onPress={() => refetchDriver()}
+          style={{
+            marginTop: 18,
+            borderRadius: 12,
+            backgroundColor: PRIMARY,
+            paddingHorizontal: 18,
+            paddingVertical: 12,
+          }}
+        >
+          <Text style={{ color: "#fff", fontWeight: "800" }}>Retry</Text>
+        </TouchableOpacity>
       </View>
     );
   }

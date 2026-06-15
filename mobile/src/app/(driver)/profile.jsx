@@ -84,21 +84,29 @@ export default function DriverProfile() {
   const { signOut, auth } = useAuth();
   const router = useRouter();
   const { testMode, disableTestMode } = useAppStore();
+  const authUserKey =
+    auth?.user?.id || auth?.user?.email || auth?.user?.phone || "anonymous";
 
   const { data: profile } = useQuery({
-    queryKey: ["userProfile"],
+    queryKey: ["userProfile", authUserKey],
     queryFn: async () => {
       const res = await fetch("/api/user-profile");
+      if (!res.ok) throw new Error("Failed to load profile");
       return res.json();
     },
+    enabled: !!auth,
+    staleTime: 0,
   });
 
   const { data: driverData } = useQuery({
-    queryKey: ["driverMe"],
+    queryKey: ["driverMe", authUserKey],
     queryFn: async () => {
       const res = await fetch("/api/drivers");
+      if (!res.ok) throw new Error("Failed to load driver profile");
       return res.json();
     },
+    enabled: !!auth,
+    staleTime: 0,
   });
 
   const user = profile?.user || auth?.user;

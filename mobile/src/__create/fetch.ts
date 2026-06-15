@@ -1,6 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 import { fetch as expoFetch } from 'expo/fetch';
-import { authKey, secureStoreOptions } from '../utils/auth/store';
+import { authKey, secureStoreOptions, useAuthStore } from '../utils/auth/store';
 
 const originalFetch = fetch;
 
@@ -76,13 +76,16 @@ const fetchToWeb = async function fetchWithHeaders(...args: Params) {
     }
   }
 
-  const auth = await SecureStore.getItemAsync(authKey, secureStoreOptions)
-    .then((auth) => {
-      return auth ? JSON.parse(auth) : null;
-    })
-    .catch(() => {
-      return null;
-    });
+  const memoryAuth = useAuthStore.getState().auth;
+  const auth =
+    memoryAuth ||
+    (await SecureStore.getItemAsync(authKey, secureStoreOptions)
+      .then((storedAuth) => {
+        return storedAuth ? JSON.parse(storedAuth) : null;
+      })
+      .catch(() => {
+        return null;
+      }));
 
   if (auth) {
     finalHeaders.set('authorization', `Bearer ${auth.jwt}`);

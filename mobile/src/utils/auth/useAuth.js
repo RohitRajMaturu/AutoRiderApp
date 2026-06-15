@@ -2,6 +2,8 @@ import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useCallback, useEffect } from 'react';
 import { useAuthModal, useAuthStore, authKey, secureStoreOptions } from './store';
+import useAppStore from '@/store/useAppStore';
+import queryClient from '@/utils/queryClient';
 
 
 /**
@@ -13,6 +15,8 @@ import { useAuthModal, useAuthStore, authKey, secureStoreOptions } from './store
 export const useAuth = () => {
   const { isReady, auth, setAuth } = useAuthStore();
   const { isOpen, close, open } = useAuthModal();
+  const disableTestMode = useAppStore((state) => state.disableTestMode);
+  const resetSessionState = useAppStore((state) => state.resetSessionState);
 
   const initiate = useCallback(() => {
     // The auth state machine must always reach a terminal state. SecureStore
@@ -26,12 +30,15 @@ export const useAuth = () => {
       new Promise((resolve) => setTimeout(() => resolve(null), 3000)),
     ])
       .then((stored) => {
+        const nextAuth = stored ? JSON.parse(stored) : null;
+        queryClient.clear();
         useAuthStore.setState({
-          auth: stored ? JSON.parse(stored) : null,
+          auth: nextAuth,
           isReady: true,
         });
       })
       .catch(() => {
+        queryClient.clear();
         useAuthStore.setState({ auth: null, isReady: true });
       });
   }, []);
@@ -45,12 +52,15 @@ export const useAuth = () => {
     open({ mode: 'signup', params: options?.params });
   }, [open]);
 
-  const signOut = useCallback(() => {
+  const signOut = useCallback(async () => {
+    queryClient.clear();
+    resetSessionState();
+    await disableTestMode();
     setAuth(null);
     close();
     router.replace('/');
     open({ mode: 'signin' });
-  }, [close, open, setAuth]);
+  }, [close, disableTestMode, open, resetSessionState, setAuth]);
 
   return {
     isReady,
