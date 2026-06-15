@@ -27,6 +27,7 @@ const TEXT = "#17272B";
 const TEXT_SECONDARY = "#647678";
 const SUCCESS = "#22C55E";
 const ERROR = "#EF4444";
+const GOLD = "#F3B51B";
 const WARNING = "#B88700";
 
 const STATUS_CONFIG = {
@@ -251,6 +252,40 @@ function RideRow({ ride, onCancel, isCancelling }) {
                   {ride.vehicle_number}{" "}
                   {ride.driver_phone ? `· ${ride.driver_phone}` : ""}
                 </Text>
+              </View>
+            )}
+            {(ride.estimated_fare || ride.driver_rating || ride.distance_km) && (
+              <View
+                style={{
+                  flexDirection: "row",
+                  gap: 12,
+                  marginTop: 6,
+                  alignItems: "center",
+                }}
+              >
+                {ride.estimated_fare && (
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      color: TEXT_SECONDARY,
+                      fontWeight: "600",
+                    }}
+                  >
+                    ₹{Math.round(ride.estimated_fare)}
+                  </Text>
+                )}
+                {ride.distance_km && (
+                  <Text style={{ fontSize: 12, color: TEXT_SECONDARY }}>
+                    {ride.distance_km} km
+                  </Text>
+                )}
+                {ride.driver_rating && (
+                  <Text
+                    style={{ fontSize: 12, color: GOLD, fontWeight: "700" }}
+                  >
+                    ★ {ride.driver_rating}/5
+                  </Text>
+                )}
               </View>
             )}
             {ride.accepted_at && (
