@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -6,105 +6,465 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Animated,
+  Easing,
+  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  BarChart3,
   TrendingUp,
+  Award,
+  AlertTriangle,
+  IndianRupee,
+  Trophy,
   Users,
   Car,
-  CheckCircle2,
-  XCircle,
   Clock,
   Wifi,
   FlaskConical,
 } from "lucide-react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import Svg, {
+  Circle,
+  Defs,
+  LinearGradient as SvgLinearGradient,
+  Path,
+  Polyline,
+  Stop,
+} from "react-native-svg";
 import { useAuth } from "@/utils/auth/useAuth";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import useAppStore from "@/store/useAppStore";
 
 const PRIMARY = "#43B8B3";
+const PRIMARY_DARK = "#339E9A";
 const PRIMARY_LIGHT = "#E7F6F4";
 const PRIMARY_BORDER = "#BFE5E0";
 const BG = "#EAF0F1";
 const SURFACE = "#FFFFFF";
-const SURFACE2 = "#FFFFFF";
 const BORDER = "#D8E4E5";
 const TEXT = "#17272B";
 const TEXT_SECONDARY = "#647678";
 const SUCCESS = "#22C55E";
 const ERROR = "#EF4444";
+const GOLD = "#F3B51B";
+const PURPLE = "#7C3AED";
 
-function StatCard({ icon: Icon, label, value, color, change }) {
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
+function numberValue(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatCurrency(value) {
+  return `₹${Math.round(numberValue(value)).toLocaleString("en-IN")}`;
+}
+
+function formatReason(reason) {
+  return String(reason || "")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function formatHourLabel(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date
+    .toLocaleTimeString("en-IN", { hour: "numeric", hour12: true })
+    .replace(" ", "");
+}
+
+function formatDayLabel(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("en-IN", { weekday: "short" });
+}
+
+function SectionLabel({ children }) {
+  return (
+    <Text
+      style={{
+        fontSize: 12,
+        fontWeight: "800",
+        color: TEXT_SECONDARY,
+        textTransform: "uppercase",
+        letterSpacing: 0.8,
+      }}
+    >
+      {children}
+    </Text>
+  );
+}
+
+function Card({ children, style }) {
+  return (
+    <View
+      style={[
+        {
+          backgroundColor: SURFACE,
+          borderRadius: 8,
+          borderWidth: 1,
+          borderColor: BORDER,
+          padding: 14,
+        },
+        style,
+      ]}
+    >
+      {children}
+    </View>
+  );
+}
+
+function AnimatedCounter({ to, prefix = "", suffix = "", style }) {
+  const progress = useRef(new Animated.Value(0)).current;
+  const [displayValue, setDisplayValue] = useState(0);
+
+  useEffect(() => {
+    progress.setValue(0);
+    const listener = progress.addListener(({ value }) => {
+      setDisplayValue(Math.round(numberValue(to) * value));
+    });
+    Animated.timing(progress, {
+      toValue: 1,
+      duration: 1200,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+    return () => progress.removeListener(listener);
+  }, [progress, to]);
+
+  return (
+    <Text style={style}>
+      {prefix}
+      {displayValue.toLocaleString("en-IN")}
+      {suffix}
+    </Text>
+  );
+}
+
+function SparklineChart({ data, color, width, height }) {
+  const gradientId = useRef(`sparkFill${Math.random().toString(36).slice(2)}`).current;
+  const values = data.map(numberValue);
+  const max = Math.max(...values, 1);
+  const min = Math.min(...values, 0);
+  const range = Math.max(max - min, 1);
+  const points = values.map((value, index) => {
+    const x = values.length <= 1 ? width : (index / (values.length - 1)) * width;
+    const y = height - ((value - min) / range) * (height - 6) - 3;
+    return { x, y };
+  });
+  const linePoints = points.map((point) => `${point.x},${point.y}`).join(" ");
+  const areaPath =
+    points.length > 0
+      ? `M0,${height} L${points.map((point) => `${point.x},${point.y}`).join(" L")} L${width},${height} Z`
+      : "";
+
+  return (
+    <Svg width={width} height={height}>
+      <Defs>
+        <SvgLinearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor={color} stopOpacity="0.3" />
+          <Stop offset="1" stopColor={color} stopOpacity="0" />
+        </SvgLinearGradient>
+      </Defs>
+      {areaPath ? <Path d={areaPath} fill={`url(#${gradientId})`} /> : null}
+      {linePoints ? (
+        <Polyline
+          points={linePoints}
+          fill="none"
+          stroke={color}
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      ) : null}
+    </Svg>
+  );
+}
+
+function TimelineBarChart({ data, xKey, metric, color }) {
+  const [activeIndex, setActiveIndex] = useState(null);
+  const tooltipScale = useRef(new Animated.Value(0)).current;
+  const values = data.map((item) => numberValue(item[metric]));
+  const max = Math.max(...values, 1);
+
+  useEffect(() => {
+    Animated.spring(tooltipScale, {
+      toValue: activeIndex === null ? 0 : 1,
+      friction: 7,
+      tension: 90,
+      useNativeDriver: true,
+    }).start();
+  }, [activeIndex, tooltipScale]);
+
+  if (data.length === 0) {
+    return (
+      <View
+        style={{
+          height: 90,
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: PRIMARY_LIGHT,
+          borderRadius: 8,
+        }}
+      >
+        <Text style={{ fontSize: 12, fontWeight: "700", color: PRIMARY_DARK }}>
+          No rides yet today - check back later
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ height: 112, paddingTop: 18 }}>
+      <View
+        style={{
+          height: 90,
+          flexDirection: "row",
+          alignItems: "flex-end",
+          gap: 6,
+        }}
+      >
+        {data.map((item, index) => {
+          const value = numberValue(item[metric]);
+          const heightPct = Math.max((value / max) * 100, value > 0 ? 8 : 3);
+          const isActive = activeIndex === index;
+          return (
+            <TouchableOpacity
+              key={`${item[xKey]}-${index}`}
+              onPress={() => setActiveIndex(isActive ? null : index)}
+              activeOpacity={0.8}
+              style={{ flex: 1, height: 90, justifyContent: "flex-end" }}
+            >
+              {isActive && (
+                <Animated.View
+                  style={{
+                    position: "absolute",
+                    top: -16,
+                    alignSelf: "center",
+                    paddingHorizontal: 6,
+                    paddingVertical: 3,
+                    borderRadius: 6,
+                    backgroundColor: TEXT,
+                    transform: [{ scale: tooltipScale }],
+                    zIndex: 2,
+                  }}
+                >
+                  <Text
+                    style={{ fontSize: 9, color: SURFACE, fontWeight: "800" }}
+                  >
+                    {metric === "fare" ? formatCurrency(value) : value}
+                  </Text>
+                </Animated.View>
+              )}
+              <View
+                style={{
+                  height: `${heightPct}%`,
+                  borderRadius: 5,
+                  backgroundColor: isActive ? color : `${color}60`,
+                }}
+              />
+              <Text
+                numberOfLines={1}
+                style={{
+                  position: "absolute",
+                  bottom: -18,
+                  alignSelf: "center",
+                  fontSize: 9,
+                  color: TEXT_SECONDARY,
+                  fontWeight: "700",
+                }}
+              >
+                {item[xKey]}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+function DonutChart({ segments, size }) {
+  const progress = useRef(new Animated.Value(0)).current;
+  const strokeWidth = 12;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const largest = segments.reduce(
+    (best, segment) => (segment.pct > best.pct ? segment : best),
+    segments[0] || { pct: 0 },
+  );
+
+  useEffect(() => {
+    progress.setValue(0);
+    Animated.timing(progress, {
+      toValue: 1,
+      duration: 1000,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [progress, segments]);
+
+  let offset = 0;
+
+  return (
+    <View style={{ width: size, height: size, alignItems: "center" }}>
+      <Svg width={size} height={size}>
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={BORDER}
+          strokeWidth={strokeWidth}
+          fill="none"
+        />
+        {segments.map((segment) => {
+          const dash = (circumference * segment.pct) / 100;
+          const circle = (
+            <AnimatedCircle
+              key={segment.label}
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              stroke={segment.color}
+              strokeWidth={strokeWidth}
+              fill="none"
+              strokeDasharray={progress.interpolate({
+                inputRange: [0, 1],
+                outputRange: [`0 ${circumference}`, `${dash} ${circumference}`],
+              })}
+              strokeDashoffset={-offset}
+              strokeLinecap="round"
+              originX={size / 2}
+              originY={size / 2}
+              rotation="-90"
+            />
+          );
+          offset += dash;
+          return circle;
+        })}
+      </Svg>
+      <View
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Text style={{ fontSize: 22, fontWeight: "900", color: TEXT }}>
+          {Math.round(largest.pct)}%
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+function RankBadge({ rank }) {
+  const color =
+    rank === 1
+      ? GOLD
+      : rank === 2
+        ? "#9CA3AF"
+        : rank === 3
+          ? "#B45309"
+          : PRIMARY;
+
   return (
     <View
       style={{
-        flex: 1,
-        backgroundColor: SURFACE,
-        borderRadius: 16,
-        padding: 16,
-        borderWidth: 1,
-        borderColor: BORDER,
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: color,
       }}
     >
-      <View
-        style={{
-          width: 38,
-          height: 38,
-          borderRadius: 10,
-          backgroundColor: `${color}20`,
-          justifyContent: "center",
-          alignItems: "center",
-          marginBottom: 12,
-        }}
-      >
-        <Icon size={20} color={color} strokeWidth={2} />
-      </View>
-      <Text
-        style={{
-          fontSize: 28,
-          fontWeight: "800",
-          color: TEXT,
-          letterSpacing: -1,
-        }}
-      >
-        {value}
+      <Text style={{ fontSize: 12, fontWeight: "900", color: SURFACE }}>
+        {rank}
       </Text>
+    </View>
+  );
+}
+
+function PulseCard({ label, value, color, icon }) {
+  return (
+    <Card style={{ flex: 1, padding: 12 }}>
+      <Text style={{ fontSize: 17, marginBottom: 8 }}>{icon}</Text>
+      <AnimatedCounter
+        to={numberValue(value)}
+        style={{ fontSize: 23, fontWeight: "900", color }}
+      />
       <Text
         style={{
-          fontSize: 11,
+          fontSize: 10,
+          fontWeight: "800",
           color: TEXT_SECONDARY,
-          marginTop: 4,
-          fontWeight: "600",
           textTransform: "uppercase",
-          letterSpacing: 0.5,
+          marginTop: 4,
         }}
       >
         {label}
       </Text>
-      {change !== undefined && (
-        <Text
-          style={{
-            fontSize: 11,
-            color: change >= 0 ? SUCCESS : ERROR,
-            marginTop: 4,
-            fontWeight: "600",
-          }}
-        >
-          {change >= 0 ? "↑" : "↓"} {Math.abs(change)}%
-        </Text>
-      )}
+    </Card>
+  );
+}
+
+function ToggleGroup({ options, value, onChange, activeColor }) {
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        borderWidth: 1,
+        borderColor: BORDER,
+        borderRadius: 8,
+        overflow: "hidden",
+      }}
+    >
+      {options.map((option) => {
+        const active = value === option.value;
+        return (
+          <TouchableOpacity
+            key={option.value}
+            onPress={() => onChange(option.value)}
+            style={{
+              paddingHorizontal: 8,
+              paddingVertical: 5,
+              backgroundColor: active ? activeColor : "transparent",
+            }}
+            activeOpacity={0.8}
+          >
+            <Text
+              style={{
+                fontSize: 10,
+                fontWeight: "800",
+                color: active ? SURFACE : TEXT_SECONDARY,
+              }}
+            >
+              {option.label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
     </View>
   );
 }
 
 export default function AdminDashboard() {
   const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
   const { signOut } = useAuth();
   const router = useRouter();
   const { testMode, disableTestMode } = useAppStore();
+  const [chartView, setChartView] = useState("today");
+  const [chartMetric, setChartMetric] = useState("rides");
 
   const {
     data: statsData,
@@ -125,54 +485,109 @@ export default function AdminDashboard() {
     queryKey: ["adminDrivers"],
     queryFn: async () => {
       const res = await fetch("/api/admin/drivers");
+      if (!res.ok) throw new Error("Failed to load drivers");
       return res.json();
     },
     refetchInterval: 30000,
   });
 
-  const stats = statsData?.stats;
+  const forceOffline = useMutation({
+    mutationFn: async (driverId) => {
+      const res = await fetch("/api/admin/drivers", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ driver_id: driverId, force_offline: true }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to force driver offline");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["adminDrivers"] });
+      queryClient.invalidateQueries({ queryKey: ["adminStats"] });
+    },
+    onError: (err) => Alert.alert("Force Offline Failed", err.message),
+  });
+
+  const stats = statsData?.stats || {};
   const drivers = driversData?.drivers || [];
   const pendingDrivers = drivers.filter((d) => !d.is_approved);
   const onlineDrivers = drivers.filter((d) => d.is_online && d.is_approved);
   const isLoading = statsLoading || driversLoading;
 
-  const ridesBreakdown = stats
-    ? [
-        {
-          label: "Completed",
-          value: stats.completedRides,
-          color: SUCCESS,
-          pct:
-            stats.totalRides > 0
-              ? ((stats.completedRides / stats.totalRides) * 100).toFixed(0)
-              : 0,
-        },
-        {
-          label: "Active",
-          value: stats.activeRides,
-          color: PRIMARY,
-          pct:
-            stats.totalRides > 0
-              ? ((stats.activeRides / stats.totalRides) * 100).toFixed(0)
-              : 0,
-        },
-        {
-          label: "Cancelled",
-          value: stats.cancelledRides,
-          color: ERROR,
-          pct:
-            stats.totalRides > 0
-              ? ((stats.cancelledRides / stats.totalRides) * 100).toFixed(0)
-              : 0,
-        },
-      ]
-    : [];
+  const hourlyTimeline = useMemo(
+    () =>
+      (stats.hourlyTimeline || []).map((item) => ({
+        ...item,
+        hour_label: formatHourLabel(item.hour),
+        rides: numberValue(item.rides),
+        fare: numberValue(item.fare),
+      })),
+    [stats.hourlyTimeline],
+  );
+  const weeklyTimeline = useMemo(
+    () =>
+      (stats.weeklyTimeline || []).map((item) => ({
+        ...item,
+        day_label: formatDayLabel(item.day),
+        rides: numberValue(item.rides),
+        fare: numberValue(item.fare),
+      })),
+    [stats.weeklyTimeline],
+  );
+  const timelineData = chartView === "today" ? hourlyTimeline : weeklyTimeline;
+  const xKey = chartView === "today" ? "hour_label" : "day_label";
+  const metricColor = chartMetric === "rides" ? PRIMARY : PURPLE;
+  const timelineValues = timelineData.map((item) => numberValue(item[chartMetric]));
+  const peakValue = Math.max(...timelineValues, 0);
+  const totalValue = timelineValues.reduce((sum, value) => sum + value, 0);
+
+  const rideTotal = numberValue(stats.totalRides);
+  const healthSegments = [
+    {
+      label: "Completed",
+      color: SUCCESS,
+      pct: rideTotal ? (numberValue(stats.completedRides) / rideTotal) * 100 : 0,
+    },
+    {
+      label: "Cancelled",
+      color: ERROR,
+      pct: rideTotal ? (numberValue(stats.cancelledRides) / rideTotal) * 100 : 0,
+    },
+    {
+      label: "Active",
+      color: PRIMARY,
+      pct: rideTotal ? (numberValue(stats.activeRides) / rideTotal) * 100 : 0,
+    },
+  ];
+  const cancellationReasons = (stats.cancellationReasons || []).slice(0, 4);
+  const maxCancellation = Math.max(
+    ...cancellationReasons.map((item) => numberValue(item.count)),
+    1,
+  );
+  const topDrivers = [...drivers]
+    .sort(
+      (a, b) =>
+        numberValue(b.completed_rides_30d) - numberValue(a.completed_rides_30d),
+    )
+    .slice(0, 5);
+  const hasRideLeaders = topDrivers.some(
+    (driver) => numberValue(driver.completed_rides_30d) > 0,
+  );
+  const avgFare =
+    numberValue(stats.completedRides) > 0
+      ? numberValue(stats.totalFareValue) / numberValue(stats.completedRides)
+      : 0;
+  const avgFareTrend = weeklyTimeline.map((item) =>
+    item.rides > 0 ? item.fare / item.rides : 0,
+  );
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
       <StatusBar style="light" />
 
-      {/* Header */}
       <View
         style={{
           paddingTop: insets.top + 16,
@@ -192,7 +607,6 @@ export default function AdminDashboard() {
               fontSize: 22,
               fontWeight: "800",
               color: TEXT,
-              letterSpacing: -0.5,
             }}
           >
             🛺 Admin Panel
@@ -201,25 +615,22 @@ export default function AdminDashboard() {
             Auto Ride Command Center
           </Text>
         </View>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-          <View
-            style={{
-              paddingHorizontal: 10,
-              paddingVertical: 5,
-              borderRadius: 99,
-              backgroundColor: `${SUCCESS}20`,
-              borderWidth: 1,
-              borderColor: `${SUCCESS}40`,
-            }}
-          >
-            <Text style={{ fontSize: 11, fontWeight: "700", color: SUCCESS }}>
-              ● LIVE
-            </Text>
-          </View>
+        <View
+          style={{
+            paddingHorizontal: 10,
+            paddingVertical: 5,
+            borderRadius: 99,
+            backgroundColor: `${SUCCESS}20`,
+            borderWidth: 1,
+            borderColor: `${SUCCESS}40`,
+          }}
+        >
+          <Text style={{ fontSize: 11, fontWeight: "700", color: SUCCESS }}>
+            ● LIVE
+          </Text>
         </View>
       </View>
 
-      {/* Test mode banner */}
       {testMode && (
         <TouchableOpacity
           onPress={async () => {
@@ -247,7 +658,7 @@ export default function AdminDashboard() {
               fontWeight: "600",
             }}
           >
-            🧪 Test Mode — Tap to Exit & Sign In for real admin access
+            🧪 Test Mode - Tap to Exit & Sign In for real admin access
           </Text>
           <Text style={{ fontSize: 12, color: "#B88700", fontWeight: "700" }}>
             Exit →
@@ -266,7 +677,7 @@ export default function AdminDashboard() {
         </View>
       ) : (
         <ScrollView
-          contentContainerStyle={{ padding: 16, paddingBottom: 80 }}
+          contentContainerStyle={{ padding: 16, paddingBottom: 80, gap: 14 }}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
@@ -276,7 +687,406 @@ export default function AdminDashboard() {
             />
           }
         >
-          {/* Alerts */}
+          <LinearGradient
+            colors={[PRIMARY, PRIMARY_DARK]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{
+              borderRadius: 18,
+              padding: 18,
+              flexDirection: "row",
+              alignItems: "center",
+              boxShadow: `0 8px 24px ${PRIMARY}40`,
+            }}
+          >
+            <View style={{ flex: 1 }}>
+              <Text
+                style={{ fontSize: 11, color: "#FFFFFFB3", fontWeight: "800" }}
+              >
+                Total Fare Value
+              </Text>
+              <AnimatedCounter
+                to={numberValue(stats.totalFareValue)}
+                prefix="₹"
+                style={{ fontSize: 32, fontWeight: "900", color: SURFACE }}
+              />
+              <Text style={{ fontSize: 11, color: "#FFFFFFA6", marginTop: 2 }}>
+                Today: {formatCurrency(stats.todayFareValue)} ·{" "}
+                {numberValue(stats.todayRides)} rides
+              </Text>
+            </View>
+            <View style={{ alignItems: "center" }}>
+              <SparklineChart
+                data={weeklyTimeline.map((item) => item.fare)}
+                color={SURFACE}
+                width={100}
+                height={44}
+              />
+              <Text style={{ fontSize: 10, color: "#FFFFFFA6", marginTop: 4 }}>
+                7-day trend
+              </Text>
+            </View>
+          </LinearGradient>
+
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            <PulseCard
+              label="Online Now"
+              value={onlineDrivers.length}
+              color={SUCCESS}
+              icon="●"
+            />
+            <PulseCard
+              label="Today Rides"
+              value={stats.todayRides}
+              color={PRIMARY}
+              icon="🛺"
+            />
+            <PulseCard
+              label="Pending Approval"
+              value={stats.pendingDrivers}
+              color={GOLD}
+              icon="⏳"
+            />
+          </View>
+
+          <Card>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 8,
+                marginBottom: 12,
+              }}
+            >
+              <SectionLabel>Ride Flow</SectionLabel>
+              <View style={{ flexDirection: "row", gap: 6 }}>
+                <ToggleGroup
+                  value={chartView}
+                  onChange={setChartView}
+                  activeColor={metricColor}
+                  options={[
+                    { label: "Today", value: "today" },
+                    { label: "Week", value: "week" },
+                  ]}
+                />
+                <ToggleGroup
+                  value={chartMetric}
+                  onChange={setChartMetric}
+                  activeColor={metricColor}
+                  options={[
+                    { label: "Rides", value: "rides" },
+                    { label: "₹ Fare", value: "fare" },
+                  ]}
+                />
+              </View>
+            </View>
+            <TimelineBarChart
+              data={timelineData}
+              xKey={xKey}
+              metric={chartMetric}
+              color={metricColor}
+            />
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                marginTop: 12,
+              }}
+            >
+              <Text style={{ fontSize: 11, color: TEXT_SECONDARY }}>
+                Peak:{" "}
+                <Text style={{ fontWeight: "900", color: metricColor }}>
+                  {chartMetric === "fare" ? formatCurrency(peakValue) : peakValue}
+                </Text>
+              </Text>
+              <Text style={{ fontSize: 11, color: TEXT_SECONDARY }}>
+                Total:{" "}
+                <Text style={{ fontWeight: "900", color: metricColor }}>
+                  {chartMetric === "fare" ? formatCurrency(totalValue) : totalValue}
+                </Text>
+              </Text>
+            </View>
+          </Card>
+
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            <Card style={{ flex: 1, alignItems: "center" }}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 6,
+                  alignSelf: "stretch",
+                  marginBottom: 8,
+                }}
+              >
+                <TrendingUp size={14} color={PRIMARY} />
+                <SectionLabel>Ride Health</SectionLabel>
+              </View>
+              <DonutChart segments={healthSegments} size={112} />
+              <View style={{ alignSelf: "stretch", gap: 6, marginTop: 10 }}>
+                {healthSegments.map((segment) => (
+                  <View
+                    key={segment.label}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <View
+                      style={{ flexDirection: "row", alignItems: "center", gap: 5 }}
+                    >
+                      <View
+                        style={{
+                          width: 7,
+                          height: 7,
+                          borderRadius: 4,
+                          backgroundColor: segment.color,
+                        }}
+                      />
+                      <Text style={{ fontSize: 10, color: TEXT_SECONDARY }}>
+                        {segment.label}
+                      </Text>
+                    </View>
+                    <Text
+                      style={{ fontSize: 10, fontWeight: "800", color: TEXT }}
+                    >
+                      {Math.round(segment.pct)}%
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </Card>
+
+            <Card style={{ flex: 1 }}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 6,
+                  marginBottom: 12,
+                }}
+              >
+                <AlertTriangle size={14} color={ERROR} />
+                <SectionLabel>Why Rides Cancel</SectionLabel>
+              </View>
+              {cancellationReasons.length === 0 ? (
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: SUCCESS,
+                    fontWeight: "800",
+                    marginTop: 24,
+                  }}
+                >
+                  No cancellations yet ✓
+                </Text>
+              ) : (
+                cancellationReasons.map((item, index) => {
+                  const count = numberValue(item.count);
+                  return (
+                    <View key={item.cancellation_reason || index} style={{ marginBottom: 10 }}>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                          gap: 8,
+                          marginBottom: 4,
+                        }}
+                      >
+                        <Text
+                          numberOfLines={1}
+                          style={{ flex: 1, fontSize: 10, color: TEXT_SECONDARY }}
+                        >
+                          {formatReason(item.cancellation_reason)}
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 10,
+                            fontWeight: "800",
+                            color: ERROR,
+                            textAlign: "right",
+                          }}
+                        >
+                          {count}
+                        </Text>
+                      </View>
+                      <View
+                        style={{
+                          height: 5,
+                          borderRadius: 3,
+                          backgroundColor: `${ERROR}15`,
+                          overflow: "hidden",
+                        }}
+                      >
+                        <View
+                          style={{
+                            height: 5,
+                            borderRadius: 3,
+                            width: `${(count / maxCancellation) * 100}%`,
+                            backgroundColor: `${ERROR}${["FF", "CC", "99", "77"][index] || "66"}`,
+                          }}
+                        />
+                      </View>
+                    </View>
+                  );
+                })
+              )}
+            </Card>
+          </View>
+
+          <Card>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: 12,
+              }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <Trophy size={15} color={GOLD} />
+                <SectionLabel>Top Drivers - 30 Days</SectionLabel>
+              </View>
+              <Text style={{ fontSize: 11, fontWeight: "800", color: PRIMARY }}>
+                by rides
+              </Text>
+            </View>
+            {!hasRideLeaders ? (
+              <Text
+                style={{
+                  textAlign: "center",
+                  fontSize: 13,
+                  fontWeight: "700",
+                  color: TEXT_SECONDARY,
+                  paddingVertical: 24,
+                }}
+              >
+                No ride data yet
+              </Text>
+            ) : (
+              topDrivers.map((driver, index) => (
+                <View
+                  key={driver.id}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 10,
+                    paddingVertical: 10,
+                    borderBottomWidth: index < topDrivers.length - 1 ? 1 : 0,
+                    borderBottomColor: BORDER,
+                  }}
+                >
+                  <RankBadge rank={index + 1} />
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text
+                      numberOfLines={1}
+                      style={{ fontSize: 13, fontWeight: "700", color: TEXT }}
+                    >
+                      {driver.vehicle_number || "Unassigned Vehicle"}
+                    </Text>
+                    <Text
+                      numberOfLines={1}
+                      style={{ fontSize: 11, color: TEXT_SECONDARY, marginTop: 1 }}
+                    >
+                      {driver.phone || driver.email}
+                    </Text>
+                  </View>
+                  <View style={{ alignItems: "flex-end", gap: 3 }}>
+                    <Text
+                      style={{ fontSize: 13, fontWeight: "800", color: PRIMARY }}
+                    >
+                      {numberValue(driver.completed_rides_30d)} rides
+                    </Text>
+                    {driver.avg_driver_rating_30d && (
+                      <Text
+                        style={{ fontSize: 11, color: GOLD, fontWeight: "800" }}
+                      >
+                        ★ {driver.avg_driver_rating_30d}
+                      </Text>
+                    )}
+                  </View>
+                  <View
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: 4,
+                      backgroundColor: driver.is_online ? SUCCESS : BORDER,
+                    }}
+                  />
+                  {driver.is_online && (
+                    <TouchableOpacity
+                      onPress={() =>
+                        Alert.alert(
+                          "Force driver offline?",
+                          "This will end the driver's online session immediately.",
+                          [
+                            { text: "Cancel", style: "cancel" },
+                            {
+                              text: "Force Offline",
+                              style: "destructive",
+                              onPress: () => forceOffline.mutate(driver.id),
+                            },
+                          ],
+                        )
+                      }
+                      disabled={forceOffline.isPending}
+                      style={{
+                        paddingHorizontal: 8,
+                        paddingVertical: 3,
+                        borderRadius: 99,
+                        borderWidth: 1,
+                        borderColor: ERROR,
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Text
+                        style={{ fontSize: 10, fontWeight: "800", color: ERROR }}
+                      >
+                        Force Offline
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ))
+            )}
+          </Card>
+
+          <Card
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 14,
+            }}
+          >
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <IndianRupee size={15} color={PURPLE} />
+                <Text
+                  style={{ fontSize: 12, fontWeight: "800", color: TEXT_SECONDARY }}
+                >
+                  Avg Fare / Ride
+                </Text>
+              </View>
+              <AnimatedCounter
+                to={Math.round(avgFare)}
+                prefix="₹"
+                style={{ fontSize: 28, fontWeight: "900", color: PURPLE }}
+              />
+              <Text style={{ fontSize: 11, color: TEXT_SECONDARY }}>
+                per completed ride
+              </Text>
+            </View>
+            <SparklineChart
+              data={avgFareTrend}
+              color={PURPLE}
+              width={100}
+              height={48}
+            />
+          </Card>
+
           {pendingDrivers.length > 0 && (
             <View
               style={{
@@ -285,7 +1095,6 @@ export default function AdminDashboard() {
                 borderWidth: 1,
                 borderColor: "#FDE68A",
                 padding: 14,
-                marginBottom: 16,
                 flexDirection: "row",
                 alignItems: "center",
                 gap: 12,
@@ -306,339 +1115,110 @@ export default function AdminDashboard() {
             </View>
           )}
 
-          {/* Main stats */}
-          <Text
-            style={{
-              fontSize: 12,
-              fontWeight: "700",
-              color: TEXT_SECONDARY,
-              textTransform: "uppercase",
-              letterSpacing: 0.8,
-              marginBottom: 12,
-            }}
-          >
-            Overview
-          </Text>
-          <View style={{ flexDirection: "row", gap: 10, marginBottom: 10 }}>
-            <StatCard
-              icon={BarChart3}
-              label="Total Rides"
-              value={stats?.totalRides ?? "—"}
-              color={PRIMARY}
-            />
-            <StatCard
-              icon={Users}
-              label="Total Drivers"
-              value={stats?.totalDrivers ?? "—"}
-              color="#3B82F6"
-            />
-          </View>
-          <View style={{ flexDirection: "row", gap: 10, marginBottom: 20 }}>
-            <StatCard
-              icon={Wifi}
-              label="Online Now"
-              value={onlineDrivers.length}
-              color={SUCCESS}
-            />
-            <StatCard
-              icon={Clock}
-              label="Pending Approval"
-              value={stats?.pendingDrivers ?? "—"}
-              color="#B88700"
-            />
-          </View>
-
-          {/* Ride breakdown */}
-          {stats && stats.totalRides > 0 && (
-            <View style={{ marginBottom: 20 }}>
-              <Text
-                style={{
-                  fontSize: 12,
-                  fontWeight: "700",
-                  color: TEXT_SECONDARY,
-                  textTransform: "uppercase",
-                  letterSpacing: 0.8,
-                  marginBottom: 12,
-                }}
-              >
-                Ride Breakdown
-              </Text>
+          <View>
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: "700",
+                color: TEXT_SECONDARY,
+                textTransform: "uppercase",
+                letterSpacing: 0.8,
+                marginBottom: 12,
+              }}
+            >
+              Live Drivers ({onlineDrivers.length})
+            </Text>
+            {onlineDrivers.length === 0 ? (
               <View
                 style={{
                   backgroundColor: SURFACE,
                   borderRadius: 16,
                   borderWidth: 1,
                   borderColor: BORDER,
-                  padding: 16,
+                  padding: 24,
+                  alignItems: "center",
                 }}
               >
-                {ridesBreakdown.map((item, i) => (
+                <Text style={{ fontSize: 32, marginBottom: 10 }}>🛺</Text>
+                <Text
+                  style={{
+                    fontSize: 15,
+                    fontWeight: "700",
+                    color: TEXT_SECONDARY,
+                  }}
+                >
+                  No drivers online
+                </Text>
+              </View>
+            ) : (
+              <View
+                style={{
+                  backgroundColor: SURFACE,
+                  borderRadius: 16,
+                  borderWidth: 1,
+                  borderColor: BORDER,
+                  overflow: "hidden",
+                }}
+              >
+                {onlineDrivers.slice(0, 5).map((driver, index) => (
                   <View
-                    key={i}
+                    key={driver.id}
                     style={{
-                      marginBottom: i < ridesBreakdown.length - 1 ? 14 : 0,
+                      padding: 14,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 12,
+                      borderBottomWidth:
+                        index < Math.min(onlineDrivers.length, 5) - 1 ? 1 : 0,
+                      borderBottomColor: BORDER,
                     }}
                   >
                     <View
                       style={{
-                        flexDirection: "row",
-                        justifyContent: "space-between",
-                        marginBottom: 6,
+                        width: 36,
+                        height: 36,
+                        borderRadius: 18,
+                        backgroundColor: `${SUCCESS}20`,
+                        justifyContent: "center",
+                        alignItems: "center",
                       }}
                     >
+                      <Car size={18} color={SUCCESS} />
+                    </View>
+                    <View style={{ flex: 1 }}>
                       <Text
-                        style={{
-                          fontSize: 13,
-                          fontWeight: "600",
-                          color: TEXT_SECONDARY,
-                        }}
+                        style={{ fontSize: 14, fontWeight: "600", color: TEXT }}
                       >
-                        {item.label}
+                        {driver.vehicle_number}
                       </Text>
-                      <Text
-                        style={{
-                          fontSize: 13,
-                          fontWeight: "700",
-                          color: item.color,
-                        }}
-                      >
-                        {item.value} ({item.pct}%)
+                      <Text style={{ fontSize: 12, color: TEXT_SECONDARY }}>
+                        {driver.phone || driver.email}
                       </Text>
                     </View>
                     <View
                       style={{
-                        height: 6,
-                        backgroundColor: BORDER,
-                        borderRadius: 3,
+                        paddingHorizontal: 8,
+                        paddingVertical: 4,
+                        borderRadius: 99,
+                        backgroundColor: `${SUCCESS}20`,
                       }}
                     >
-                      <View
+                      <Text
                         style={{
-                          height: 6,
-                          borderRadius: 3,
-                          backgroundColor: item.color,
-                          width: `${item.pct}%`,
+                          fontSize: 10,
+                          fontWeight: "700",
+                          color: SUCCESS,
                         }}
-                      />
+                      >
+                        ● ONLINE
+                      </Text>
                     </View>
                   </View>
                 ))}
               </View>
-            </View>
-          )}
-
-          {/* Online drivers */}
-          <Text
-            style={{
-              fontSize: 12,
-              fontWeight: "700",
-              color: TEXT_SECONDARY,
-              textTransform: "uppercase",
-              letterSpacing: 0.8,
-              marginBottom: 12,
-            }}
-          >
-            Live Drivers ({onlineDrivers.length})
-          </Text>
-          {onlineDrivers.length === 0 ? (
-            <View
-              style={{
-                backgroundColor: SURFACE,
-                borderRadius: 16,
-                borderWidth: 1,
-                borderColor: BORDER,
-                padding: 24,
-                alignItems: "center",
-                marginBottom: 20,
-              }}
-            >
-              <Text style={{ fontSize: 32, marginBottom: 10 }}>🛺</Text>
-              <Text
-                style={{
-                  fontSize: 15,
-                  fontWeight: "700",
-                  color: TEXT_SECONDARY,
-                }}
-              >
-                No drivers online
-              </Text>
-            </View>
-          ) : (
-            <View
-              style={{
-                backgroundColor: SURFACE,
-                borderRadius: 16,
-                borderWidth: 1,
-                borderColor: BORDER,
-                overflow: "hidden",
-                marginBottom: 20,
-              }}
-            >
-              {onlineDrivers.slice(0, 5).map((driver, i) => (
-                <View
-                  key={driver.id}
-                  style={{
-                    padding: 14,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 12,
-                    borderBottomWidth: i < onlineDrivers.length - 1 ? 1 : 0,
-                    borderBottomColor: BORDER,
-                  }}
-                >
-                  <View
-                    style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: 18,
-                      backgroundColor: `${SUCCESS}20`,
-                      justifyContent: "center",
-                      alignItems: "center",
-                    }}
-                  >
-                    <Car size={18} color={SUCCESS} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={{ fontSize: 14, fontWeight: "600", color: TEXT }}
-                    >
-                      {driver.vehicle_number}
-                    </Text>
-                    <Text style={{ fontSize: 12, color: TEXT_SECONDARY }}>
-                      {driver.phone || driver.email}
-                    </Text>
-                  </View>
-                  <View
-                    style={{
-                      paddingHorizontal: 8,
-                      paddingVertical: 4,
-                      borderRadius: 99,
-                      backgroundColor: `${SUCCESS}20`,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 10,
-                        fontWeight: "700",
-                        color: SUCCESS,
-                      }}
-                    >
-                      ● ONLINE
-                    </Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          )}
-
-          {/* Quick actions */}
-          <Text
-            style={{
-              fontSize: 12,
-              fontWeight: "700",
-              color: TEXT_SECONDARY,
-              textTransform: "uppercase",
-              letterSpacing: 0.8,
-              marginBottom: 12,
-            }}
-          >
-            Quick Stats
-          </Text>
-          <View style={{ flexDirection: "row", gap: 10, marginBottom: 20 }}>
-            <View
-              style={{
-                flex: 1,
-                backgroundColor: SURFACE,
-                borderRadius: 14,
-                borderWidth: 1,
-                borderColor: BORDER,
-                padding: 14,
-                alignItems: "center",
-              }}
-            >
-              <CheckCircle2
-                size={24}
-                color={SUCCESS}
-                style={{ marginBottom: 8 }}
-              />
-              <Text style={{ fontSize: 22, fontWeight: "800", color: TEXT }}>
-                {stats?.completedRides ?? 0}
-              </Text>
-              <Text
-                style={{
-                  fontSize: 11,
-                  color: TEXT_SECONDARY,
-                  fontWeight: "600",
-                  textTransform: "uppercase",
-                  letterSpacing: 0.5,
-                  textAlign: "center",
-                  marginTop: 4,
-                }}
-              >
-                Completed
-              </Text>
-            </View>
-            <View
-              style={{
-                flex: 1,
-                backgroundColor: SURFACE,
-                borderRadius: 14,
-                borderWidth: 1,
-                borderColor: BORDER,
-                padding: 14,
-                alignItems: "center",
-              }}
-            >
-              <XCircle size={24} color={ERROR} style={{ marginBottom: 8 }} />
-              <Text style={{ fontSize: 22, fontWeight: "800", color: TEXT }}>
-                {stats?.cancelledRides ?? 0}
-              </Text>
-              <Text
-                style={{
-                  fontSize: 11,
-                  color: TEXT_SECONDARY,
-                  fontWeight: "600",
-                  textTransform: "uppercase",
-                  letterSpacing: 0.5,
-                  textAlign: "center",
-                  marginTop: 4,
-                }}
-              >
-                Cancelled
-              </Text>
-            </View>
-            <View
-              style={{
-                flex: 1,
-                backgroundColor: SURFACE,
-                borderRadius: 14,
-                borderWidth: 1,
-                borderColor: BORDER,
-                padding: 14,
-                alignItems: "center",
-              }}
-            >
-              <Clock size={24} color={PRIMARY} style={{ marginBottom: 8 }} />
-              <Text style={{ fontSize: 22, fontWeight: "800", color: TEXT }}>
-                {stats?.activeRides ?? 0}
-              </Text>
-              <Text
-                style={{
-                  fontSize: 11,
-                  color: TEXT_SECONDARY,
-                  fontWeight: "600",
-                  textTransform: "uppercase",
-                  letterSpacing: 0.5,
-                  textAlign: "center",
-                  marginTop: 4,
-                }}
-              >
-                Active
-              </Text>
-            </View>
+            )}
           </View>
 
-          {/* Exit test mode OR sign out */}
           {testMode ? (
             <TouchableOpacity
               onPress={async () => {
@@ -669,7 +1249,7 @@ export default function AdminDashboard() {
             <TouchableOpacity
               onPress={() => signOut()}
               style={{
-                backgroundColor: "#FFFFFF10",
+                backgroundColor: SURFACE,
                 borderRadius: 12,
                 borderWidth: 1,
                 borderColor: BORDER,
@@ -691,4 +1271,3 @@ export default function AdminDashboard() {
     </View>
   );
 }
-
