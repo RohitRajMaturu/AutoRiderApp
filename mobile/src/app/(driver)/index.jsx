@@ -621,7 +621,7 @@ function RegistrationScreen() {
                   lineHeight: 20,
                 }}
               >
-                Your application will be reviewed by our admin team. You'll
+                Your application will be reviewed by our admin team. You&apos;ll
                 start accepting rides once approved.
               </Text>
             </View>
@@ -729,7 +729,7 @@ function PendingScreen() {
           lineHeight: 24,
         }}
       >
-        Our team is reviewing your documents.{"\n"}You'll be notified once
+        Our team is reviewing your documents.{"\n"}You&apos;ll be notified once
         approved.
       </Text>
       <View style={{ marginTop: 32, width: "100%", gap: 12 }}>
@@ -1503,7 +1503,7 @@ export default function DriverHome() {
                 textAlign: "center",
               }}
             >
-              You're currently offline
+              You&apos;re currently offline
             </Text>
             <Text
               style={{

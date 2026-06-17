@@ -384,7 +384,7 @@ export default function Index() {
               lineHeight: 24,
             }}
           >
-            India's simplest auto-rickshaw{"\n"}ride connection platform
+            India&apos;s simplest auto-rickshaw{"\n"}ride connection platform
           </Text>
 
           <View style={{ flexDirection: "row", gap: 8, marginTop: 32 }}>
