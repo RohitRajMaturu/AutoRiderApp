@@ -27,3 +27,4 @@ uploads/
 # Local tooling
 .DS_Store
 Thumbs.db
+mobile/design_recommendations/*
