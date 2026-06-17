@@ -1,47 +1,18 @@
-import React from "react";
-import {
-  View,
-  Text,
-  ScrollView,
-  ActivityIndicator,
-  TouchableOpacity,
-  RefreshControl,
-} from "react-native";
+import React, { memo, useMemo, useState } from "react";
+import { View, Text, TouchableOpacity, RefreshControl } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
+import { FlashList } from "@shopify/flash-list";
 import { Clock, CheckCircle2, XCircle, Car } from "lucide-react-native";
 import { StatusBar } from "expo-status-bar";
+import { EmptyState, SkeletonLoader, StatusBadge } from "@/components/ui";
+import { useTheme } from "@/theme/ThemeContext";
 
-const PRIMARY = "#43B8B3";
-const BG = "#EAF0F1";
-const SURFACE = "#FFFFFF";
-const BORDER = "#D8E4E5";
-const TEXT = "#17272B";
-const TEXT_SECONDARY = "#586C70";
-const TEXT_MUTED = "#647678";
-const SUCCESS = "#16A34A";
-
-const STATUS_CONFIG = {
-  requested: {
-    bg: "#FEF3C7",
-    text: "#B88700",
-    Icon: Clock,
-    label: "Searching",
-  },
-  accepted: { bg: "#E7F6F4", text: PRIMARY, Icon: Car, label: "Accepted" },
-  completed: {
-    bg: "#DCFCE7",
-    text: SUCCESS,
-    Icon: CheckCircle2,
-    label: "Completed",
-  },
-  cancelled: {
-    bg: "#FEE2E2",
-    text: "#DC2626",
-    Icon: XCircle,
-    label: "Cancelled",
-  },
-};
+const FILTERS = [
+  { key: "pending", label: "Pending" },
+  { key: "completed", label: "Completed" },
+  { key: "cancelled", label: "Cancelled" },
+];
 
 function formatCancellationReason(reason) {
   if (!reason) return null;
@@ -50,8 +21,43 @@ function formatCancellationReason(reason) {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function RideCard({ ride }) {
-  const config = STATUS_CONFIG[ride.status] || STATUS_CONFIG.requested;
+function createStatusConfig(theme) {
+  return {
+    requested: {
+      bg: theme.warningLight,
+      text: theme.warning,
+      Icon: Clock,
+      label: "Searching",
+      accent: theme.warning,
+    },
+    accepted: {
+      bg: theme.primaryLight,
+      text: theme.primaryDark,
+      Icon: Car,
+      label: "Accepted",
+      accent: theme.primary,
+    },
+    completed: {
+      bg: theme.successLight,
+      text: theme.success,
+      Icon: CheckCircle2,
+      label: "Completed",
+      accent: theme.success,
+    },
+    cancelled: {
+      bg: theme.errorLight,
+      text: theme.error,
+      Icon: XCircle,
+      label: "Cancelled",
+      accent: theme.error,
+    },
+  };
+}
+
+const RideCard = memo(function RideCard({ ride }) {
+  const theme = useTheme();
+  const statusConfig = useMemo(() => createStatusConfig(theme), [theme]);
+  const config = statusConfig[ride.status] || statusConfig.requested;
   const { Icon } = config;
   const date = new Date(ride.created_at);
   const formattedDate = date.toLocaleDateString("en-IN", {
@@ -64,163 +70,187 @@ function RideCard({ ride }) {
     minute: "2-digit",
   });
 
+  const badgeConfig = {
+    [ride.status]: {
+      bg: config.bg,
+      text: config.text,
+      label: config.label,
+    },
+  };
+
   return (
     <View
-      style={{
-        backgroundColor: SURFACE,
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: BORDER,
-        marginBottom: 12,
-        overflow: "hidden",
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.04,
-        shadowRadius: 8,
-        elevation: 2,
-      }}
+      style={[
+        theme.shadow.card,
+        {
+          backgroundColor: theme.surface,
+          borderColor: theme.border,
+          borderLeftColor: config.accent,
+          borderLeftWidth: 4,
+          borderRadius: theme.radii.lg,
+          borderWidth: 1,
+          marginBottom: theme.spacing[3],
+          overflow: "hidden",
+        },
+      ]}
     >
       <View
         style={{
+          alignItems: "center",
+          borderBottomColor: theme.mutedSurface,
+          borderBottomWidth: 1,
           flexDirection: "row",
           justifyContent: "space-between",
-          alignItems: "center",
-          padding: 14,
-          borderBottomWidth: 1,
-          borderBottomColor: "#F5F5F4",
+          padding: theme.spacing[4],
         }}
       >
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+        <View style={{ alignItems: "center", flexDirection: "row", gap: theme.spacing[3] }}>
           <View
             style={{
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              backgroundColor: config.bg,
-              justifyContent: "center",
               alignItems: "center",
+              backgroundColor: config.bg,
+              borderRadius: theme.radii.pill,
+              height: 36,
+              justifyContent: "center",
+              width: 36,
             }}
           >
             <Icon size={18} color={config.text} strokeWidth={2} />
           </View>
           <View>
-            <Text style={{ fontSize: 13, fontWeight: "700", color: TEXT }}>
+            <Text style={[theme.typography.caption, { color: theme.text }]}>
               Ride #{ride.id}
             </Text>
-            <Text style={{ fontSize: 11, color: TEXT_MUTED }}>
-              {formattedDate} · {formattedTime}
+            <Text style={[theme.typography.micro, { color: theme.textMuted }]}>
+              {formattedDate} - {formattedTime}
             </Text>
           </View>
         </View>
-        <View
-          style={{
-            paddingHorizontal: 10,
-            paddingVertical: 4,
-            borderRadius: 99,
-            backgroundColor: config.bg,
-          }}
-        >
-          <Text
-            style={{
-              fontSize: 10,
-              fontWeight: "700",
-              color: config.text,
-              textTransform: "uppercase",
-              letterSpacing: 0.5,
-            }}
-          >
-            {config.label}
-          </Text>
-        </View>
+        <StatusBadge status={ride.status} config={badgeConfig} />
       </View>
 
-      <View style={{ padding: 14 }}>
-        <View style={{ flexDirection: "row", gap: 14 }}>
-          <View style={{ alignItems: "center", paddingTop: 5 }}>
+      <View style={{ padding: theme.spacing[4] }}>
+        <View style={{ flexDirection: "row", gap: theme.spacing[4] }}>
+          <View style={{ alignItems: "center", paddingTop: theme.spacing[1] }}>
             <View
               style={{
-                width: 8,
+                backgroundColor: theme.primary,
+                borderRadius: theme.radii.pill,
                 height: 8,
-                borderRadius: 4,
-                backgroundColor: PRIMARY,
+                width: 8,
               }}
             />
             <View
               style={{
-                width: 1.5,
+                backgroundColor: theme.border,
                 height: 22,
-                backgroundColor: BORDER,
-                marginVertical: 3,
+                marginVertical: theme.spacing[1],
+                width: 1.5,
               }}
             />
             <View
               style={{
-                width: 8,
-                height: 8,
+                backgroundColor: theme.text,
                 borderRadius: 2,
-                backgroundColor: TEXT,
+                height: 8,
+                width: 8,
               }}
             />
           </View>
-          <View style={{ flex: 1, gap: 10 }}>
-            <Text
-              style={{ fontSize: 13, fontWeight: "500", color: TEXT }}
-              numberOfLines={1}
-            >
+          <View style={{ flex: 1, gap: theme.spacing[3] }}>
+            <Text style={[theme.typography.caption, { color: theme.text }]} numberOfLines={1}>
               {ride.pickup_address}
             </Text>
-            <Text
-              style={{ fontSize: 13, fontWeight: "500", color: TEXT }}
-              numberOfLines={1}
-            >
+            <Text style={[theme.typography.caption, { color: theme.text }]} numberOfLines={1}>
               {ride.dest_address}
             </Text>
           </View>
         </View>
-        {ride.vehicle_number && (
+
+        {ride.vehicle_number ? (
           <View
             style={{
-              marginTop: 10,
-              paddingTop: 10,
-              borderTopWidth: 1,
-              borderTopColor: "#F5F5F4",
-              flexDirection: "row",
               alignItems: "center",
-              gap: 6,
+              borderTopColor: theme.mutedSurface,
+              borderTopWidth: 1,
+              flexDirection: "row",
+              gap: theme.spacing[2],
+              marginTop: theme.spacing[3],
+              paddingTop: theme.spacing[3],
             }}
           >
-            <Car size={13} color={TEXT_MUTED} />
-            <Text
-              style={{ fontSize: 12, color: TEXT_SECONDARY, fontWeight: "500" }}
-            >
+            <Car size={13} color={theme.textMuted} />
+            <Text style={[theme.typography.caption, { color: theme.textSecondary }]}>
               {ride.vehicle_number}
             </Text>
           </View>
-        )}
-        {ride.status === "cancelled" && ride.cancellation_reason && (
+        ) : null}
+
+        {ride.status === "cancelled" && ride.cancellation_reason ? (
           <View
             style={{
-              marginTop: 10,
-              paddingTop: 10,
+              borderTopColor: theme.mutedSurface,
               borderTopWidth: 1,
-              borderTopColor: "#F5F5F4",
+              marginTop: theme.spacing[3],
+              paddingTop: theme.spacing[3],
             }}
           >
-            <Text style={{ fontSize: 11, color: TEXT_MUTED, fontWeight: "700" }}>
+            <Text style={[theme.typography.micro, { color: theme.textMuted }]}>
               Cancellation reason
             </Text>
-            <Text style={{ fontSize: 12, color: "#DC2626", fontWeight: "600", marginTop: 3 }}>
+            <Text style={[theme.typography.caption, { color: theme.error, marginTop: theme.spacing[1] }]}>
               {formatCancellationReason(ride.cancellation_reason)}
             </Text>
           </View>
-        )}
+        ) : null}
       </View>
+    </View>
+  );
+});
+
+function FilterTabs({ activeFilter, onChange }) {
+  const theme = useTheme();
+
+  return (
+    <View style={{ flexDirection: "row", gap: theme.spacing[2], marginTop: theme.spacing[4] }}>
+      {FILTERS.map((filter) => {
+        const selected = filter.key === activeFilter;
+        return (
+          <TouchableOpacity
+            accessibilityLabel={`Show ${filter.label.toLowerCase()} rides`}
+            accessibilityRole="button"
+            accessibilityState={{ selected }}
+            activeOpacity={0.86}
+            key={filter.key}
+            onPress={() => onChange(filter.key)}
+            style={{
+              backgroundColor: selected ? theme.primary : theme.primaryLight,
+              borderColor: selected ? theme.primary : theme.primaryBorder,
+              borderRadius: theme.radii.pill,
+              borderWidth: 1,
+              paddingHorizontal: theme.spacing[4],
+              paddingVertical: theme.spacing[2],
+            }}
+          >
+            <Text
+              style={[
+                theme.typography.caption,
+                { color: selected ? theme.surface : theme.primaryDark },
+              ]}
+            >
+              {filter.label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
     </View>
   );
 }
 
 export default function PassengerRides() {
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
+  const [activeFilter, setActiveFilter] = useState("pending");
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["passengerRides"],
     queryFn: async () => {
@@ -231,124 +261,79 @@ export default function PassengerRides() {
     refetchInterval: 10000,
   });
 
-  const rides = data?.rides || [];
-  const activeRides = rides.filter(
-    (r) => r.status === "requested" || r.status === "accepted",
-  );
-  const pastRides = rides.filter(
-    (r) => r.status === "completed" || r.status === "cancelled",
-  );
+  const rides = useMemo(() => data?.rides || [], [data?.rides]);
+  const filteredRides = useMemo(() => {
+    if (activeFilter === "pending") {
+      return rides.filter((ride) => ride.status === "requested" || ride.status === "accepted");
+    }
+    return rides.filter((ride) => ride.status === activeFilter);
+  }, [activeFilter, rides]);
+
+  const emptyCopy = {
+    pending: {
+      title: "No pending rides",
+      description: "Active ride requests and accepted rides will appear here.",
+    },
+    completed: {
+      title: "No completed rides",
+      description: "Completed trips will appear here after your first ride.",
+    },
+    cancelled: {
+      title: "No cancelled rides",
+      description: "Cancelled trip records will appear here when available.",
+    },
+  }[activeFilter];
 
   return (
-    <View style={{ flex: 1, backgroundColor: BG }}>
+    <View style={{ backgroundColor: theme.background, flex: 1 }}>
       <StatusBar style="dark" />
       <View
         style={{
-          paddingTop: insets.top + 16,
-          paddingHorizontal: 20,
-          paddingBottom: 18,
-          backgroundColor: SURFACE,
+          backgroundColor: theme.surface,
+          borderBottomColor: theme.border,
           borderBottomWidth: 1,
-          borderBottomColor: BORDER,
+          paddingBottom: theme.spacing[4],
+          paddingHorizontal: theme.spacing[5],
+          paddingTop: insets.top + theme.spacing[4],
         }}
       >
-        <Text
-          style={{
-            fontSize: 22,
-            fontWeight: "800",
-            color: TEXT,
-            letterSpacing: -0.5,
-          }}
-        >
-          My Rides
-        </Text>
-        <Text style={{ fontSize: 13, color: TEXT_SECONDARY, marginTop: 2 }}>
+        <Text style={[theme.typography.heading, { color: theme.text }]}>My Rides</Text>
+        <Text style={[theme.typography.caption, { color: theme.textSecondary, marginTop: theme.spacing[1] }]}>
           {rides.length} trip{rides.length !== 1 ? "s" : ""} total
         </Text>
+        <FilterTabs activeFilter={activeFilter} onChange={setActiveFilter} />
       </View>
 
       {isLoading ? (
-        <View
-          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
-        >
-          <ActivityIndicator size="large" color={PRIMARY} />
+        <View style={{ gap: theme.spacing[3], padding: theme.spacing[4] }}>
+          <SkeletonLoader variant="list-item" />
+          <SkeletonLoader variant="list-item" />
+          <SkeletonLoader variant="list-item" />
         </View>
       ) : (
-        <ScrollView
-          contentContainerStyle={{ padding: 16, paddingBottom: 80 }}
-          showsVerticalScrollIndicator={false}
+        <FlashList
+          data={filteredRides}
+          estimatedItemSize={168}
+          keyExtractor={(ride) => String(ride.id)}
           refreshControl={
             <RefreshControl
               refreshing={isRefetching}
               onRefresh={refetch}
-              tintColor={PRIMARY}
+              tintColor={theme.primary}
             />
           }
-        >
-          {rides.length === 0 ? (
-            <View style={{ alignItems: "center", paddingVertical: 80 }}>
-              <Text style={{ fontSize: 56, marginBottom: 16 }}>🛺</Text>
-              <Text style={{ fontSize: 18, fontWeight: "700", color: TEXT }}>
-                No rides yet
-              </Text>
-              <Text
-                style={{
-                  fontSize: 14,
-                  color: TEXT_SECONDARY,
-                  textAlign: "center",
-                  marginTop: 8,
-                  lineHeight: 20,
-                }}
-              >
-                Your trip history{"\n"}will appear here
-              </Text>
-            </View>
-          ) : (
-            <>
-              {activeRides.length > 0 && (
-                <>
-                  <Text
-                    style={{
-                      fontSize: 11,
-                      fontWeight: "700",
-                      color: PRIMARY,
-                      textTransform: "uppercase",
-                      letterSpacing: 1,
-                      marginBottom: 10,
-                    }}
-                  >
-                    Active
-                  </Text>
-                  {activeRides.map((ride) => (
-                    <RideCard key={ride.id} ride={ride} />
-                  ))}
-                </>
-              )}
-              {pastRides.length > 0 && (
-                <>
-                  <Text
-                    style={{
-                      fontSize: 11,
-                      fontWeight: "700",
-                      color: TEXT_MUTED,
-                      textTransform: "uppercase",
-                      letterSpacing: 1,
-                      marginBottom: 10,
-                      marginTop: activeRides.length > 0 ? 16 : 0,
-                    }}
-                  >
-                    History
-                  </Text>
-                  {pastRides.map((ride) => (
-                    <RideCard key={ride.id} ride={ride} />
-                  ))}
-                </>
-              )}
-            </>
-          )}
-        </ScrollView>
+          contentContainerStyle={{ padding: theme.spacing[4], paddingBottom: 80 }}
+          ListEmptyComponent={
+            <EmptyState
+              title={emptyCopy.title}
+              description={emptyCopy.description}
+              animationVariant="empty"
+            />
+          }
+          renderItem={({ item }) => <RideCard ride={item} />}
+          showsVerticalScrollIndicator={false}
+        />
       )}
     </View>
   );
 }
-
