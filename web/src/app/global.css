@@ -6,4 +6,14 @@
   input, textarea, select, button {
     @apply outline-none focus:outline-none;
   }
+
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 2px solid #43B8B3;
+    outline-offset: 2px;
+  }
 }
