@@ -1,8 +1,8 @@
-import React from "react";
-import { View, Text, TouchableOpacity, ScrollView, Alert, Linking } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, Linking } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/utils/auth/useAuth";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import {
   LogOut,
@@ -83,7 +83,9 @@ export default function DriverProfile() {
   const insets = useSafeAreaInsets();
   const { signOut, auth } = useAuth();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { testMode, disableTestMode } = useAppStore();
+  const [phone, setPhone] = useState("");
   const authUserKey =
     auth?.user?.id || auth?.user?.email || auth?.user?.phone || "anonymous";
 
@@ -111,6 +113,30 @@ export default function DriverProfile() {
 
   const user = profile?.user || auth?.user;
   const driver = driverData?.driver;
+  useEffect(() => {
+    if (!testMode) {
+      setPhone(user?.phone || "");
+    }
+  }, [testMode, user?.phone]);
+
+  const updateProfile = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/user-profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: phone.trim() }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || "Failed to save profile");
+      return body;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["userProfile", authUserKey] });
+      Alert.alert("Saved", "Your profile settings were updated.");
+    },
+    onError: (err) => Alert.alert("Save Failed", err.message),
+  });
+
   const expiry = driver?.subscription_expiry
     ? new Date(driver.subscription_expiry)
     : null;
@@ -277,6 +303,98 @@ export default function DriverProfile() {
           </View>
         </View>
 
+        {/* Account settings */}
+        <View style={{ margin: 16, marginBottom: 0 }}>
+          <View
+            style={{
+              backgroundColor: SURFACE,
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor: BORDER,
+              padding: 16,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 11,
+                fontWeight: "700",
+                color: TEXT_MUTED,
+                textTransform: "uppercase",
+                letterSpacing: 0.8,
+              }}
+            >
+              Account Settings
+            </Text>
+            <Text style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 4 }}>
+              Keep your contact number current for passenger calls and alerts.
+            </Text>
+
+            <View style={{ marginTop: 16, gap: 12 }}>
+              <View>
+                <Text style={{ fontSize: 11, fontWeight: "700", color: TEXT_MUTED, marginBottom: 6 }}>
+                  Email
+                </Text>
+                <View
+                  style={{
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: BORDER,
+                    backgroundColor: "#F5F5F4",
+                    paddingHorizontal: 14,
+                    paddingVertical: 13,
+                  }}
+                >
+                  <Text style={{ color: TEXT_SECONDARY, fontSize: 14, fontWeight: "600" }}>
+                    {testMode ? "Guest mode" : user?.email || "Not available"}
+                  </Text>
+                </View>
+              </View>
+
+              <View>
+                <Text style={{ fontSize: 11, fontWeight: "700", color: TEXT_MUTED, marginBottom: 6 }}>
+                  Phone Number
+                </Text>
+                <TextInput
+                  value={phone}
+                  onChangeText={setPhone}
+                  editable={!testMode && !updateProfile.isPending}
+                  keyboardType="phone-pad"
+                  placeholder="Add phone number"
+                  placeholderTextColor={TEXT_MUTED}
+                  style={{
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: phone ? PRIMARY_BORDER : BORDER,
+                    backgroundColor: SURFACE,
+                    paddingHorizontal: 14,
+                    paddingVertical: 12,
+                    color: TEXT,
+                    fontSize: 15,
+                    fontWeight: "600",
+                  }}
+                />
+              </View>
+
+              <TouchableOpacity
+                onPress={() => updateProfile.mutate()}
+                disabled={testMode || updateProfile.isPending}
+                style={{
+                  borderRadius: 12,
+                  backgroundColor: testMode ? "#BFD1D3" : PRIMARY,
+                  paddingVertical: 14,
+                  alignItems: "center",
+                  opacity: updateProfile.isPending ? 0.7 : 1,
+                }}
+                activeOpacity={0.85}
+              >
+                <Text style={{ color: "#fff", fontSize: 14, fontWeight: "800" }}>
+                  {updateProfile.isPending ? "Saving..." : "Save Profile"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
         {/* Vehicle info card - only if not test mode or driver exists */}
         {driver && !testMode && (
           <View style={{ margin: 16 }}>
@@ -320,7 +438,7 @@ export default function DriverProfile() {
                 },
                 {
                   label: "Contact Phone / ఫోన్ / फोन",
-                  value: auth?.user?.phone || "Not added",
+                  value: user?.phone || "Not added",
                   icon: Phone,
                 },
                 {

@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { ArrowRight, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, ShieldCheck } from "lucide-react";
 
 const signinHref = `/account/signin?role=admin&callbackUrl=${encodeURIComponent(
   "/admin",
@@ -15,6 +15,13 @@ export default function AdminLoginPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#EAF0F1] px-5 text-[#17272B]">
+      <a
+        href="/"
+        aria-label="Back to TukTukGo home"
+        className="absolute left-5 top-5 flex h-11 w-11 items-center justify-center rounded-full border border-[#D8E4E5] bg-white text-[#17272B] shadow-sm transition hover:border-[#43B8B3]/45"
+      >
+        <ArrowLeft size={19} />
+      </a>
       <section className="w-full max-w-md rounded-lg border border-[#D8E4E5] bg-white p-6 text-center shadow-sm">
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-lg bg-[#43B8B3]/15 text-[#43B8B3]">
           <ShieldCheck size={30} />

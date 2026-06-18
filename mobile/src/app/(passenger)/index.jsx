@@ -30,6 +30,7 @@ import { StatusBar } from "expo-status-bar";
 import * as Location from "expo-location";
 import TukTukGoLoader from "@/components/TukTukGoLoader";
 
+const TUKTUKGO_ICON = require("../../../assets/images/icon.png");
 const PRIMARY = "#43B8B3";
 const PRIMARY_LIGHT = "#E7F6F4";
 const PRIMARY_BORDER = "#BFE5E0";
@@ -668,7 +669,27 @@ export default function PassengerHome() {
             justifyContent: "space-between",
           }}
         >
-          <View>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12, flex: 1 }}>
+            <View
+              style={{
+                width: 42,
+                height: 42,
+                borderRadius: 12,
+                backgroundColor: TEXT,
+                borderWidth: 1,
+                borderColor: "#26363A",
+                justifyContent: "center",
+                alignItems: "center",
+                overflow: "hidden",
+              }}
+            >
+              <Image
+                source={TUKTUKGO_ICON}
+                style={{ width: 34, height: 34 }}
+                resizeMode="contain"
+              />
+            </View>
+            <View style={{ flex: 1 }}>
             <Text
               style={{
                 fontSize: 22,
@@ -677,25 +698,31 @@ export default function PassengerHome() {
                 letterSpacing: -0.5,
               }}
             >
-              🛺 Where to?
+              Where to?
             </Text>
             <Text style={{ fontSize: 13, color: TEXT_SECONDARY, marginTop: 2 }}>
               Book your auto in seconds
             </Text>
+            </View>
           </View>
           <View
             style={{
-              width: 42,
-              height: 42,
-              borderRadius: 21,
+              width: 46,
+              height: 46,
+              borderRadius: 23,
               backgroundColor: PRIMARY_LIGHT,
               borderWidth: 1,
               borderColor: PRIMARY_BORDER,
               justifyContent: "center",
               alignItems: "center",
+              overflow: "hidden",
             }}
           >
-            <Text style={{ fontSize: 20 }}>🛺</Text>
+            <Image
+              source={TUKTUKGO_ICON}
+              style={{ width: 38, height: 38 }}
+              resizeMode="contain"
+            />
           </View>
         </View>
       </View>

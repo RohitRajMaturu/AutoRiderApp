@@ -34,6 +34,7 @@ import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedV
 import TukTukGoLoader from "@/components/TukTukGoLoader";
 import { useAuth } from "@/utils/auth/useAuth";
 
+const TUKTUKGO_ICON = require("../../../assets/images/icon.png");
 const PRIMARY = "#43B8B3";
 const PRIMARY_DARK = "#339E9A";
 const PRIMARY_LIGHT = "#E7F6F4";
@@ -1378,7 +1379,27 @@ export default function DriverHome() {
             alignItems: "center",
           }}
         >
-          <View>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12, flex: 1 }}>
+            <View
+              style={{
+                width: 42,
+                height: 42,
+                borderRadius: 12,
+                backgroundColor: DARK,
+                borderWidth: 1,
+                borderColor: "#26363A",
+                justifyContent: "center",
+                alignItems: "center",
+                overflow: "hidden",
+              }}
+            >
+              <RNImage
+                source={TUKTUKGO_ICON}
+                style={{ width: 34, height: 34 }}
+                resizeMode="contain"
+              />
+            </View>
+            <View style={{ flex: 1 }}>
             <Text
               style={{
                 fontSize: 22,
@@ -1387,7 +1408,7 @@ export default function DriverHome() {
                 letterSpacing: -0.5,
               }}
             >
-              🛺 Dashboard
+              Dashboard
             </Text>
             <Text style={{ fontSize: 13, color: TEXT_SECONDARY, marginTop: 2 }}>
               {driver.vehicle_number} ·{" "}
@@ -1398,6 +1419,27 @@ export default function DriverHome() {
                 ? "మీరు ఆన్‌లైన్‌లో ఉన్నారు / आप ऑनलाइन हैं"
                 : "ఆఫ్‌లైన్ / ऑफलाइन"}
             </Text>
+            </View>
+          </View>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <View
+            style={{
+              width: 42,
+              height: 42,
+              borderRadius: 21,
+              backgroundColor: PRIMARY_LIGHT,
+              borderWidth: 1,
+              borderColor: PRIMARY_BORDER,
+              justifyContent: "center",
+              alignItems: "center",
+              overflow: "hidden",
+            }}
+          >
+            <RNImage
+              source={TUKTUKGO_ICON}
+              style={{ width: 34, height: 34 }}
+              resizeMode="contain"
+            />
           </View>
           <TouchableOpacity
             onPress={() => {
@@ -1442,6 +1484,7 @@ export default function DriverHome() {
                   : "Offline"}
             </Text>
           </TouchableOpacity>
+          </View>
         </View>
 
         {isExpired && (

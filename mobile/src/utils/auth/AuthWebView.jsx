@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Platform, Text, View } from 'react-native';
+import { Animated, Platform, Text, TouchableOpacity, View } from 'react-native';
 import { WebView } from 'react-native-webview';
+import { ArrowLeft } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthModal, useAuthStore } from './store';
 import TukTukGoLoader from '@/components/TukTukGoLoader';
 
@@ -31,6 +33,7 @@ function buildFreshAuthPath(mode, params = {}, callback = callbackUrl) {
  * This renders a WebView for authentication and handles both web and native platforms.
  */
 export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
+  const insets = useSafeAreaInsets();
   const isAdminSignup = mode === 'signup' && params?.role === 'admin';
   const authCallback = mode === 'signup' && !isAdminSignup ? onboardingUrl : callbackUrl;
   const authParams = useMemo(
@@ -186,6 +189,28 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
   }
   return (
     <View style={{ flex: 1, backgroundColor: '#EAF0F1' }}>
+      <TouchableOpacity
+        onPress={close}
+        activeOpacity={0.82}
+        style={{
+          position: 'absolute',
+          top: insets.top + 12,
+          left: 16,
+          zIndex: 4,
+          width: 42,
+          height: 42,
+          borderRadius: 21,
+          backgroundColor: '#FFFFFFEE',
+          borderWidth: 1,
+          borderColor: '#D8E4E5',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+        accessibilityRole="button"
+        accessibilityLabel="Back to TukTukGo home"
+      >
+        <ArrowLeft size={20} color="#17272B" />
+      </TouchableOpacity>
       {!isPageReady && loadingView}
       <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
         <WebView

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { redirect } from "react-router";
 import { AnimatePresence, motion } from "motion/react";
 import {
+  ArrowLeft,
   ChevronRight,
   Mail,
   ShieldCheck,
@@ -89,6 +90,13 @@ function AuthBackground({ title, children }) {
 
       <main className="relative z-10 min-h-screen w-full">
         <section className="relative min-h-screen w-full overflow-hidden bg-gradient-to-br from-[#4BBEB8] via-[#43B8B3] to-[#339E9A]">
+          <a
+            href="/"
+            aria-label="Back to TukTukGo home"
+            className="absolute left-5 top-5 z-40 flex h-11 w-11 items-center justify-center rounded-full border border-white/35 bg-white/90 text-[#17272B] shadow-[0_10px_24px_rgba(23,39,43,0.16)] transition hover:bg-white sm:left-8 sm:top-8"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </a>
           <div className="absolute left-8 top-14 z-10 sm:left-[10%] sm:top-20">
             <AnimatePresence mode="wait">
               <motion.h1
