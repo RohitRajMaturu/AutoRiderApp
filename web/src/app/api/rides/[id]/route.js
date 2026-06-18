@@ -103,10 +103,13 @@ export async function PATCH(request, { params }) {
               accepted_at = CURRENT_TIMESTAMP,
               expires_at = CURRENT_TIMESTAMP + make_interval(mins => ${getAcceptedRideTimeoutMinutes()}),
               updated_at = CURRENT_TIMESTAMP
-          WHERE id = ${id}
-            AND status = 'requested'
-            AND driver_id IS NULL
-            AND zone_id = ${driver.zone_id}
+          FROM drivers d -- PATCHED:
+          WHERE rides.id = ${id} -- PATCHED:
+            AND rides.status = 'requested' -- PATCHED:
+            AND rides.driver_id IS NULL -- PATCHED:
+            AND rides.zone_id = ${driver.zone_id} -- PATCHED:
+            AND d.id = ${driverId}
+            AND d.subscription_expiry > NOW() -- PATCHED:
             AND EXISTS (
               SELECT 1
               FROM ride_driver_notifications n
@@ -126,8 +129,8 @@ export async function PATCH(request, { params }) {
 
       if (result.length === 0) {
         return Response.json(
-          { error: "Ride already accepted by another driver or cancelled" },
-          { status: 400 },
+          { error: "subscription_expired" }, // PATCHED:
+          { status: 409 }, // PATCHED:
         );
       }
       return Response.json({ ride: result[0] });

@@ -29,6 +29,13 @@ export function getDriverHeartbeatTimeoutSeconds() {
   });
 }
 
+export function getDriverRideRadiusMeters() { // PATCHED:
+  return getEnvNumber("DRIVER_RIDE_RADIUS_KM", 8, {
+    min: 1,
+    max: 50,
+  }) * 1000;
+}
+
 export async function findZoneForPoint(lat, lng, scopedSql = sql) {
   const rows = await scopedSql`
     SELECT id, name, max_online_drivers
@@ -71,8 +78,9 @@ export async function autoCancelGhostRides(scopedSql = sql) {
   `;
 }
 
-export async function selectZoneDrivers(zoneId, scopedSql = sql) {
+export async function selectZoneDrivers(zoneId, pickupLat, pickupLng, scopedSql = sql) { // PATCHED:
   if (!zoneId) return [];
+  const radiusMeters = getDriverRideRadiusMeters(); // PATCHED:
   const rows = await scopedSql`
     SELECT d.id, d.user_id, u.phone, d.online_since, z.max_online_drivers
     FROM drivers d
@@ -83,6 +91,8 @@ export async function selectZoneDrivers(zoneId, scopedSql = sql) {
       AND d.is_approved = true
       AND d.subscription_expiry > CURRENT_TIMESTAMP
       AND d.last_heartbeat_at >= CURRENT_TIMESTAMP - make_interval(secs => ${getDriverHeartbeatTimeoutSeconds()})
+      AND d.location IS NOT NULL
+      AND ST_DWithin(d.location, ST_SetSRID(ST_MakePoint(${pickupLng}, ${pickupLat}), 4326)::geography, ${radiusMeters}) -- PATCHED:
     ORDER BY d.online_since ASC NULLS LAST, d.updated_at ASC
     LIMIT (SELECT max_online_drivers FROM geo_zones WHERE id = ${zoneId})
   `;
@@ -96,7 +106,7 @@ export function createBackgroundTask(task) {
 }
 
 export async function dispatchRideRequest(ride, scopedSql = sql) {
-  const drivers = await selectZoneDrivers(ride.zone_id, scopedSql);
+  const drivers = await selectZoneDrivers(ride.zone_id, ride.pickup_lat, ride.pickup_lng, scopedSql); // PATCHED:
   if (drivers.length === 0) {
     return 0;
   }

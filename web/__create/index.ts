@@ -101,7 +101,20 @@ function isOtpVerificationEnabled() {
   return process.env.ENABLE_OTP_VERIFICATION === 'true';
 }
 
+if (process.env.NODE_ENV === 'production' && process.env.ENABLE_OTP_VERIFICATION !== 'true') { // PATCHED:
+  throw new Error('FATAL: ENABLE_OTP_VERIFICATION must be true in production');
+}
+
 const app = new Hono();
+
+app.get('/health', async (c) => { // PATCHED:
+  try {
+    await pool.query('SELECT 1');
+    return c.json({ status: 'ok', db: 'ok', uptime: process.uptime() });
+  } catch {
+    return c.json({ status: 'degraded', db: 'error' }, 503);
+  }
+});
 
 app.use('*', requestId());
 
@@ -153,7 +166,8 @@ for (const method of ['post', 'put', 'patch'] as const) {
   );
 }
 
-app.use('/api/*', async (c, next) => {
+// TODO: replace with pg-based store before horizontal scaling
+app.use('/api/*', async (c, next) => { // PATCHED:
   const maxRequests = readPositiveInt(process.env.RATE_LIMIT_MAX_REQUESTS, 120);
   if (maxRequests === 0) {
     return next();

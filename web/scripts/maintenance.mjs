@@ -46,49 +46,66 @@ function readAcceptedRideTimeoutMinutes() {
 }
 
 async function runMaintenance(pool) {
-  const heartbeatTimeoutSeconds = readHeartbeatTimeoutSeconds();
-  const acceptedRideTimeoutMinutes = readAcceptedRideTimeoutMinutes();
+  const client = await pool.connect(); // PATCHED:
+  let locked = false; // PATCHED:
 
-  await pool.query(
-    `
-      UPDATE drivers
-      SET is_online = false,
-          online_since = NULL,
-          updated_at = CURRENT_TIMESTAMP
-      WHERE is_online = true
-        AND (
-          last_heartbeat_at IS NULL
-          OR last_heartbeat_at < CURRENT_TIMESTAMP - make_interval(secs => $1)
-          OR subscription_expiry IS NULL
-          OR subscription_expiry <= CURRENT_TIMESTAMP
-        )
-    `,
-    [heartbeatTimeoutSeconds],
-  );
+  try { // PATCHED:
+    const lockRows = await client.query("SELECT pg_try_advisory_lock(202506181) AS locked"); // PATCHED:
+    locked = Boolean(lockRows.rows[0]?.locked); // PATCHED:
+    if (!locked) { // PATCHED:
+      console.log("[maintenance] skipped — another process holds lock"); // PATCHED:
+      return; // PATCHED:
+    }
 
-  await pool.query(
-    `
-      UPDATE rides
-      SET status = 'cancelled',
-          cancelled_at = CURRENT_TIMESTAMP,
-          cancellation_reason = 'accepted_timeout',
-          updated_at = CURRENT_TIMESTAMP
-      WHERE status = 'accepted'
-        AND accepted_at < CURRENT_TIMESTAMP - make_interval(mins => $1)
-    `,
-    [acceptedRideTimeoutMinutes],
-  );
+    const heartbeatTimeoutSeconds = readHeartbeatTimeoutSeconds();
+    const acceptedRideTimeoutMinutes = readAcceptedRideTimeoutMinutes();
 
-  await pool.query("DELETE FROM realtime_tokens WHERE expires_at <= CURRENT_TIMESTAMP");
-  await pool.query("DELETE FROM auth_sessions WHERE expires <= CURRENT_TIMESTAMP");
-  await pool.query("DELETE FROM auth_verification_tokens WHERE expires <= CURRENT_TIMESTAMP");
-  await pool.query(
-    `
-      DELETE FROM otp_challenges
-      WHERE expires_at <= CURRENT_TIMESTAMP
-         OR consumed_at IS NOT NULL
-    `,
-  );
+    await client.query( // PATCHED:
+      `
+        UPDATE drivers
+        SET is_online = false,
+            online_since = NULL,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE is_online = true
+          AND (
+            last_heartbeat_at IS NULL
+            OR last_heartbeat_at < CURRENT_TIMESTAMP - make_interval(secs => $1)
+            OR subscription_expiry IS NULL
+            OR subscription_expiry <= CURRENT_TIMESTAMP
+          )
+      `,
+      [heartbeatTimeoutSeconds],
+    );
+
+    await client.query( // PATCHED:
+      `
+        UPDATE rides
+        SET status = 'cancelled',
+            cancelled_at = CURRENT_TIMESTAMP,
+            cancellation_reason = 'accepted_timeout',
+            updated_at = CURRENT_TIMESTAMP
+        WHERE status = 'accepted'
+          AND accepted_at < CURRENT_TIMESTAMP - make_interval(mins => $1)
+      `,
+      [acceptedRideTimeoutMinutes],
+    );
+
+    await client.query("DELETE FROM realtime_tokens WHERE expires_at <= CURRENT_TIMESTAMP"); // PATCHED:
+    await client.query("DELETE FROM auth_sessions WHERE expires <= CURRENT_TIMESTAMP"); // PATCHED:
+    await client.query("DELETE FROM auth_verification_tokens WHERE expires <= CURRENT_TIMESTAMP"); // PATCHED:
+    await client.query( // PATCHED:
+      `
+        DELETE FROM otp_challenges
+        WHERE expires_at <= CURRENT_TIMESTAMP
+           OR consumed_at IS NOT NULL
+      `,
+    );
+  } finally { // PATCHED:
+    if (locked) { // PATCHED:
+      await client.query("SELECT pg_advisory_unlock(202506181)"); // PATCHED:
+    }
+    client.release(); // PATCHED:
+  }
 }
 
 async function main() {

@@ -84,7 +84,7 @@ function Wait-ForBackend {
 }
 
 Ensure-Command "node"
-Ensure-Command "npm"
+Ensure-Command "npm.cmd"
 
 Ensure-Dependencies -Name "web/backend" -Directory $WebDir
 Ensure-Dependencies -Name "mobile" -Directory $MobileDir
@@ -93,15 +93,17 @@ $LanIp = Get-LanIpAddress
 $BackendUrl = "http://${LanIp}:4000"
 $BackendLocalUrl = "http://127.0.0.1:4000"
 
-Write-Step "Starting backend"
-$BackendCommand = "Set-Location '$WebDir'; npm run dev"
+Write-Step "Starting web app and API"
+$BackendCommand = "Set-Location '$WebDir'; npm.cmd run dev:lan"
 Start-Process powershell.exe -ArgumentList "-NoExit", "-Command", $BackendCommand
 
 Wait-ForBackend -Url $BackendLocalUrl
 
 Write-Step "Starting Expo Go"
 Write-Host "Backend URL for your phone: $BackendUrl"
-Write-Host "Web backend local URL:       $BackendLocalUrl"
+Write-Host "Web app local URL:           $BackendLocalUrl"
+Write-Host "Admin login local URL:       $BackendLocalUrl/admin-login"
+Write-Host "Web app LAN URL:             $BackendUrl"
 Write-Host "Scan the Expo QR code with Expo Go."
 Write-Host ""
 
