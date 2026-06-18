@@ -12,6 +12,7 @@ function buildAuthPath(mode, params = {}, callback = callbackUrl) {
   const page = mode === 'signup' ? 'signin' : mode;
   if (mode === 'signup') {
     query.set('mode', 'signup');
+    query.set('client', 'mobile');
   }
   Object.entries(params || {}).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') {
@@ -60,7 +61,6 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
     setAuthError(null);
     fadeAnim.setValue(0);
     const nextUri = `${baseURL}${buildFreshAuthPath(mode, authParams, authCallback)}`;
-    console.log('[AuthWebView] opening', { mode, nextUri, authCallback, authParams });
     setURI(nextUri);
   }, [mode, authParams, authCallback, baseURL, isAuthenticated, fadeAnim]);
 
@@ -77,7 +77,6 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
   }, [isPageReady, isAuthenticated, currentURI, fadeAnim]);
 
   const handlePageLoaded = () => {
-    console.log('[AuthWebView] page loaded', currentURI);
     setIsPageReady(true);
     Animated.timing(fadeAnim, {
       toValue: 1,
@@ -141,13 +140,11 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
         return;
       }
       if (event.data.type === 'AUTH_SUCCESS') {
-        console.log('[AuthWebView] web auth success', event.data.user);
         setAuth({
           jwt: event.data.jwt,
           user: event.data.user,
         });
       } else if (event.data.type === 'AUTH_ERROR') {
-        console.error('[AuthWebView] web auth error', event.data.error);
         setAuthError(event.data.error || 'Authentication failed');
       }
     };
@@ -161,7 +158,7 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
 
   if (Platform.OS === 'web') {
     const handleIframeError = () => {
-      console.error('Failed to load auth iframe');
+      setAuthError('Authentication page failed to load');
     };
 
     return (
@@ -203,25 +200,21 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
             'x-createxyz-host': process.env.EXPO_PUBLIC_HOST,
           }}
           onLoadStart={() => {
-            console.log('[AuthWebView] load start', currentURI);
             setIsPageReady(false);
             fadeAnim.setValue(0);
           }}
           onLoadEnd={handlePageLoaded}
           onError={(event) => {
-            console.error('[AuthWebView] webview load error', event.nativeEvent);
             setAuthError(event.nativeEvent?.description || 'WebView failed to load');
             setIsPageReady(true);
             fadeAnim.setValue(1);
           }}
           onHttpError={(event) => {
-            console.error('[AuthWebView] webview HTTP error', event.nativeEvent);
             setAuthError(`HTTP ${event.nativeEvent?.statusCode || ''} while loading auth`);
             setIsPageReady(true);
             fadeAnim.setValue(1);
           }}
           onShouldStartLoadWithRequest={(request) => {
-            console.log('[AuthWebView] nav request', request.url);
             const requestPath = (() => {
               try {
                 return new URL(request.url).pathname;
@@ -233,8 +226,6 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
               setAuthError(null);
               fetch(request.url, { credentials: 'include' }).then(async (response) => {
                 if (!response.ok) {
-                  const body = await response.text().catch(() => '');
-                  console.error('[AuthWebView] token fetch failed', response.status, body);
                   setAuthError('Login did not complete. Please try again.');
                   setIsPageReady(true);
                   setURI(`${baseURL}${buildFreshAuthPath(mode, authParams, authCallback)}`);
@@ -242,7 +233,6 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
                 }
                 response.json().then((data) => {
                   if (!data.jwt) {
-                    console.error('[AuthWebView] token response missing jwt', data);
                     setAuthError('Login response was incomplete. Please try again.');
                     setIsPageReady(true);
                     setURI(`${baseURL}${buildFreshAuthPath(mode, authParams, authCallback)}`);
@@ -250,8 +240,7 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
                   }
                   setAuth({ jwt: data.jwt, user: data.user });
                 });
-              }).catch((err) => {
-                console.error('[AuthWebView] token fetch error', err);
+              }).catch(() => {
                 setAuthError('Login failed. Please try again.');
                 setIsPageReady(true);
                 setURI(`${baseURL}${buildFreshAuthPath(mode, authParams, authCallback)}`);

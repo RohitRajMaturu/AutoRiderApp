@@ -1,20 +1,25 @@
 import { Tabs } from "expo-router";
 import { BarChart3, FileText, Map, Users, Route } from "lucide-react-native";
+import { useTheme } from "@/theme/ThemeContext";
 
 export default function AdminLayout() {
+  const theme = useTheme();
+  const active = theme.accent;
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: "#FFFFFF",
+          backgroundColor: theme.surface1,
           borderTopWidth: 1,
-          borderTopColor: "#D8E4E5",
+          borderTopColor: theme.border,
           paddingTop: 8,
           paddingBottom: 4,
+          height: 60,
         },
-        tabBarActiveTintColor: "#43B8B3",
-        tabBarInactiveTintColor: "#647678",
+        tabBarActiveTintColor: active,
+        tabBarInactiveTintColor: theme.text3,
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: "600",
@@ -30,7 +35,7 @@ export default function AdminLayout() {
             <BarChart3
               color={color}
               size={22}
-              strokeWidth={color === "#43B8B3" ? 2.5 : 1.8}
+              strokeWidth={color === active ? 2.5 : 1.8}
             />
           ),
         }}
@@ -43,7 +48,7 @@ export default function AdminLayout() {
             <Users
               color={color}
               size={22}
-              strokeWidth={color === "#43B8B3" ? 2.5 : 1.8}
+              strokeWidth={color === active ? 2.5 : 1.8}
             />
           ),
         }}
@@ -56,7 +61,7 @@ export default function AdminLayout() {
             <Route
               color={color}
               size={22}
-              strokeWidth={color === "#43B8B3" ? 2.5 : 1.8}
+              strokeWidth={color === active ? 2.5 : 1.8}
             />
           ),
         }}
@@ -69,7 +74,7 @@ export default function AdminLayout() {
             <Map
               color={color}
               size={22}
-              strokeWidth={color === "#43B8B3" ? 2.5 : 1.8}
+              strokeWidth={color === active ? 2.5 : 1.8}
             />
           ),
         }}
@@ -82,7 +87,7 @@ export default function AdminLayout() {
             <FileText
               color={color}
               size={22}
-              strokeWidth={color === "#43B8B3" ? 2.5 : 1.8}
+              strokeWidth={color === active ? 2.5 : 1.8}
             />
           ),
         }}

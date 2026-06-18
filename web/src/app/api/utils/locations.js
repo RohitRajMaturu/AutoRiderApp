@@ -316,8 +316,7 @@ export async function getAutocomplete(text = "", locationBias = {}) {
           ? suggestions
           : localPlacesForQuery(query, locationBias),
     };
-  } catch (error) {
-    console.warn("Ola autocomplete fallback:", error.message);
+  } catch {
     return {
       provider: "local",
       suggestions: localPlacesForQuery(query, locationBias),
@@ -339,8 +338,7 @@ export async function getPlaceDetails(placeId) {
       normalizePlace(json, "ola");
 
     return place?.lat !== undefined && place?.lng !== undefined ? place : null;
-  } catch (error) {
-    console.warn("Ola place details fallback:", error.message);
+  } catch {
     return localPlaceById(placeId) || null;
   }
 }
@@ -362,8 +360,7 @@ export async function getReverseGeocode(lat, lng) {
       provider: "ola",
       place: place || fallbackReverseGeocode(lat, lng).place,
     };
-  } catch (error) {
-    console.warn("Ola reverse geocode fallback:", error.message);
+  } catch {
     return fallbackReverseGeocode(lat, lng);
   }
 }
@@ -391,8 +388,7 @@ export async function getRouteEstimate(originLat, originLng, destLat, destLng) {
     const estimate = extractRoute(json);
 
     return estimate || fallbackRouteEstimate(originLat, originLng, destLat, destLng);
-  } catch (error) {
-    console.warn("Ola route estimate fallback:", error.message);
+  } catch {
     return fallbackRouteEstimate(originLat, originLng, destLat, destLng);
   }
 }

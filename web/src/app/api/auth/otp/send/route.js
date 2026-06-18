@@ -17,7 +17,6 @@ function fast2smsNumber(phone) {
 async function sendFast2SmsOtp(phone, otp) {
   const apiKey = process.env.FAST2SMS_API_KEY?.trim();
   if (!apiKey) {
-    console.log("[otp] Fast2SMS skipped: missing FAST2SMS_API_KEY");
     return { ok: false, error: "FAST2SMS_API_KEY is missing" };
   }
 
@@ -50,7 +49,6 @@ async function sendFast2SmsOtp(phone, otp) {
     data = { raw: text };
   }
 
-  console.log("[otp] Fast2SMS response", response.status, data);
   return {
     ok: response.ok,
     error: data?.message || data?.error || data?.raw || `Fast2SMS rejected request with ${response.status}`,

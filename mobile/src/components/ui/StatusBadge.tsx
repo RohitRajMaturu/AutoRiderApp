@@ -49,3 +49,22 @@ export function StatusBadge({ status, config, style }: StatusBadgeProps) {
     </View>
   );
 }
+
+export function getRideStatusConfig(theme: ReturnType<typeof useTheme>): StatusConfig {
+  return {
+    requested: { bg: theme.warnDim, text: theme.warn, label: "Finding Driver" },
+    accepted: { bg: theme.accentDim, text: theme.accent, label: "Accepted" },
+    completed: { bg: theme.okDim, text: theme.ok, label: "Completed" },
+    cancelled: { bg: theme.errDim, text: theme.err, label: "Cancelled" },
+  };
+}
+
+export function getDriverStatusConfig(theme: ReturnType<typeof useTheme>): StatusConfig {
+  return {
+    online: { bg: theme.okDim, text: theme.ok, label: "Online" },
+    idle: { bg: theme.okDim, text: theme.ok, label: "Idle" },
+    on_trip: { bg: theme.accentDim, text: theme.accent, label: "On Trip" },
+    offline: { bg: theme.surface3, text: theme.text3, label: "Offline" },
+    pending: { bg: theme.warnDim, text: theme.warn, label: "Pending" },
+  };
+}

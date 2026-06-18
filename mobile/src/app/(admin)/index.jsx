@@ -15,14 +15,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   TrendingUp,
-  Award,
   AlertTriangle,
   IndianRupee,
   Trophy,
-  Users,
   Car,
-  Clock,
-  Wifi,
   FlaskConical,
 } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -39,19 +35,18 @@ import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import useAppStore from "@/store/useAppStore";
 
-const PRIMARY = "#43B8B3";
-const PRIMARY_DARK = "#339E9A";
-const PRIMARY_LIGHT = "#E7F6F4";
-const PRIMARY_BORDER = "#BFE5E0";
-const BG = "#EAF0F1";
-const SURFACE = "#FFFFFF";
-const BORDER = "#D8E4E5";
-const TEXT = "#17272B";
-const TEXT_SECONDARY = "#647678";
+const PRIMARY = "#F5A623";
+const PRIMARY_DARK = "#D97706";
+const PRIMARY_LIGHT = "rgba(245,166,35,0.12)";
+const BG = "#0D0F12";
+const SURFACE = "#1C2028";
+const BORDER = "rgba(255,255,255,0.08)";
+const TEXT = "#F0F2F5";
+const TEXT_SECONDARY = "#8A8F9E";
 const SUCCESS = "#22C55E";
 const ERROR = "#EF4444";
-const GOLD = "#F3B51B";
-const PURPLE = "#7C3AED";
+const GOLD = "#F59E0B";
+const PURPLE = "#38BDF8";
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 

@@ -22,6 +22,23 @@ export const typography = {
 } as const;
 
 export const theme = {
+  bg: "#0D0F12",
+  surface1: "#151820",
+  surface2: "#1C2028",
+  surface3: "#242830",
+  borderHover: "rgba(255,255,255,0.14)",
+  accent: "#F5A623",
+  accentDim: "rgba(245,166,35,0.12)",
+  text1: "#F0F2F5",
+  text2: "#8A8F9E",
+  text3: "#565C6E",
+  ok: "#22C55E",
+  okDim: "rgba(34,197,94,0.12)",
+  err: "#EF4444",
+  errDim: "rgba(239,68,68,0.12)",
+  warn: "#F59E0B",
+  warnDim: "rgba(245,158,11,0.12)",
+  info: "#38BDF8",
   primary: "#43B8B3",
   primaryDark: "#339E9A",
   primaryText: "#2E9C97",
@@ -62,6 +79,22 @@ export const theme = {
     glow: {
       shadowColor: "#43B8B3",
       shadowOpacity: 0.32,
+      shadowRadius: 16,
+      shadowOffset: { width: 0, height: 8 },
+      elevation: 12,
+    },
+  },
+  adminShadow: {
+    card: {
+      shadowColor: "#000",
+      shadowOpacity: 0.25,
+      shadowRadius: 16,
+      shadowOffset: { width: 0, height: 8 },
+      elevation: 6,
+    },
+    glow: {
+      shadowColor: "#F5A623",
+      shadowOpacity: 0.28,
       shadowRadius: 16,
       shadowOffset: { width: 0, height: 8 },
       elevation: 12,

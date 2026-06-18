@@ -17,18 +17,22 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { ChevronDown, ChevronUp, Search, Users } from "lucide-react";
 import { toast } from "sonner";
+import AdminShell from "@/components/AdminShell";
+import StatusBadge, { statusForDriver as driverStatusKey } from "@/components/ui/StatusBadge";
 
-const PRIMARY = "#43B8B3";
-const BG = "#EAF0F1";
-const TEXT = "#17272B";
-const TEXT_SEC = "#647678";
+const PRIMARY = "#F5A623";
+const BG = "#0D0F12";
+const TEXT = "#F0F2F5";
+const TEXT_SEC = "#8A8F9E";
 const SUCCESS = "#22C55E";
 const ERROR = "#EF4444";
-const GOLD = "#F3B51B";
-const PURPLE = "#7C3AED";
-const BORDER = "#D8E4E5";
-const SURFACE = "#FFFFFF";
+const GOLD = "#F59E0B";
+const PURPLE = "#38BDF8";
+const BORDER = "rgba(255,255,255,0.08)";
+const SURFACE = "#1C2028";
+const SURFACE_2 = "#242830";
 
 const queryClient = new QueryClient();
 
@@ -64,16 +68,6 @@ function numberValue(value) {
 
 function formatCurrency(value) {
   return `Rs. ${Math.round(numberValue(value)).toLocaleString("en-IN")}`;
-}
-
-function formatIstTime(date = new Date()) {
-  return new Intl.DateTimeFormat("en-IN", {
-    timeZone: "Asia/Kolkata",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  }).format(date);
 }
 
 function relativeTime(value) {
@@ -178,8 +172,8 @@ const Card = forwardRef(function Card({ children, className = "" }, ref) {
   return (
     <section
       ref={ref}
-      className={`rounded-lg border bg-white p-5 shadow-sm ${className}`}
-      style={{ borderColor: BORDER }}
+      className={`rounded-lg border p-5 shadow-sm ${className}`}
+      style={{ borderColor: BORDER, background: SURFACE }}
     >
       {children}
     </section>
@@ -189,11 +183,11 @@ const Card = forwardRef(function Card({ children, className = "" }, ref) {
 function Skeleton() {
   return (
     <div className="space-y-5">
-      <section className="rounded-lg border bg-white p-5 shadow-sm" style={{ borderColor: BORDER }}>
+      <section className="rounded-lg border p-5 shadow-sm" style={{ borderColor: BORDER, background: SURFACE }}>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#43B8B3]/15">
-              <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#BFE5E0] border-t-[#43B8B3]" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg" style={{ background: "var(--ar-accent-dim)" }}>
+              <div className="h-6 w-6 animate-pulse rounded-full" style={{ background: PRIMARY }} />
             </div>
             <div>
               <p className="text-sm font-black" style={{ color: TEXT }}>
@@ -204,7 +198,7 @@ function Skeleton() {
               </p>
             </div>
           </div>
-          <span className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-black text-amber-700">
+          <span className="rounded-lg px-3 py-2 text-xs font-semibold" style={{ background: "var(--ar-warn-dim)", color: GOLD }}>
             Enterprise data sync
           </span>
         </div>
@@ -213,25 +207,26 @@ function Skeleton() {
         {Array.from({ length: 4 }).map((_, index) => (
           <div
             key={index}
-            className="rounded-lg border bg-white p-5"
-            style={{ borderColor: BORDER }}
+            className="rounded-lg border p-5"
+            style={{ borderColor: BORDER, background: SURFACE }}
           >
-            <div className="h-3 w-24 animate-pulse rounded-full bg-slate-200" />
-            <div className="mt-5 h-9 w-20 animate-pulse rounded-lg bg-slate-200" />
-            <div className="mt-5 h-2 w-full animate-pulse rounded-full bg-slate-100" />
+            <div className="h-3 w-24 animate-pulse rounded-full" style={{ background: SURFACE_2 }} />
+            <div className="mt-5 h-9 w-20 animate-pulse rounded-lg" style={{ background: SURFACE_2 }} />
+            <div className="mt-5 h-2 w-full animate-pulse rounded-full" style={{ background: SURFACE_2 }} />
           </div>
         ))}
       </div>
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.8fr)]">
-        <div className="rounded-lg border bg-white p-5" style={{ borderColor: BORDER }}>
-          <div className="mb-5 h-4 w-44 animate-pulse rounded-full bg-slate-200" />
-          <div className="h-56 animate-pulse rounded-xl bg-slate-100" />
+        <div className="rounded-lg border p-5" style={{ borderColor: BORDER, background: SURFACE }}>
+          <div className="mb-5 h-4 w-44 animate-pulse rounded-full" style={{ background: SURFACE_2 }} />
+          <div className="h-56 animate-pulse rounded-lg" style={{ background: SURFACE_2 }} />
         </div>
-        <div className="rounded-lg border bg-white p-5" style={{ borderColor: BORDER }}>
+        <div className="rounded-lg border p-5" style={{ borderColor: BORDER, background: SURFACE }}>
           {Array.from({ length: 5 }).map((_, index) => (
             <div
               key={index}
-              className="mb-3 h-10 animate-pulse rounded-lg bg-slate-100 last:mb-0"
+              className="mb-3 h-10 animate-pulse rounded-lg last:mb-0"
+              style={{ background: SURFACE_2 }}
             />
           ))}
         </div>
@@ -243,12 +238,13 @@ function Skeleton() {
 function ErrorBanner({ show, onRetry }) {
   if (!show) return null;
   return (
-    <div className="flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-600">
+    <div className="flex items-center justify-between rounded-lg border px-4 py-3 text-sm font-semibold" style={{ borderColor: ERROR, background: "var(--ar-err-dim)", color: ERROR }}>
       <span>Failed to load ops data. Retrying.</span>
       <button
         type="button"
         onClick={onRetry}
-        className="rounded-lg bg-white px-3 py-1 text-xs font-black text-red-600 shadow-sm"
+        className="rounded-lg px-3 py-1 text-xs font-semibold shadow-sm"
+        style={{ background: SURFACE_2, color: ERROR }}
       >
         Retry
       </button>
@@ -271,7 +267,7 @@ function FleetDonut({ idle, online }) {
         cy={size / 2}
         r={radius}
         fill="none"
-        stroke={BORDER}
+        stroke={SURFACE_2}
         strokeWidth={stroke}
       />
       <circle
@@ -324,22 +320,18 @@ function MetricCards({ snapshot }) {
   return (
     <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
       <Card>
-        <p className="text-xs font-black uppercase tracking-wide" style={{ color: TEXT_SEC }}>
+        <p className="text-xs font-medium uppercase tracking-widest" style={{ color: TEXT_SEC }}>
           Active Rides
         </p>
-        <div className="mt-3 text-4xl font-black" style={{ color: TEXT }}>
+        <div className="mt-3 text-4xl font-semibold tracking-tight" style={{ color: TEXT }}>
           {liveRides}
         </div>
-        <div className="mt-4 flex flex-wrap gap-2 text-xs font-black">
-          <span className="rounded-full bg-amber-100 px-3 py-1 text-amber-700">
-            {snapshot.requestedRides} waiting
-          </span>
-          <span className="rounded-full px-3 py-1 text-white" style={{ backgroundColor: PRIMARY }}>
-            {snapshot.acceptedRides} in-trip
-          </span>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <StatusBadge status="requested" label={`${snapshot.requestedRides} waiting`} />
+          <StatusBadge status="accepted" label={`${snapshot.acceptedRides} in-trip`} />
         </div>
         <p
-          className="mt-4 text-sm font-black"
+          className="mt-4 text-sm font-medium"
           style={{ color: snapshot.demandSupplyGap > 0 ? ERROR : SUCCESS }}
         >
           {snapshot.demandSupplyGap > 0
@@ -351,36 +343,36 @@ function MetricCards({ snapshot }) {
       <Card>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-black uppercase tracking-wide" style={{ color: TEXT_SEC }}>
+            <p className="text-xs font-medium uppercase tracking-widest" style={{ color: TEXT_SEC }}>
               Drivers Online
             </p>
-            <div className="mt-3 text-4xl font-black" style={{ color: TEXT }}>
+            <div className="mt-3 text-4xl font-semibold tracking-tight" style={{ color: TEXT }}>
               {onlineDrivers}
             </div>
-            <p className="mt-3 text-sm font-bold" style={{ color: TEXT_SEC }}>
+            <p className="mt-3 text-sm font-normal" style={{ color: TEXT_SEC }}>
               {idle} idle / {Math.max(online - idle, 0)} on trip
             </p>
           </div>
           <FleetDonut idle={idle} online={online} />
         </div>
         {snapshot.staleDriverCount > 0 ? (
-          <p className="mt-4 text-xs font-black text-amber-700">
+          <p className="mt-4 text-xs font-medium" style={{ color: GOLD }}>
             {snapshot.staleDriverCount} may be ghost online
           </p>
         ) : null}
       </Card>
 
       <Card>
-        <p className="text-xs font-black uppercase tracking-wide" style={{ color: TEXT_SEC }}>
+        <p className="text-xs font-medium uppercase tracking-widest" style={{ color: TEXT_SEC }}>
           Today's Fare Value
         </p>
-        <div className="mt-3 text-4xl font-black" style={{ color: TEXT }}>
+        <div className="mt-3 text-4xl font-semibold tracking-tight" style={{ color: TEXT }}>
           {formatCurrency(todayFare)}
         </div>
-        <p className="mt-3 text-sm font-bold" style={{ color: TEXT_SEC }}>
+        <p className="mt-3 text-sm font-normal" style={{ color: TEXT_SEC }}>
           {completedToday} completed / {cancelledToday} cancelled today
         </p>
-        <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
+        <div className="mt-4 h-1 overflow-hidden rounded-full" style={{ background: SURFACE_2 }}>
           <div
             className="h-full rounded-full"
             style={{ width: `${completionPct}%`, backgroundColor: PRIMARY }}
@@ -389,20 +381,20 @@ function MetricCards({ snapshot }) {
       </Card>
 
       <Card>
-        <p className="text-xs font-black uppercase tracking-wide" style={{ color: TEXT_SEC }}>
+        <p className="text-xs font-medium uppercase tracking-widest" style={{ color: TEXT_SEC }}>
           Avg Driver Rating (24h)
         </p>
-        <div className="mt-3 text-4xl font-black" style={{ color: TEXT }}>
+        <div className="mt-3 text-4xl font-semibold tracking-tight" style={{ color: TEXT }}>
           {avgRating === null || avgRating === undefined
             ? "-"
             : `${(animatedRating / 10).toFixed(1)} rating`}
         </div>
-        <p className="mt-3 text-sm font-bold" style={{ color: TEXT_SEC }}>
+        <p className="mt-3 text-sm font-normal" style={{ color: TEXT_SEC }}>
           Avg accept time: {funnel.avg_accept_minutes ?? "-"} min /{" "}
           {funnel.total_created ?? 0} rides created
         </p>
         <span
-          className="mt-4 inline-flex rounded-full px-3 py-1 text-xs font-black text-white"
+          className="mt-4 inline-flex rounded-md px-3 py-1 text-xs font-semibold"
           style={{ backgroundColor: completionColor }}
         >
           {completionRate}% completed
@@ -416,8 +408,8 @@ function ChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   const point = payload[0]?.payload || {};
   return (
-    <div className="rounded-xl border bg-white p-3 text-xs shadow-lg" style={{ borderColor: BORDER }}>
-      <p className="mb-2 font-black" style={{ color: TEXT }}>
+    <div className="rounded-lg border p-3 text-xs shadow-lg" style={{ borderColor: BORDER, background: SURFACE_2 }}>
+      <p className="mb-2 font-semibold" style={{ color: TEXT }}>
         {label}
       </p>
       <p style={{ color: TEXT_SEC }}>Total: {point.total}</p>
@@ -457,10 +449,10 @@ function Timeline({ snapshot, sectionRef }) {
   return (
     <Card className="min-h-[312px]" ref={sectionRef}>
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-black" style={{ color: TEXT }}>
+        <h2 className="text-base font-semibold" style={{ color: TEXT }}>
           Ride Volume & Revenue
         </h2>
-        <div className="flex flex-wrap gap-2 text-xs font-black">
+        <div className="flex flex-wrap gap-2 text-xs font-semibold">
           {[
             ["today", "Today (hourly)"],
             ["week", "This Week (daily)"],
@@ -473,7 +465,7 @@ function Timeline({ snapshot, sectionRef }) {
               style={{
                 borderColor: range === id ? PRIMARY : BORDER,
                 backgroundColor: range === id ? PRIMARY : "transparent",
-                color: range === id ? SURFACE : TEXT_SEC,
+                color: range === id ? BG : TEXT_SEC,
               }}
             >
               <span className="mr-1 inline-block h-2 w-2 rounded-full bg-current" />
@@ -492,7 +484,7 @@ function Timeline({ snapshot, sectionRef }) {
               style={{
                 borderColor: metric === id ? PURPLE : BORDER,
                 backgroundColor: metric === id ? PURPLE : "transparent",
-                color: metric === id ? SURFACE : TEXT_SEC,
+                color: metric === id ? BG : TEXT_SEC,
               }}
             >
               <span className="mr-1 inline-block h-2 w-2 rounded-full bg-current" />
@@ -503,19 +495,19 @@ function Timeline({ snapshot, sectionRef }) {
       </div>
       <ResponsiveContainer width="100%" height={220}>
         <ComposedChart data={data}>
-          <CartesianGrid stroke={BORDER} vertical={false} />
+          <CartesianGrid stroke={BORDER} vertical={false} strokeDasharray="4 4" />
           <XAxis dataKey="label" tick={{ fill: TEXT_SEC, fontSize: 11 }} axisLine={false} tickLine={false} />
           <YAxis yAxisId="rides" tick={{ fill: TEXT_SEC, fontSize: 11 }} axisLine={false} tickLine={false} />
           <YAxis yAxisId="fare" orientation="right" hide />
           <Tooltip content={<ChartTooltip />} />
-          <Bar yAxisId="rides" dataKey="total" fill={`${PRIMARY}99`} radius={[6, 6, 0, 0]} />
-          <Bar yAxisId="rides" dataKey="completed" fill={PRIMARY} radius={[6, 6, 0, 0]} />
+          <Bar yAxisId="rides" dataKey="total" fill={SURFACE_2} radius={[4, 4, 0, 0]} />
+          <Bar yAxisId="rides" dataKey="completed" fill={PRIMARY} radius={[4, 4, 0, 0]} />
           <Line
             yAxisId="fare"
             type="monotone"
             dataKey="fare"
             stroke={PURPLE}
-            strokeWidth={3}
+            strokeWidth={2}
             dot={false}
           />
         </ComposedChart>
@@ -638,19 +630,6 @@ function Funnel({ snapshot }) {
   );
 }
 
-function statusForDriver(driver) {
-  if (!driver.is_approved) {
-    return { label: "PENDING", color: GOLD, bg: "#FEF3C7" };
-  }
-  if (driver.on_trip && driver.is_online) {
-    return { label: "ON TRIP", color: PRIMARY, bg: `${PRIMARY}20` };
-  }
-  if (driver.is_online) {
-    return { label: "IDLE", color: SUCCESS, bg: `${SUCCESS}20` };
-  }
-  return { label: "OFFLINE", color: TEXT_SEC, bg: "#F1F5F9" };
-}
-
 function DriverTable({ drivers, sectionRef }) {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
@@ -736,7 +715,9 @@ function DriverTable({ drivers, sectionRef }) {
       style={{ color: TEXT_SEC }}
     >
       {label}
-      <span aria-hidden="true">{active ? (sort.dir === "asc" ? "^" : "v") : ""}</span>
+      {active ? (
+        sort.dir === "asc" ? <ChevronUp size={13} /> : <ChevronDown size={13} />
+      ) : null}
     </button>
     );
   };
@@ -753,14 +734,17 @@ function DriverTable({ drivers, sectionRef }) {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search vehicle or phone"
-            aria-label="Search drivers by vehicle or phone"
-            className="h-10 rounded-lg border bg-white px-3 text-sm font-bold"
-            style={{ borderColor: BORDER, color: TEXT }}
-          />
+          <label className="flex h-9 items-center gap-2 rounded-lg border px-3" style={{ borderColor: BORDER, background: SURFACE_2 }}>
+            <Search size={15} color={TEXT_SEC} />
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search vehicle or phone"
+              aria-label="Search drivers by vehicle or phone"
+              className="h-full bg-transparent text-sm font-medium"
+              style={{ color: TEXT }}
+            />
+          </label>
           {[
             ["all", "All"],
             ["online", "Online"],
@@ -774,11 +758,11 @@ function DriverTable({ drivers, sectionRef }) {
               type="button"
               onClick={() => setFilter(id)}
               aria-pressed={filter === id}
-              className="rounded-lg border px-3 py-2 text-xs font-black"
+              className="rounded-lg border px-3 py-2 text-xs font-semibold"
               style={{
                 borderColor: filter === id ? PRIMARY : BORDER,
                 backgroundColor: filter === id ? PRIMARY : SURFACE,
-                color: filter === id ? SURFACE : TEXT_SEC,
+                color: filter === id ? BG : TEXT_SEC,
               }}
             >
               {label}
@@ -790,55 +774,50 @@ function DriverTable({ drivers, sectionRef }) {
         <table className="min-w-full border-separate border-spacing-0 text-sm">
           <thead>
             <tr>
-              <th scope="col" className="sticky top-0 border-b bg-white px-3 py-3">{header("vehicle_number", "Vehicle #")}</th>
-              <th scope="col" className="sticky top-0 border-b bg-white px-3 py-3">{header("zone_name", "Zone")}</th>
-              <th scope="col" className="sticky top-0 border-b bg-white px-3 py-3">{header("is_online", "Status")}</th>
-              <th scope="col" className="sticky top-0 border-b bg-white px-3 py-3">{header("today_trips", "Today Trips")}</th>
-              <th scope="col" className="sticky top-0 border-b bg-white px-3 py-3">{header("completed_30d", "30d Trips")}</th>
-              <th scope="col" className="sticky top-0 border-b bg-white px-3 py-3">{header("avg_rating_30d", "Rating")}</th>
-              <th scope="col" className="sticky top-0 border-b bg-white px-3 py-3">{header("last_ride_at", "Last Active")}</th>
-              <th scope="col" className="sticky top-0 border-b bg-white px-3 py-3 text-left text-xs font-black uppercase tracking-wide" style={{ color: TEXT_SEC }}>
+              <th scope="col" className="sticky top-0 z-10 border-b px-3 py-2" style={{ background: SURFACE }}>{header("vehicle_number", "Vehicle #")}</th>
+              <th scope="col" className="sticky top-0 z-10 border-b px-3 py-2" style={{ background: SURFACE }}>{header("zone_name", "Zone")}</th>
+              <th scope="col" className="sticky top-0 z-10 border-b px-3 py-2" style={{ background: SURFACE }}>{header("is_online", "Status")}</th>
+              <th scope="col" className="sticky top-0 z-10 border-b px-3 py-2" style={{ background: SURFACE }}>{header("today_trips", "Today Trips")}</th>
+              <th scope="col" className="sticky top-0 z-10 border-b px-3 py-2" style={{ background: SURFACE }}>{header("completed_30d", "30d Trips")}</th>
+              <th scope="col" className="sticky top-0 z-10 border-b px-3 py-2" style={{ background: SURFACE }}>{header("avg_rating_30d", "Rating")}</th>
+              <th scope="col" className="sticky top-0 z-10 border-b px-3 py-2" style={{ background: SURFACE }}>{header("last_ride_at", "Last Active")}</th>
+              <th scope="col" className="sticky top-0 z-10 border-b px-3 py-2 text-left text-xs font-medium uppercase tracking-widest" style={{ color: TEXT_SEC, background: SURFACE }}>
                 Actions
               </th>
             </tr>
           </thead>
           <tbody>
             {visible.map((driver) => {
-              const status = statusForDriver(driver);
+              const status = driverStatusKey(driver);
               const ghost = isGhostDriver(driver);
               return (
-                <tr key={driver.id} className="align-middle">
-                  <td className="border-b px-3 py-3 font-black" style={{ borderColor: BORDER, color: TEXT }}>
+                <tr key={driver.id} className="group align-middle transition hover:bg-[var(--ar-s3)]">
+                  <td className="border-b px-3 py-2 text-sm font-semibold" style={{ borderColor: BORDER, color: TEXT }}>
                     {driver.vehicle_number || "-"}
-                    <div className="text-xs font-bold" style={{ color: TEXT_SEC }}>
+                    <div className="text-xs font-normal" style={{ color: TEXT_SEC }}>
                       {driver.phone || driver.email || "-"}
                     </div>
                   </td>
-                  <td className="border-b px-3 py-3 font-bold" style={{ borderColor: BORDER, color: TEXT_SEC }}>
+                  <td className="border-b px-3 py-2 text-sm font-normal" style={{ borderColor: BORDER, color: TEXT_SEC }}>
                     {driver.zone_name || "Unzoned"}
                   </td>
-                  <td className="border-b px-3 py-3" style={{ borderColor: BORDER }}>
-                    <span
-                      className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-black"
-                      style={{ backgroundColor: status.bg, color: status.color }}
-                    >
-                      {status.label} {ghost ? "STALE" : ""}
-                    </span>
+                  <td className="border-b px-3 py-2" style={{ borderColor: BORDER }}>
+                    <StatusBadge status={status} label={ghost ? `${status.replace("_", " ")} / stale` : undefined} />
                   </td>
-                  <td className="border-b px-3 py-3 font-black" style={{ borderColor: BORDER, color: TEXT }}>
+                  <td className="border-b px-3 py-2 text-sm font-semibold" style={{ borderColor: BORDER, color: TEXT }}>
                     {driver.today_trips}
                   </td>
-                  <td className="border-b px-3 py-3 font-black" style={{ borderColor: BORDER, color: TEXT }}>
+                  <td className="border-b px-3 py-2 text-sm font-semibold" style={{ borderColor: BORDER, color: TEXT }}>
                     {driver.completed_30d}
                   </td>
-                  <td className="border-b px-3 py-3 font-black" style={{ borderColor: BORDER, color: GOLD }}>
+                  <td className="border-b px-3 py-2 text-sm font-semibold" style={{ borderColor: BORDER, color: GOLD }}>
                     {driver.avg_rating_30d ? `${driver.avg_rating_30d} rating` : "-"}
                   </td>
-                  <td className="border-b px-3 py-3 font-bold" style={{ borderColor: BORDER, color: TEXT_SEC }}>
+                  <td className="border-b px-3 py-2 text-sm font-normal" style={{ borderColor: BORDER, color: TEXT_SEC }}>
                     {driver.on_trip ? "On trip now" : relativeTime(driver.last_ride_at)}
                   </td>
-                  <td className="border-b px-3 py-3" style={{ borderColor: BORDER }}>
-                    <div className="flex flex-wrap gap-2">
+                  <td className="border-b px-3 py-2" style={{ borderColor: BORDER }}>
+                    <div className="flex flex-wrap gap-2 opacity-100 transition md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100">
                       {!driver.is_approved ? (
                         <button
                           type="button"
@@ -848,8 +827,8 @@ function DriverTable({ drivers, sectionRef }) {
                               payload: { is_approved: true, subscription_days: 30 },
                             })
                           }
-                          className="rounded-lg px-3 py-1.5 text-xs font-black text-white"
-                          style={{ backgroundColor: PRIMARY }}
+                          className="rounded-lg px-3 py-1.5 text-xs font-semibold"
+                          style={{ backgroundColor: PRIMARY, color: BG }}
                         >
                           Approve
                         </button>
@@ -863,7 +842,7 @@ function DriverTable({ drivers, sectionRef }) {
                               payload: { force_offline: true },
                             })
                           }
-                          className="rounded-lg border px-3 py-1.5 text-xs font-black"
+                          className="rounded-lg border px-3 py-1.5 text-xs font-semibold"
                           style={{ borderColor: ERROR, color: ERROR }}
                         >
                           Force Offline
@@ -872,7 +851,7 @@ function DriverTable({ drivers, sectionRef }) {
                       <button
                         type="button"
                         onClick={() => toast("Open the mobile admin app to view full driver profile")}
-                        className="rounded-lg border px-2 py-1.5 text-xs font-black"
+                        className="rounded-lg border px-2 py-1.5 text-xs font-semibold"
                         style={{ borderColor: BORDER, color: TEXT_SEC }}
                         aria-label={`View ${driver.vehicle_number || "driver"} profile`}
                         title="View"
@@ -889,13 +868,13 @@ function DriverTable({ drivers, sectionRef }) {
       </div>
       <div className="grid gap-3 md:hidden">
         {visible.map((driver) => {
-          const status = statusForDriver(driver);
+          const status = driverStatusKey(driver);
           const ghost = isGhostDriver(driver);
           return (
             <article
               key={driver.id}
-              className="rounded-lg border bg-white p-4"
-              style={{ borderColor: BORDER }}
+              className="rounded-lg border p-4"
+              style={{ borderColor: BORDER, background: SURFACE }}
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -906,12 +885,7 @@ function DriverTable({ drivers, sectionRef }) {
                     {driver.phone || driver.email || "-"}
                   </p>
                 </div>
-                <span
-                  className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs font-black"
-                  style={{ backgroundColor: status.bg, color: status.color }}
-                >
-                  {status.label}{ghost ? " / STALE" : ""}
-                </span>
+                <StatusBadge status={status} label={ghost ? `${status.replace("_", " ")} / stale` : undefined} />
               </div>
               <dl className="mt-4 grid grid-cols-2 gap-3 text-xs">
                 <div>
@@ -943,8 +917,8 @@ function DriverTable({ drivers, sectionRef }) {
                         payload: { is_approved: true, subscription_days: 30 },
                       })
                     }
-                    className="rounded-lg px-3 py-2 text-xs font-black text-white"
-                    style={{ backgroundColor: PRIMARY }}
+                    className="rounded-lg px-3 py-2 text-xs font-semibold"
+                    style={{ backgroundColor: PRIMARY, color: BG }}
                   >
                     Approve
                   </button>
@@ -958,7 +932,7 @@ function DriverTable({ drivers, sectionRef }) {
                         payload: { force_offline: true },
                       })
                     }
-                    className="rounded-lg border px-3 py-2 text-xs font-black"
+                    className="rounded-lg border px-3 py-2 text-xs font-semibold"
                     style={{ borderColor: ERROR, color: ERROR }}
                   >
                     Force Offline
@@ -967,7 +941,7 @@ function DriverTable({ drivers, sectionRef }) {
                 <button
                   type="button"
                   onClick={() => toast("Open the mobile admin app to view full driver profile")}
-                  className="rounded-lg border px-3 py-2 text-xs font-black"
+                  className="rounded-lg border px-3 py-2 text-xs font-semibold"
                   style={{ borderColor: BORDER, color: TEXT_SEC }}
                 >
                   View
@@ -977,9 +951,13 @@ function DriverTable({ drivers, sectionRef }) {
           );
         })}
         {visible.length === 0 ? (
-          <p className="rounded-lg border px-3 py-8 text-center text-sm font-bold" style={{ borderColor: BORDER, color: TEXT_SEC }}>
-            No drivers match the current filters
-          </p>
+          <div className="rounded-lg border px-3 py-8 text-center" style={{ borderColor: BORDER, color: TEXT_SEC }}>
+            <Users className="mx-auto mb-2" size={32} color="var(--ar-t3)" />
+            <p className="text-sm font-medium">No drivers match this filter</p>
+            <p className="mt-1 text-xs" style={{ color: "var(--ar-t3)" }}>
+              Try clearing search or changing status filter
+            </p>
+          </div>
         ) : null}
       </div>
       <div className="mt-5 flex flex-wrap items-center justify-between gap-2">
@@ -1169,95 +1147,49 @@ function AdminOpsPageContent() {
   };
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: BG, color: TEXT }}>
-      <div
-        className="fixed left-0 top-0 z-50 h-1 transition-all duration-1000"
-        style={{ width: `${progressPct}%`, backgroundColor: PRIMARY }}
-      />
-      <header
-        className="sticky top-0 z-40 grid gap-4 border-b bg-white px-4 py-4 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto] lg:items-center lg:px-6"
-        style={{ borderColor: BORDER }}
-      >
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-xl font-black text-[#17272B]">
-              AutoRide Operations Console
-            </h1>
-            <span className="rounded-lg bg-emerald-50 px-2 py-1 text-xs font-black text-emerald-600">
-              LIVE
-            </span>
-            <span className="rounded-lg bg-slate-100 px-2 py-1 text-xs font-black" style={{ color: TEXT_SEC }}>
-              Dispatch Control
-            </span>
+    <AdminShell
+      title="AutoRide Operations Console"
+      eyebrow="Admin"
+      refreshText={`Refreshing in ${countdown}s`}
+    >
+      <div className="fixed left-0 top-0 z-[60] h-1 transition-all duration-1000" style={{ width: `${progressPct}%`, backgroundColor: PRIMARY }} />
+      <div className="space-y-5" style={{ color: TEXT }}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-lg px-2 py-1 text-xs font-semibold" style={{ background: "var(--ar-ok-dim)", color: SUCCESS }}>
+                  LIVE
+                </span>
+                <span className="rounded-lg px-2 py-1 text-xs font-semibold" style={{ background: SURFACE_2, color: TEXT_SEC }}>
+                  Dispatch Control
+                </span>
+              </div>
+              <p className="mt-2 text-xs font-normal" style={{ color: TEXT_SEC }}>
+                Fleet telemetry, zone utilization, stuck-ride controls, audit history, and revenue flow.
+              </p>
+            </div>
+            <div className="text-right text-xs font-medium" style={{ color: TEXT_SEC }}>
+              Last updated: {lastUpdatedSeconds}s ago
+            </div>
           </div>
-          <p className="mt-1 text-xs font-bold" style={{ color: TEXT_SEC }}>
-            Fleet telemetry, zone utilization, stuck-ride controls, audit history, and revenue flow.
-          </p>
-        </div>
-        <a
-          href="/admin"
-          className="inline-flex justify-center rounded-lg border bg-white px-4 py-2 text-xs font-black"
-          style={{ borderColor: BORDER, color: TEXT }}
-        >
-          Command Center
-        </a>
-        <div
-          className="rounded-lg px-4 py-2 text-center text-xs font-black text-white"
-          style={{ backgroundColor: PRIMARY }}
-        >
-          Refreshing in {countdown}s
-        </div>
-        <div className="text-left lg:text-right">
-          <div className="text-sm font-black" style={{ color: TEXT }}>
-            {formatIstTime(new Date(now))}
-          </div>
-          <div className="text-xs font-bold" style={{ color: TEXT_SEC }}>
-            Last updated: {lastUpdatedSeconds}s ago
-          </div>
-        </div>
-      </header>
 
-      <div className="flex">
-        <aside
-          className="sticky top-20 hidden h-[calc(100vh-5rem)] w-56 shrink-0 border-r bg-white p-4 lg:block"
-          style={{ borderColor: BORDER }}
-        >
-          <p className="mb-3 px-3 text-xs font-black uppercase tracking-wide" style={{ color: TEXT_SEC }}>
-            Operations
-          </p>
-          <nav className="space-y-2">
+          <nav className="flex flex-wrap gap-2">
             {navItems.map(([id, label, ref]) => (
               <button
                 key={id}
                 type="button"
                 onClick={() => scrollTo(id, ref)}
-                className="w-full rounded-xl px-3 py-2 text-left text-sm font-black"
+                className="rounded-lg border px-3 py-2 text-xs font-semibold"
                 style={{
-                  backgroundColor: activeNav === id ? PRIMARY : "transparent",
-                  color: activeNav === id ? SURFACE : TEXT_SEC,
+                  borderColor: activeNav === id ? PRIMARY : BORDER,
+                  backgroundColor: activeNav === id ? "var(--ar-accent-dim)" : SURFACE,
+                  color: activeNav === id ? PRIMARY : TEXT_SEC,
                 }}
               >
                 {label}
               </button>
             ))}
           </nav>
-          <div className="absolute bottom-4 left-4 right-4">
-            {snapshot.staleDriverCount > 0 ? (
-              <div
-                title="Drivers marked online but heartbeat expired. Maintenance worker will clean these up within 30s."
-                className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-black text-amber-700"
-              >
-                Attention: {snapshot.staleDriverCount} stale drivers
-              </div>
-            ) : (
-              <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs font-black" style={{ color: TEXT_SEC }}>
-                Fleet heartbeat OK
-              </div>
-            )}
-          </div>
-        </aside>
-
-        <main className="min-w-0 flex-1 space-y-5 p-4 lg:p-6">
           <ErrorBanner
             show={snapshotQuery.isError || driversQuery.isError}
             onRetry={() => {
@@ -1266,7 +1198,7 @@ function AdminOpsPageContent() {
             }}
           />
           {lastUpdatedSeconds > 60 ? (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-black text-amber-700">
+            <div className="rounded-lg border px-4 py-3 text-sm font-semibold" style={{ borderColor: GOLD, background: "var(--ar-warn-dim)", color: GOLD }}>
               Data may be stale. Last updated {lastUpdatedSeconds}s ago. Check connection.
             </div>
           ) : null}
@@ -1297,9 +1229,8 @@ function AdminOpsPageContent() {
               </div>
             </>
           )}
-        </main>
-      </div>
-    </div>
+        </div>
+    </AdminShell>
   );
 }
 

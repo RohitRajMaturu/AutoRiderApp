@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { redirect } from "react-router";
 import { AnimatePresence, motion } from "motion/react";
 import {
   ChevronRight,
@@ -9,6 +10,34 @@ import {
 } from "lucide-react";
 import useAuth from "@/utils/useAuth";
 import AutoRiderLoader from "@/components/AutoRiderLoader";
+
+export function loader({ request }) {
+  const url = new URL(request.url);
+  const params = url.searchParams;
+  if (params.get("client") === "mobile") {
+    return null;
+  }
+
+  let changed = false;
+  if (params.get("mode")) {
+    params.delete("mode");
+    changed = true;
+  }
+  if (params.get("role") !== "admin") {
+    params.set("role", "admin");
+    changed = true;
+  }
+  if (params.get("callbackUrl") !== "/admin") {
+    params.set("callbackUrl", "/admin");
+    changed = true;
+  }
+  if (params.get("finalCallbackUrl")) {
+    params.delete("finalCallbackUrl");
+    changed = true;
+  }
+
+  return changed ? redirect(`/account/signin?${params.toString()}`) : null;
+}
 
 function readParams() {
   if (typeof window === "undefined") {
@@ -24,7 +53,9 @@ function getCallbackUrl() {
 
 function getInitialScreen() {
   const params = readParams();
-  return params.get("mode") === "signup" ? "signup" : "signin";
+  return params.get("mode") === "signup" && params.get("client") === "mobile"
+    ? "signup"
+    : "signin";
 }
 
 function getInitialRole() {
@@ -35,7 +66,7 @@ function getInitialRole() {
 function updateAuthUrl(screen, role) {
   if (typeof window === "undefined") return;
   const params = readParams();
-  if (screen === "signup") {
+  if (screen === "signup" && params.get("client") === "mobile") {
     params.set("mode", "signup");
   } else {
     params.delete("mode");
@@ -126,13 +157,14 @@ export default function SignInPage() {
   const [role, setRole] = useState(getInitialRole);
   const [enableOtpVerification, setEnableOtpVerification] = useState(false);
   const [configLoaded, setConfigLoaded] = useState(false);
+  const allowSignup = readParams().get("client") === "mobile";
 
   const { signInWithCredentials, signInWithPhoneOtp, signUpWithCredentials } =
     useAuth();
 
   const isAdminSetup = role === "admin";
   const title = useMemo(() => {
-    if (screen === "signin") return "Welcome Back!";
+    if (screen === "signin") return "Admin Login";
     return isAdminSetup ? "Create Admin" : "Create Account";
   }, [isAdminSetup, screen]);
 
@@ -153,9 +185,13 @@ export default function SignInPage() {
   }, []);
 
   useEffect(() => {
+    if (!allowSignup && screen === "signup") {
+      setScreen("signin");
+      return;
+    }
     updateAuthUrl(screen, role);
     setError(null);
-  }, [role, screen]);
+  }, [allowSignup, role, screen]);
 
   const requireAuthSuccess = (result, message) => {
     if (!result || result.error || !result.url) {
@@ -435,14 +471,7 @@ export default function SignInPage() {
                 </>
               )}
               <p className="mt-5 text-center text-sm text-slate-500">
-                New to Auto Ride?{" "}
-                <button
-                  type="button"
-                  onClick={() => setScreen("signup")}
-                  className="font-extrabold text-[#43B8B3] hover:underline"
-                >
-                  Create account
-                </button>
+                Web access is restricted to admin sign in.
               </p>
             </div>
           </motion.div>

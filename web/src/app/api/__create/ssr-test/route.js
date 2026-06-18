@@ -39,8 +39,7 @@ export async function GET(request) {
 					/* @vite-ignore */ path.join('../../../', route.file)
 				);
 				component = response.default;
-			} catch (error) {
-				console.debug('Error importing component:', route.file, error);
+			} catch {
 			}
 			if (!component) {
 				return null;

@@ -7,18 +7,21 @@ import {
   Clock,
   IndianRupee,
   Route,
-  ShieldCheck,
   Users,
 } from "lucide-react";
+import AdminShell from "@/components/AdminShell";
+import StatusBadge from "@/components/ui/StatusBadge";
 
-const PRIMARY = "#43B8B3";
-const BG = "#EAF0F1";
-const TEXT = "#17272B";
-const TEXT_SEC = "#647678";
-const BORDER = "#D8E4E5";
+const PRIMARY = "#F5A623";
+const BG = "#0D0F12";
+const TEXT = "#F0F2F5";
+const TEXT_SEC = "#8A8F9E";
+const BORDER = "rgba(255,255,255,0.08)";
 const SUCCESS = "#22C55E";
 const ERROR = "#EF4444";
-const GOLD = "#F3B51B";
+const GOLD = "#F59E0B";
+const SURFACE = "#1C2028";
+const SURFACE_2 = "#242830";
 
 export async function loader({ request }) {
   const [{ auth }, { default: sql }] = await Promise.all([
@@ -55,13 +58,13 @@ function formatCurrency(value) {
 
 function Metric({ label, value, tone, Icon }) {
   return (
-    <div className="rounded-lg border bg-white p-5 shadow-sm" style={{ borderColor: BORDER }}>
+    <div className="rounded-lg border p-5 shadow-sm" style={{ borderColor: BORDER, background: SURFACE }}>
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-xs font-black uppercase tracking-wide" style={{ color: TEXT_SEC }}>
+          <p className="text-xs font-medium uppercase tracking-widest" style={{ color: TEXT_SEC }}>
             {label}
           </p>
-          <p className="mt-3 text-3xl font-black" style={{ color: TEXT }}>
+          <p className="mt-3 text-3xl font-semibold tracking-tight" style={{ color: TEXT }}>
             {value}
           </p>
         </div>
@@ -76,43 +79,32 @@ function Metric({ label, value, tone, Icon }) {
   );
 }
 
-function StatusPill({ children, color }) {
-  return (
-    <span
-      className="inline-flex rounded-lg px-2 py-1 text-xs font-black"
-      style={{ backgroundColor: `${color}18`, color }}
-    >
-      {children}
-    </span>
-  );
-}
-
 function AdminLoadingState() {
   return (
-    <section className="rounded-lg border bg-white p-5 shadow-sm" style={{ borderColor: BORDER }}>
+    <section className="rounded-lg border p-5 shadow-sm" style={{ borderColor: BORDER, background: SURFACE }}>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[#43B8B3]/15">
-            <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#BFE5E0] border-t-[#43B8B3]" />
+          <div className="flex h-12 w-12 items-center justify-center rounded-lg" style={{ background: "var(--ar-accent-dim)" }}>
+            <div className="h-6 w-6 animate-pulse rounded-full" style={{ background: PRIMARY }} />
           </div>
           <div>
-            <p className="text-sm font-black text-[#17272B]">
+            <p className="text-sm font-semibold" style={{ color: TEXT }}>
               Loading command center
             </p>
-            <p className="mt-1 text-xs font-bold text-[#647678]">
+            <p className="mt-1 text-xs font-medium" style={{ color: TEXT_SEC }}>
               Syncing rides, driver fleet, revenue, and admin controls.
             </p>
           </div>
         </div>
-        <span className="rounded-lg bg-[#F3B51B]/15 px-3 py-2 text-xs font-black text-[#B88700]">
+        <span className="rounded-lg px-3 py-2 text-xs font-semibold" style={{ background: "var(--ar-warn-dim)", color: GOLD }}>
           Live data initializing
         </span>
       </div>
       <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
         {["Authentication", "Operations API", "Fleet telemetry"].map((item) => (
-          <div key={item} className="rounded-lg border border-[#D8E4E5] bg-[#F7FBFA] p-3">
-            <div className="h-2 w-20 animate-pulse rounded-full bg-[#43B8B3]/30" />
-            <p className="mt-3 text-xs font-black uppercase tracking-wide text-[#647678]">
+          <div key={item} className="rounded-lg border p-3" style={{ borderColor: BORDER, background: SURFACE_2 }}>
+            <div className="h-2 w-20 animate-pulse rounded-full" style={{ background: "var(--ar-accent-dim)" }} />
+            <p className="mt-3 text-xs font-medium uppercase tracking-widest" style={{ color: TEXT_SEC }}>
               {item}
             </p>
           </div>
@@ -179,39 +171,10 @@ export default function AdminPage() {
   const isInitialLoading = !stats && !error;
 
   return (
-    <main className="min-h-screen" style={{ backgroundColor: BG, color: TEXT }}>
-      <header className="border-b bg-white" style={{ borderColor: BORDER }}>
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-5 py-5">
-          <div>
-            <div className="flex items-center gap-2 text-sm font-black" style={{ color: PRIMARY }}>
-              <ShieldCheck size={18} />
-              Admin access
-            </div>
-            <h1 className="mt-1 text-2xl font-black">Auto Ride Command Center</h1>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <a
-              href="/admin-ops"
-              className="inline-flex h-11 items-center gap-2 rounded-lg px-4 text-sm font-black text-white"
-              style={{ backgroundColor: PRIMARY }}
-            >
-              Open Ops Dashboard
-              <ArrowRight size={17} />
-            </a>
-            <a
-              href="/account/logout"
-              className="inline-flex h-11 items-center rounded-lg border bg-white px-4 text-sm font-black"
-              style={{ borderColor: BORDER, color: TEXT_SEC }}
-            >
-              Sign out
-            </a>
-          </div>
-        </div>
-      </header>
-
-      <div className="mx-auto max-w-7xl space-y-5 px-5 py-6">
+    <AdminShell title="Auto Ride Command Center" eyebrow="Admin">
+      <div className="mx-auto max-w-7xl space-y-5">
         {error ? (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-600">
+          <div className="rounded-lg border px-4 py-3 text-sm font-semibold" style={{ borderColor: "var(--ar-err)", background: "var(--ar-err-dim)", color: ERROR }}>
             {error}
           </div>
         ) : null}
@@ -239,21 +202,21 @@ export default function AdminPage() {
           <Metric
             label="Today Fare"
             value={stats ? formatCurrency(stats.todayFareValue) : "..."}
-            tone="#7C3AED"
+            tone="var(--ar-info)"
             Icon={IndianRupee}
           />
         </section>
 
         <section className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_420px]">
-          <div className="rounded-lg border bg-white p-5 shadow-sm" style={{ borderColor: BORDER }}>
+          <div className="rounded-lg border p-5 shadow-sm" style={{ borderColor: BORDER, background: SURFACE }}>
             <div className="mb-4 flex items-center justify-between gap-3">
-              <h2 className="text-lg font-black">Live Ride Queue</h2>
-              <StatusPill color={PRIMARY}>{liveRides.length} live</StatusPill>
+              <h2 className="text-base font-semibold">Live Ride Queue</h2>
+              <StatusBadge status={liveRides.length ? "accepted" : "offline"} label={`${liveRides.length} live`} />
             </div>
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead>
-                  <tr className="text-left text-xs font-black uppercase tracking-wide" style={{ color: TEXT_SEC }}>
+                  <tr className="text-left text-xs font-medium uppercase tracking-widest" style={{ color: TEXT_SEC }}>
                     <th className="border-b px-3 py-3" style={{ borderColor: BORDER }}>Ride</th>
                     <th className="border-b px-3 py-3" style={{ borderColor: BORDER }}>Status</th>
                     <th className="border-b px-3 py-3" style={{ borderColor: BORDER }}>Passenger</th>
@@ -264,21 +227,19 @@ export default function AdminPage() {
                 <tbody>
                   {(liveRides.length ? liveRides : rides.slice(0, 8)).map((ride) => (
                     <tr key={ride.id}>
-                      <td className="border-b px-3 py-3 font-black" style={{ borderColor: BORDER }}>
+                      <td className="border-b px-3 py-3 text-sm font-normal" style={{ borderColor: BORDER }}>
                         {String(ride.id).slice(0, 8)}
                       </td>
                       <td className="border-b px-3 py-3" style={{ borderColor: BORDER }}>
-                        <StatusPill color={ride.status === "cancelled" ? ERROR : PRIMARY}>
-                          {ride.status}
-                        </StatusPill>
+                        <StatusBadge status={ride.status} />
                       </td>
-                      <td className="border-b px-3 py-3 font-bold" style={{ borderColor: BORDER, color: TEXT_SEC }}>
+                      <td className="border-b px-3 py-3 text-sm font-normal" style={{ borderColor: BORDER, color: TEXT_SEC }}>
                         {ride.passenger_phone || ride.passenger_email || "-"}
                       </td>
-                      <td className="border-b px-3 py-3 font-bold" style={{ borderColor: BORDER, color: TEXT_SEC }}>
+                      <td className="border-b px-3 py-3 text-sm font-normal" style={{ borderColor: BORDER, color: TEXT_SEC }}>
                         {ride.vehicle_number || "-"}
                       </td>
-                      <td className="border-b px-3 py-3 font-black" style={{ borderColor: BORDER }}>
+                      <td className="border-b px-3 py-3 text-sm font-semibold" style={{ borderColor: BORDER }}>
                         {ride.estimated_fare ? formatCurrency(ride.estimated_fare) : "-"}
                       </td>
                     </tr>
@@ -296,23 +257,21 @@ export default function AdminPage() {
           </div>
 
           <div className="space-y-5">
-            <div className="rounded-lg border bg-white p-5 shadow-sm" style={{ borderColor: BORDER }}>
+            <div className="rounded-lg border p-5 shadow-sm" style={{ borderColor: BORDER, background: SURFACE }}>
               <div className="mb-4 flex items-center gap-2">
                 <Users size={18} color={PRIMARY} />
-                <h2 className="text-lg font-black">Top Drivers</h2>
+                <h2 className="text-base font-semibold">Top Drivers</h2>
               </div>
               <div className="space-y-3">
                 {topDrivers.map((driver) => (
                   <div key={driver.id} className="flex items-center justify-between gap-3 border-b pb-3 last:border-0 last:pb-0" style={{ borderColor: BORDER }}>
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-black">{driver.vehicle_number || "Unassigned"}</p>
-                      <p className="truncate text-xs font-bold" style={{ color: TEXT_SEC }}>
+                      <p className="truncate text-sm font-semibold">{driver.vehicle_number || "Unassigned"}</p>
+                      <p className="truncate text-xs font-normal" style={{ color: TEXT_SEC }}>
                         {driver.phone || driver.email || "-"}
                       </p>
                     </div>
-                    <StatusPill color={driver.is_online ? SUCCESS : TEXT_SEC}>
-                      {numberValue(driver.completed_rides_30d)} rides
-                    </StatusPill>
+                    <StatusBadge status={driver.is_online ? "online" : "offline"} label={`${numberValue(driver.completed_rides_30d)} rides`} />
                   </div>
                 ))}
                 {!topDrivers.length ? (
@@ -325,16 +284,16 @@ export default function AdminPage() {
 
             <a
               href="/admin-ops"
-              className="flex items-center justify-between gap-4 rounded-lg border bg-white p-5 shadow-sm transition hover:border-[#43B8B3]"
+              className="flex items-center justify-between gap-4 rounded-lg border p-5 shadow-sm transition"
               style={{ borderColor: BORDER }}
             >
               <div>
-                <div className="flex items-center gap-2 text-sm font-black" style={{ color: PRIMARY }}>
+                <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: PRIMARY }}>
                   <Activity size={18} />
                   More data
                 </div>
-                <p className="mt-2 text-xl font-black">Ops Dashboard</p>
-                <p className="mt-1 text-sm font-bold" style={{ color: TEXT_SEC }}>
+                <p className="mt-2 text-xl font-semibold">Ops Dashboard</p>
+                <p className="mt-1 text-sm font-normal" style={{ color: TEXT_SEC }}>
                   Fleet heartbeat, zones, audit log, cancellation analytics, and live operations.
                 </p>
               </div>
@@ -343,6 +302,6 @@ export default function AdminPage() {
           </div>
         </section>
       </div>
-    </main>
+    </AdminShell>
   );
 }
