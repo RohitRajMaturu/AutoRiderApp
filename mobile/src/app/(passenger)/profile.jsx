@@ -414,7 +414,7 @@ export default function PassengerProfile() {
             marginTop: 28,
           }}
         >
-          Auto Ride v1.0 - Made in India
+          TukTukGo v1.0 - Made in India
         </Text>
       </ScrollView>
     </View>

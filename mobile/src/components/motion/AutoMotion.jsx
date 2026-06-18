@@ -30,7 +30,7 @@ const COPY = {
   empty: "No autos nearby right now",
   payment: "Payment successful",
   location: "Detecting your location...",
-  splash: "AutoRide",
+  splash: "TukTukGo",
 };
 
 function useLoop(duration = 1600, enabled = true) {

@@ -148,7 +148,7 @@ const animations = [
   },
   {
     id: "splash-screen",
-    text: "AutoRide",
+    text: "TukTukGo",
     loop: false,
     frames: 150,
     size: 320,
@@ -499,7 +499,7 @@ function buildLottie(animation) {
     ddd: 0,
     assets: [],
     meta: {
-      g: "AutoRide motion generator",
+      g: "TukTukGo motion generator",
       themeTokens: palette,
       loop: animation.loop,
       sequence: animation.sequence,
@@ -528,4 +528,4 @@ writeFileSync(
   `${JSON.stringify({ palette, animations: animations.map(({ id, text, loop, sequence, timing, rive }) => ({ id, text, loop, sequence, timing, rive })) }, null, 2)}\n`,
 );
 
-console.log(`Generated ${animations.length} AutoRide motion assets in ${outDir}`);
+console.log(`Generated ${animations.length} TukTukGo motion assets in ${outDir}`);

@@ -28,7 +28,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
 import * as Location from "expo-location";
-import AutoRiderLoader from "@/components/AutoRiderLoader";
+import TukTukGoLoader from "@/components/TukTukGoLoader";
 
 const PRIMARY = "#43B8B3";
 const PRIMARY_LIGHT = "#E7F6F4";
@@ -138,7 +138,7 @@ function StatusBadge({ status }) {
 
 function buildTripStatusMessage(ride) {
   return [
-    "AutoRide trip status",
+    "TukTukGo trip status",
     `Pickup: ${ride.pickup_address}`,
     `Destination: ${ride.dest_address}`,
     ride.vehicle_number ? `Vehicle: ${ride.vehicle_number}` : null,
@@ -1442,7 +1442,7 @@ export default function PassengerHome() {
                 </View>
                 {isLocating && pickup.length === 0 ? (
                   <View style={{ marginTop: 12, alignItems: "flex-start" }}>
-                    <AutoRiderLoader
+                    <TukTukGoLoader
                       label="Detecting your location..."
                       textColor={TEXT_SECONDARY}
                     />

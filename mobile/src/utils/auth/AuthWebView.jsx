@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Platform, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useAuthModal, useAuthStore } from './store';
-import AutoRiderLoader from '@/components/AutoRiderLoader';
+import TukTukGoLoader from '@/components/TukTukGoLoader';
 
 const callbackUrl = '/api/auth/token';
 const onboardingUrl = '/onboarding';
@@ -100,11 +100,11 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
       }}
       pointerEvents="none"
     >
-      <AutoRiderLoader
+      <TukTukGoLoader
         size={76}
         color="#43B8B3"
         textColor="#586C70"
-        label={authError || 'Opening Auto Ride...'}
+        label={authError || 'Opening TukTukGo...'}
       />
     </View>
   );
@@ -167,7 +167,7 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
         <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
           <iframe
             ref={iframeRef}
-            title="Auto Ride authentication"
+            title="TukTukGo authentication"
             src={`${proxyURL}${buildFreshAuthPath(
               mode,
               mode === 'signup' && params?.role !== 'admin'

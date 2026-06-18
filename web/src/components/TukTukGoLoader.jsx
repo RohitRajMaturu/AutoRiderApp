@@ -1,6 +1,6 @@
 import { motion } from "motion/react";
 
-export default function AutoRiderLoader({ size = 56, label, tone = "light" }) {
+export default function TukTukGoLoader({ size = 56, label, tone = "light" }) {
   const captionColor = tone === "dark" ? "text-[#BFD1D3]" : "text-[#586C70]";
   const dotColor = tone === "dark" ? "bg-white" : "bg-[#43B8B3]";
 

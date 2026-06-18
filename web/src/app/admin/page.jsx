@@ -171,7 +171,7 @@ export default function AdminPage() {
   const isInitialLoading = !stats && !error;
 
   return (
-    <AdminShell title="Auto Ride Command Center" eyebrow="Admin">
+    <AdminShell title="TukTukGo Command Center" eyebrow="Admin">
       <div className="mx-auto max-w-7xl space-y-5">
         {error ? (
           <div className="rounded-lg border px-4 py-3 text-sm font-semibold" style={{ borderColor: "var(--ar-err)", background: "var(--ar-err-dim)", color: ERROR }}>

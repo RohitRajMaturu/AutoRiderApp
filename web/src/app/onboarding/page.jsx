@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import useUser from "@/utils/useUser";
-import AutoRiderLoader from "@/components/AutoRiderLoader";
+import TukTukGoLoader from "@/components/TukTukGoLoader";
 import { ConceptBackdrop } from "@/components/ConceptVisuals";
 
 function OnboardingPage() {
@@ -64,7 +64,7 @@ function OnboardingPage() {
       <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#EAF0F1] px-6 font-inter text-[#17272B]">
         <ConceptBackdrop />
         <div className="relative z-10 rounded-[24px] border border-white/80 bg-white/88 px-8 py-7 shadow-[0_22px_60px_rgba(23,39,43,0.12)] backdrop-blur">
-          <AutoRiderLoader label="Completing account setup..." />
+          <TukTukGoLoader label="Completing account setup..." />
         </div>
       </div>
     );
@@ -75,7 +75,7 @@ function OnboardingPage() {
       <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#EAF0F1] px-6 font-inter text-[#17272B]">
         <ConceptBackdrop />
         <div className="relative z-10 flex max-w-sm flex-col items-center gap-4 rounded-[24px] border border-white/80 bg-white/88 px-8 py-7 text-center shadow-[0_22px_60px_rgba(23,39,43,0.12)] backdrop-blur">
-          <AutoRiderLoader label="Setup needs attention" />
+          <TukTukGoLoader label="Setup needs attention" />
           <div className="text-sm font-semibold text-red-600">Error: {error}</div>
           <a
             href="/account/signin"

@@ -1148,7 +1148,7 @@ function AdminOpsPageContent() {
 
   return (
     <AdminShell
-      title="AutoRide Operations Console"
+      title="TukTukGo Operations Console"
       eyebrow="Admin"
       refreshText={`Refreshing in ${countdown}s`}
     >

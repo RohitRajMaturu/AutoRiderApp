@@ -611,7 +611,7 @@ export default function AdminDashboard() {
             🛺 Admin Panel
           </Text>
           <Text style={{ fontSize: 13, color: TEXT_SECONDARY, marginTop: 2 }}>
-            Auto Ride Command Center
+            TukTukGo Command Center
           </Text>
         </View>
         <View

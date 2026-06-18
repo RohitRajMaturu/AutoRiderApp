@@ -38,6 +38,34 @@ html {
   }
 }
 
+@keyframes tuktukgo-idle {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+    filter: drop-shadow(0 4px 8px rgba(23, 39, 43, 0.18));
+  }
+
+  35% {
+    transform: translateY(-2px) rotate(-1deg);
+    filter: drop-shadow(0 8px 14px rgba(23, 39, 43, 0.2));
+  }
+
+  70% {
+    transform: translateY(1px) rotate(1deg);
+  }
+}
+
+.tuktukgo-logo-mark {
+  animation: tuktukgo-idle 2.4s ease-in-out infinite;
+  transform-origin: 50% 75%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tuktukgo-logo-mark {
+    animation: none;
+  }
+}
+
 @layer base {
   input, textarea, select, button {
     @apply outline-none focus:outline-none;

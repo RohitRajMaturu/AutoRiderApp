@@ -1,7 +1,7 @@
 import React from "react";
 import { ActivityIndicator, Text, View } from "react-native";
 
-export default function AutoRiderLoader({
+export default function TukTukGoLoader({
   size = 72,
   color = "#43B8B3",
   label = "Loading",

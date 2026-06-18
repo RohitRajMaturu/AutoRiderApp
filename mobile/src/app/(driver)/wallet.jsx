@@ -278,7 +278,7 @@ export default function DriverWallet() {
                   marginTop: 6,
                 }}
               >
-                Subscription expiry is extended manually by the AutoRide admin
+                Subscription expiry is extended manually by the TukTukGo admin
                 team during the Secunderabad pilot. Payment integration is not
                 enabled in this build.
               </Text>

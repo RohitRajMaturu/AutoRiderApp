@@ -76,7 +76,7 @@ export default function AdminShell({
             AR
           </div>
           {!collapsed ? (
-            <span className="truncate text-sm font-semibold">Auto Ride</span>
+            <span className="truncate text-sm font-semibold">TukTukGo</span>
           ) : null}
         </div>
 

@@ -12,8 +12,8 @@ export default function LandingPage() {
 
         <header className="relative z-10 mx-auto flex max-w-6xl items-center justify-between px-5 py-5 sm:px-8">
           <a href="/" className="flex items-center gap-3 font-black text-white">
-            <img src="/auto-ride-icon.png" alt="" className="h-10 w-10 rounded-xl" />
-            <span className="text-lg">Auto Ride</span>
+            <img src="/tuktukGo.png" alt="" className="tuktukgo-logo-mark h-10 w-10 rounded-xl" />
+            <span className="text-lg">TukTukGo</span>
           </a>
           <a
             href="/admin-login"
@@ -31,7 +31,7 @@ export default function LandingPage() {
               Book city auto rides in seconds
             </p>
             <h1 className="text-5xl font-black leading-[1.02] tracking-normal sm:text-7xl">
-              Auto Ride
+              TukTukGo
             </h1>
             <p className="mt-5 max-w-xl text-lg font-semibold leading-8 text-white/90">
               Fast local auto bookings, live driver tracking, simple fares, and safer trips for everyday city movement.

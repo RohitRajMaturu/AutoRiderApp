@@ -488,7 +488,7 @@ export default function DriverProfile() {
             marginTop: 28,
           }}
         >
-          Auto Ride Driver Console v1.0 - India
+          TukTukGo Driver Console v1.0 - India
         </Text>
       </ScrollView>
     </View>

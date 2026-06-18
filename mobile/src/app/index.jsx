@@ -7,6 +7,7 @@ import {
   Text,
   TouchableOpacity,
   Animated,
+  Image,
   Modal,
   Pressable,
 } from "react-native";
@@ -23,11 +24,12 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import useAppStore from "../store/useAppStore";
-import AutoRiderLoader from "../components/AutoRiderLoader";
+import TukTukGoLoader from "../components/TukTukGoLoader";
 
 const SAFFRON = "#43B8B3";
 const INDIA_GREEN = "#138808";
 const DARK = "#17272B";
+const TUKTUKGO_ICON = require("../../assets/images/icon.png");
 
 function RolePickerModal({ visible, onClose, onSelect }) {
   const roles = [
@@ -214,6 +216,7 @@ export default function Index() {
   const insets = useSafeAreaInsets();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(40)).current;
+  const logoShineAnim = useRef(new Animated.Value(0)).current;
   const [showRolePicker, setShowRolePicker] = useState(false);
 
   const {
@@ -244,6 +247,20 @@ export default function Index() {
     ]).start();
   }, [fadeAnim, slideAnim]);
 
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.timing(logoShineAnim, {
+        toValue: 1,
+        duration: 3200,
+        useNativeDriver: true,
+      }),
+    );
+
+    logoShineAnim.setValue(0);
+    animation.start();
+    return () => animation.stop();
+  }, [logoShineAnim]);
+
   const { data, isLoading } = useQuery({
     queryKey: ["userProfile", auth?.user?.id || auth?.user?.email || auth?.user?.phone || "anonymous"],
     queryFn: async () => {
@@ -263,9 +280,9 @@ export default function Index() {
           backgroundColor: "#EAF0F1",
         }}
       >
-        <AutoRiderLoader
+        <TukTukGoLoader
           fullScreen
-          label="Loading Auto Ride..."
+          label="Loading TukTukGo..."
           color={SAFFRON}
         />
       </View>
@@ -346,24 +363,91 @@ export default function Index() {
             transform: [{ translateY: slideAnim }],
           }}
         >
-          <View
+          <Animated.View
             style={{
-              width: 80,
-              height: 80,
-              borderRadius: 24,
-              backgroundColor: SAFFRON,
+              width: 104,
+              height: 104,
+              borderRadius: 30,
+              backgroundColor: "#101820",
               justifyContent: "center",
               alignItems: "center",
-              marginBottom: 28,
-              shadowColor: SAFFRON,
-              shadowOffset: { width: 0, height: 8 },
-              shadowOpacity: 0.4,
-              shadowRadius: 16,
+              marginBottom: 26,
+              borderWidth: 1,
+              borderColor: "#FFFFFF18",
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 12 },
+              shadowOpacity: 0.34,
+              shadowRadius: 22,
               elevation: 12,
+              overflow: "hidden",
             }}
           >
-            <Text style={{ fontSize: 40 }}>🛺</Text>
-          </View>
+            <Image
+              source={TUKTUKGO_ICON}
+              style={{
+                width: 96,
+                height: 96,
+                borderRadius: 27,
+              }}
+              resizeMode="cover"
+            />
+            <View
+              pointerEvents="none"
+              style={{
+                position: "absolute",
+                inset: 4,
+                borderRadius: 27,
+                overflow: "hidden",
+              }}
+            >
+              <Animated.View
+                style={{
+                  position: "absolute",
+                  top: -44,
+                  left: -54,
+                  width: 34,
+                  height: 190,
+                  backgroundColor: "#FFFFFF",
+                  opacity: logoShineAnim.interpolate({
+                    inputRange: [0, 0.18, 0.34, 1],
+                    outputRange: [0, 0.32, 0, 0],
+                  }),
+                  transform: [
+                    { rotate: "24deg" },
+                    {
+                      translateX: logoShineAnim.interpolate({
+                        inputRange: [0, 0.34, 1],
+                        outputRange: [-12, 168, 168],
+                      }),
+                    },
+                  ],
+                }}
+              />
+              <Animated.View
+                style={{
+                  position: "absolute",
+                  left: 14,
+                  right: 14,
+                  bottom: 14,
+                  height: 20,
+                  borderRadius: 999,
+                  backgroundColor: "#F3B51B",
+                  opacity: logoShineAnim.interpolate({
+                    inputRange: [0, 0.45, 0.6, 0.8, 1],
+                    outputRange: [0.04, 0.04, 0.18, 0.04, 0.04],
+                  }),
+                  transform: [
+                    {
+                      scaleX: logoShineAnim.interpolate({
+                        inputRange: [0, 0.6, 1],
+                        outputRange: [0.72, 1, 0.72],
+                      }),
+                    },
+                  ],
+                }}
+              />
+            </View>
+          </Animated.View>
 
           <Text
             style={{
@@ -373,8 +457,7 @@ export default function Index() {
               letterSpacing: 0,
             }}
           >
-            Auto{"\n"}
-            <Text style={{ color: SAFFRON }}>Ride</Text>
+            <Text style={{ color: "#F3B51B" }}>Tuk</Text>TukGo
           </Text>
           <Text
             style={{

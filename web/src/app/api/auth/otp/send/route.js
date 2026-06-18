@@ -27,7 +27,7 @@ async function sendFast2SmsOtp(phone, otp) {
 
   const body = new URLSearchParams({
     route: process.env.FAST2SMS_ROUTE || process.env.FAST2SMS_OTP_ROUTE || "q",
-    message: `Your Auto Ride OTP is ${otp}. Do not share it with anyone.`,
+    message: `Your TukTukGo OTP is ${otp}. Do not share it with anyone.`,
     language: process.env.FAST2SMS_LANGUAGE || "english",
     numbers: number,
   });

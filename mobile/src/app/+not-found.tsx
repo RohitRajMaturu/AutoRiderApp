@@ -32,11 +32,11 @@ export default function NotFoundScreen() {
           <Text style={styles.kicker}>Route not found</Text>
           <Text style={styles.title}>This road is not open yet.</Text>
           <Text style={styles.subtitle}>
-            Head back to Auto Ride and continue from a known screen.
+            Head back to TukTukGo and continue from a known screen.
           </Text>
 
           <TouchableOpacity style={styles.button} onPress={goHome} activeOpacity={0.85}>
-            <Text style={styles.buttonText}>Back to Auto Ride</Text>
+            <Text style={styles.buttonText}>Back to TukTukGo</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>

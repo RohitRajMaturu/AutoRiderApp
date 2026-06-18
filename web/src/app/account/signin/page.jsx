@@ -9,7 +9,7 @@ import {
   UserRound,
 } from "lucide-react";
 import useAuth from "@/utils/useAuth";
-import AutoRiderLoader from "@/components/AutoRiderLoader";
+import TukTukGoLoader from "@/components/TukTukGoLoader";
 
 export function loader({ request }) {
   const url = new URL(request.url);
@@ -325,7 +325,7 @@ export default function SignInPage() {
             <div className="mt-6">
               {!configLoaded ? (
                 <div className="flex justify-center py-8">
-                  <AutoRiderLoader label="Loading..." />
+                  <TukTukGoLoader label="Loading..." />
                 </div>
               ) : (
                 <>
@@ -459,7 +459,7 @@ export default function SignInPage() {
                       whileTap={{ scale: 0.985 }}
                     >
                       {loading ? (
-                        <AutoRiderLoader size={32} label="Please wait" />
+                        <TukTukGoLoader size={32} label="Please wait" />
                       ) : (
                         <>
                           Continue
@@ -495,7 +495,7 @@ export default function SignInPage() {
             <div className="mt-6">
               {!configLoaded ? (
                 <div className="flex justify-center py-8">
-                  <AutoRiderLoader label="Loading..." />
+                  <TukTukGoLoader label="Loading..." />
                 </div>
               ) : (
                 <form onSubmit={onSignUp} className="space-y-3.5">
@@ -624,7 +624,7 @@ export default function SignInPage() {
                     whileTap={{ scale: 0.985 }}
                   >
                     {loading ? (
-                      <AutoRiderLoader size={32} label="Creating account" />
+                      <TukTukGoLoader size={32} label="Creating account" />
                     ) : (
                       <>
                         {isAdminSetup ? "Create Admin" : "Create Account"}

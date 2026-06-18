@@ -125,7 +125,7 @@
     },
     {
       "id": "splash-screen",
-      "text": "AutoRide",
+      "text": "TukTukGo",
       "loop": false,
       "sequence": [
         "Auto outline draws progressively.",

@@ -31,7 +31,7 @@ import { StatusBar } from "expo-status-bar";
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
 import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedView";
-import AutoRiderLoader from "@/components/AutoRiderLoader";
+import TukTukGoLoader from "@/components/TukTukGoLoader";
 import { useAuth } from "@/utils/auth/useAuth";
 
 const PRIMARY = "#43B8B3";
@@ -1227,7 +1227,7 @@ export default function DriverHome() {
       } else if (err.message === "LOCATION_PERMISSION_REQUIRED") {
         Alert.alert(
           "Location Required",
-          "Allow location access so Auto Ride can place you inside a service zone.",
+          "Allow location access so TukTukGo can place you inside a service zone.",
         );
       } else if (err.message === "NO_SERVICE_ZONE") {
         Alert.alert(
@@ -1285,7 +1285,7 @@ export default function DriverHome() {
           backgroundColor: BG,
         }}
       >
-        <AutoRiderLoader
+        <TukTukGoLoader
           label="Loading dashboard..."
           color={PRIMARY}
           textColor={TEXT_SECONDARY}
