@@ -1,10 +1,10 @@
-# AutoRide Knowledge Map
+# TukTukGo Knowledge Map
 
 Use this document as context for Claude, Codex, or another implementation agent. It describes the current repository shape, active architecture, verified backend behavior, and the next useful implementation areas.
 
 ## Project Identity
 
-AutoRide is an India-focused auto-rickshaw ride connection platform.
+TukTukGo is an India-focused auto-rickshaw ride connection platform.
 
 Core actors:
 - Passenger: request rides, choose pickup/drop, adjust pickup on a map, cancel rides, view history.
@@ -22,21 +22,40 @@ Primary stack:
 
 ```text
 .
-├── mobile/
-│   ├── src/app/                  # Expo Router screens and role route groups
-│   ├── src/store/useAppStore.js  # Shared theme, active ride, test mode state
-│   ├── src/utils/auth/           # Mobile auth modal, token storage, hooks
-│   └── package.json
-├── web/
-│   ├── db/migrations/            # PostgreSQL schema migrations
-│   ├── scripts/                  # DB check/migration helper scripts
-│   ├── src/auth.js               # Auth.js JWT cookie/session resolver
-│   ├── src/app/api/              # Backend/server route handlers
-│   ├── src/app/account/          # Sign in/sign up/logout pages
-│   └── package.json
-├── README.md
-├── PRODUCTION_INTEGRATIONS.md
-└── run-local.ps1
+|-- mobile/
+|   |-- assets/images/icon.png             # TukTukGo mobile icon/splash artwork
+|   |-- assets/animations/auto-motion/     # Referenced generated motion JSON
+|   |-- src/app/                           # Expo Router screens and role route groups
+|   |-- src/store/useAppStore.js           # Shared theme, active ride, test mode state
+|   |-- src/utils/auth/                    # Mobile auth modal, token storage, hooks
+|   `-- package.json
+|-- web/
+|   |-- public/tuktukGo.png                # TukTukGo web logo artwork
+|   |-- public/favicon.png                 # Browser favicon from TukTukGo icon
+|   |-- public/images/welcome-auto-rickshaw-transparent.png
+|   |-- db/migrations/                     # PostgreSQL schema migrations
+|   |-- scripts/                           # DB check/migration helper scripts
+|   |-- src/auth.js                        # Auth.js JWT cookie/session resolver
+|   |-- src/app/api/                       # Backend/server route handlers
+|   |-- src/app/account/                   # Sign in/sign up/logout pages
+|   `-- package.json
+|-- README.md
+|-- PRODUCTION_INTEGRATIONS.md
+`-- run-local.ps1
+```
+
+## Architecture Graph
+
+```mermaid
+flowchart LR
+  Mobile[Expo mobile app] --> AuthWeb[WebView auth pages]
+  Mobile --> Api[React Router API routes]
+  Web[Web landing and admin UI] --> Api
+  Api --> Db[(PostgreSQL)]
+  Api --> Ola[Ola Maps REST]
+  Api --> Worker[Maintenance worker]
+  Mobile --> Motion[React Native motion components]
+  Motion --> Json[auto-motion JSON assets]
 ```
 
 ## Runtime And Verification
@@ -96,9 +115,12 @@ Routing is Expo Router based:
 - `mobile/src/app/(passenger)/`: passenger home/profile/rides tabs.
 - `mobile/src/app/(driver)/`: driver dashboard/profile/wallet tabs.
 - `mobile/src/app/(admin)/`: admin dashboard/drivers/rides tabs.
-- `mobile/src/components/motion/`: reusable AutoRide motion components for loaders, success states, empty states, button loaders, and press micro-interactions.
+- `mobile/src/components/motion/`: reusable TukTukGo motion components for loaders, success states, empty states, button loaders, and press micro-interactions.
 - `mobile/assets/animations/auto-motion/`: generated vector Lottie JSON assets for ride lifecycle, GPS, payment, empty, button, and splash states.
 - `docs/MOTION_SYSTEM.md`: storyboard, timing, Lottie/Rive handoff, theme, dimensions, performance, and implementation guide for the animation system.
+- `mobile/assets/images/icon.png`: TukTukGo app icon used by Expo icon, adaptive icon, splash image, mobile not-found screen, and the mobile landing brand tile.
+- `web/public/tuktukGo.png`: web landing brand icon; `web/public/favicon.png` is the browser favicon copy.
+- `web/public/images/welcome-auto-rickshaw-transparent.png`: separate welcome/auth illustration; do not replace it with the app icon.
 
 Auth and API behavior:
 - Mobile stores auth as `{ jwt, user }` in SecureStore under `auto-ride-auth`.
@@ -116,6 +138,8 @@ Motion system behavior:
 - `mobile/scripts/generate-auto-motion-assets.mjs` regenerates all compact Lottie JSON assets from the shared auto-rickshaw palette.
 - Generated Lottie files stay below 100KB each where possible and use flat vector layers with no embedded raster images.
 - Rive integration is documented as an authoring/export handoff in `docs/MOTION_SYSTEM.md`; no `.riv` binary is checked in.
+- The brand PNGs are static images. Web adds a CSS idle treatment to the landing icon. Mobile landing keeps the icon fixed and applies an overlay light-sweep animation inside the image tile.
+- The remaining files in `mobile/assets/animations/auto-motion/` are still referenced by `AUTO_MOTION_LOTTIE` in `mobile/src/components/motion/AutoMotion.jsx`; do not remove them without changing that export and verifying runtime screens.
 
 ## Backend/API Architecture
 

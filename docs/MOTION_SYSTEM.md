@@ -1,6 +1,6 @@
-# AutoRide Motion System
+# TukTukGo Motion System
 
-This is the production motion language for the AutoRide mobile app. It uses authentic Indian auto-rickshaw colors, flat vector geometry, compact timelines, and token-driven colors so the same assets can support light and dark themes.
+This is the production motion language for the TukTukGo mobile app. It uses authentic Indian auto-rickshaw colors, flat vector geometry, compact timelines, and token-driven colors so the same assets can support light and dark themes.
 
 ## Design Tokens
 

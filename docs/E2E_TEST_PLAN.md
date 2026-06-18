@@ -1,4 +1,4 @@
-# AutoRide Real-Device E2E Test Plan
+# TukTukGo Real-Device E2E Test Plan
 
 Run this checklist before every production release. Use one admin account, one
 driver account, and one passenger account on real devices.

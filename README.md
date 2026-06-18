@@ -1,4 +1,4 @@
-# AutoConnect - Ride Connection Platform
+# TukTukGo - Ride Connection Platform
 
 A lightweight auto-rickshaw ride connection platform for India.
 
@@ -129,9 +129,26 @@ npm run db:check
 
 Focused API tests cover auth resolution, ride authorization conflicts, admin driver validation, and nearby driver filtering.
 
+## Brand, Icons, And Motion
+
+TukTukGo uses a shared auto-rickshaw brand icon across web and mobile:
+
+- Web landing logo source: `web/public/tuktukGo.png`.
+- Web browser favicon: `web/public/favicon.png`.
+- Mobile Expo icon, adaptive icon foreground, splash image, and web favicon: `mobile/assets/images/icon.png`.
+- The legacy `web/public/auto-ride-icon.png` and duplicate temporary icon copies were removed.
+- The accidental saved Gmail export under `web/public/images/TukTukGo.html` / `TukTukGo_files/` was removed.
+- `web/public/images/welcome-auto-rickshaw-transparent.png` remains a separate welcome/auth rickshaw illustration and should not be replaced by the app icon.
+
+The checked-in `tuktukGo.png` file is a static PNG, not an APNG/GIF/WebP animation. Motion is applied in the app layer:
+
+- Web landing header applies a subtle CSS idle animation via `tuktukgo-logo-mark` in `web/src/app/global.css`.
+- Mobile landing uses the same icon image with a fixed-position polished light sweep in `mobile/src/app/index.jsx`.
+- Native launcher icons and Expo splash images remain static, as expected for platform icon assets.
+
 ## Motion And Animation System
 
-AutoRide now has a standalone premium motion system for Indian auto-rickshaw booking states:
+TukTukGo has a standalone premium motion system for Indian auto-rickshaw booking states:
 
 - Generated Lottie JSON assets: `mobile/assets/animations/auto-motion`.
 - Asset generator: `mobile/scripts/generate-auto-motion-assets.mjs`.
@@ -149,6 +166,26 @@ The shipped runtime components use existing `react-native-svg` and React Native
 `Animated` so current passenger, driver, admin, and auth flows do not require new
 native packages. Lottie and Rive integration examples are documented for a later
 renderer adoption step.
+
+Do not remove the remaining files under `mobile/assets/animations/auto-motion/`
+without updating `mobile/src/components/motion/AutoMotion.jsx`; they are still
+referenced by the exported `AUTO_MOTION_LOTTIE` map. The unused legacy
+`mobile/assets/animations/auto-rickshaw-loader.json` file was removed during the
+TukTukGo cleanup.
+
+## Runtime Graph
+
+```mermaid
+flowchart LR
+  Mobile[Expo mobile app] --> AuthWeb[WebView auth pages]
+  Mobile --> Api[React Router API routes]
+  WebLanding[Web landing/admin UI] --> Api
+  Api --> Postgres[(PostgreSQL)]
+  Api --> Ola[Ola Maps REST]
+  Api --> Maintenance[Maintenance worker]
+  Mobile --> Motion[React Native motion components]
+  Motion --> MotionAssets[auto-motion JSON assets]
+```
 
 ## Single VPS Backend
 
@@ -185,8 +222,12 @@ Pending items:
 
 ## Project Structure
 - `/mobile/src`: Expo application code.
+- `/mobile/assets/images/icon.png`: TukTukGo mobile icon/splash artwork.
+- `/mobile/assets/animations/auto-motion`: referenced generated motion assets.
 - `/web/src/app/api`: Backend server routes.
 - `/web/src/app/account`: Web-based authentication pages used by the mobile app.
+- `/web/public/tuktukGo.png`: TukTukGo web logo artwork.
+- `/web/public/favicon.png`: browser favicon generated from the TukTukGo icon.
 - `/web/db/migrations`: PostgreSQL schema migrations.
 - `/web/scripts`: Database check/migration/maintenance helper scripts.
 
