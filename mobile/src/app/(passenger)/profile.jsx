@@ -14,6 +14,7 @@ import {
 } from "lucide-react-native";
 import { StatusBar } from "expo-status-bar";
 import useAppStore from "@/store/useAppStore";
+import { ICON } from "@/theme/iconScale";
 
 const PRIMARY = "#43B8B3";
 const PRIMARY_LIGHT = "#E7F6F4";
@@ -57,7 +58,7 @@ function MenuItem({
           alignItems: "center",
         }}
       >
-        <Icon size={18} color={color} strokeWidth={2} />
+        <Icon size={ICON.sm} color={color} />
       </View>
       <View style={{ flex: 1 }}>
         <Text style={{ fontSize: 14, fontWeight: "600", color: TEXT }}>
@@ -69,7 +70,7 @@ function MenuItem({
           </Text>
         )}
       </View>
-      <ChevronRight size={16} color={TEXT_MUTED} />
+      <ChevronRight size={ICON.sm} color={TEXT_MUTED} />
     </TouchableOpacity>
   );
 }
@@ -174,7 +175,7 @@ export default function PassengerProfile() {
             }}
             activeOpacity={0.8}
           >
-            <FlaskConical size={16} color="#B88700" />
+            <FlaskConical size={ICON.sm} color="#B88700" />
             <Text
               style={{
                 flex: 1,
@@ -423,7 +424,7 @@ export default function PassengerProfile() {
                   alignItems: "center",
                 }}
               >
-                <Phone size={18} color={TEXT_SECONDARY} />
+                <Phone size={ICON.sm} color={TEXT_SECONDARY} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text
@@ -482,7 +483,7 @@ export default function PassengerProfile() {
               }}
               activeOpacity={0.8}
             >
-              <FlaskConical size={18} color="#B88700" />
+              <FlaskConical size={ICON.sm} color="#B88700" />
               <Text
                 style={{ color: "#B88700", fontSize: 15, fontWeight: "700" }}
               >
@@ -514,7 +515,7 @@ export default function PassengerProfile() {
               }}
               activeOpacity={0.8}
             >
-              <LogOut size={18} color="#DC2626" />
+              <LogOut size={ICON.sm} color="#DC2626" />
               <Text
                 style={{ color: "#DC2626", fontSize: 15, fontWeight: "700" }}
               >

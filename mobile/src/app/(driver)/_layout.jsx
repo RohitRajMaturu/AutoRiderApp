@@ -1,5 +1,6 @@
 import { Tabs } from "expo-router";
 import { Home, Wallet, User } from "lucide-react-native";
+import { ICON } from "@/theme/iconScale";
 
 export default function DriverLayout() {
   return (
@@ -29,8 +30,8 @@ export default function DriverLayout() {
           tabBarIcon: ({ color }) => (
             <Home
               color={color}
-              size={22}
-              strokeWidth={color === "#43B8B3" ? 2.5 : 1.8}
+              size={ICON.lg}
+              strokeWidth={color === "#43B8B3" ? 2.5 : 1.5}
             />
           ),
         }}
@@ -42,8 +43,8 @@ export default function DriverLayout() {
           tabBarIcon: ({ color }) => (
             <Wallet
               color={color}
-              size={22}
-              strokeWidth={color === "#43B8B3" ? 2.5 : 1.8}
+              size={ICON.lg}
+              strokeWidth={color === "#43B8B3" ? 2.5 : 1.5}
             />
           ),
         }}
@@ -55,8 +56,8 @@ export default function DriverLayout() {
           tabBarIcon: ({ color }) => (
             <User
               color={color}
-              size={22}
-              strokeWidth={color === "#43B8B3" ? 2.5 : 1.8}
+              size={ICON.lg}
+              strokeWidth={color === "#43B8B3" ? 2.5 : 1.5}
             />
           ),
         }}

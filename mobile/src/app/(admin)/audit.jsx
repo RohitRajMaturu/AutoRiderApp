@@ -10,6 +10,7 @@ import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { FileText } from "lucide-react-native";
+import { ICON } from "@/theme/iconScale";
 
 const PRIMARY = "#F5A623";
 const BG = "#0D0F12";
@@ -69,7 +70,7 @@ export default function AdminAudit() {
         >
           {logs.length === 0 ? (
             <View style={{ alignItems: "center", paddingVertical: 50 }}>
-              <FileText size={36} color={TEXT_SECONDARY} />
+              <FileText size={ICON.xl} color={TEXT_SECONDARY} />
               <Text style={{ color: TEXT_SECONDARY, marginTop: 10 }}>
                 No audit entries yet
               </Text>

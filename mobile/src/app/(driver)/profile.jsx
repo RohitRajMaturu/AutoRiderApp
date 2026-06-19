@@ -16,6 +16,7 @@ import {
 } from "lucide-react-native";
 import { StatusBar } from "expo-status-bar";
 import useAppStore from "@/store/useAppStore";
+import { ICON } from "@/theme/iconScale";
 
 const PRIMARY = "#43B8B3";
 const PRIMARY_LIGHT = "#E7F6F4";
@@ -62,7 +63,7 @@ function MenuItem({
           alignItems: "center",
         }}
       >
-        <Icon size={18} color={color} strokeWidth={2} />
+        <Icon size={ICON.sm} color={color} />
       </View>
       <View style={{ flex: 1 }}>
         <Text style={{ fontSize: 14, fontWeight: "600", color: TEXT }}>
@@ -74,7 +75,7 @@ function MenuItem({
           </Text>
         )}
       </View>
-      <ChevronRight size={16} color={TEXT_MUTED} />
+      <ChevronRight size={ICON.sm} color={TEXT_MUTED} />
     </TouchableOpacity>
   );
 }
@@ -178,7 +179,7 @@ export default function DriverProfile() {
             }}
             activeOpacity={0.8}
           >
-            <FlaskConical size={16} color="#B88700" />
+            <FlaskConical size={ICON.sm} color="#B88700" />
             <Text
               style={{
                 flex: 1,
@@ -268,7 +269,7 @@ export default function DriverProfile() {
               backgroundColor: "#FFFFFF15",
             }}
           >
-            <Car size={14} color={PRIMARY} />
+            <Car size={ICON.xs} color={PRIMARY} />
             <Text style={{ fontSize: 12, fontWeight: "700", color: "#fff" }}>
               {testMode ? "Test Vehicle" : driver?.vehicle_number || "Driver"}
             </Text>
@@ -481,7 +482,7 @@ export default function DriverProfile() {
                       alignItems: "center",
                     }}
                   >
-                    <item.icon size={18} color={TEXT_SECONDARY} />
+                    <item.icon size={ICON.sm} color={TEXT_SECONDARY} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text
@@ -556,7 +557,7 @@ export default function DriverProfile() {
               }}
               activeOpacity={0.8}
             >
-              <FlaskConical size={18} color="#B88700" />
+              <FlaskConical size={ICON.sm} color="#B88700" />
               <Text
                 style={{ color: "#B88700", fontSize: 15, fontWeight: "700" }}
               >
@@ -588,7 +589,7 @@ export default function DriverProfile() {
               }}
               activeOpacity={0.8}
             >
-              <LogOut size={18} color="#DC2626" />
+              <LogOut size={ICON.sm} color="#DC2626" />
               <Text
                 style={{ color: "#DC2626", fontSize: 15, fontWeight: "700" }}
               >

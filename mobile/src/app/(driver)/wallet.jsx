@@ -14,6 +14,7 @@ import {
 } from "lucide-react-native";
 import { StatusBar } from "expo-status-bar";
 import { useAuth } from "@/utils/auth/useAuth";
+import { ICON } from "@/theme/iconScale";
 
 const PRIMARY = "#43B8B3";
 const PRIMARY_LIGHT = "#E7F6F4";
@@ -243,7 +244,7 @@ export default function DriverWallet() {
             </View>
 
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <Calendar size={14} color={isActive ? "#586C70" : "#991B1B"} />
+              <Calendar size={ICON.xs} color={isActive ? "#586C70" : "#991B1B"} />
               <Text
                 style={{
                   fontSize: 13,
@@ -278,7 +279,7 @@ export default function DriverWallet() {
                 alignItems: "center",
               }}
             >
-              <Info size={20} color={PRIMARY} />
+              <Info size={ICON.md} color={PRIMARY} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 14, fontWeight: "700", color: TEXT }}>
@@ -342,7 +343,7 @@ export default function DriverWallet() {
                     marginBottom: 10,
                   }}
                 >
-                  <IndianRupee size={16} color={PRIMARY} />
+                  <IndianRupee size={ICON.sm} color={PRIMARY} />
                 </View>
                 <Text
                   style={{
@@ -473,9 +474,8 @@ export default function DriverWallet() {
                   }}
                 >
                   <benefit.icon
-                    size={22}
+                    size={ICON.lg}
                     color={benefit.color}
-                    strokeWidth={2}
                   />
                 </View>
                 <View style={{ flex: 1 }}>
@@ -494,7 +494,7 @@ export default function DriverWallet() {
                     {benefit.desc}
                   </Text>
                 </View>
-                <CheckCircle2 size={18} color={SUCCESS} />
+                <CheckCircle2 size={ICON.sm} color={SUCCESS} />
               </View>
             ))}
           </View>

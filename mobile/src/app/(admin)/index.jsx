@@ -33,6 +33,7 @@ import Svg, {
 import { useAuth } from "@/utils/auth/useAuth";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { ICON } from "@/theme/iconScale";
 import useAppStore from "@/store/useAppStore";
 
 const PRIMARY = "#F5A623";
@@ -648,7 +649,7 @@ export default function AdminDashboard() {
           }}
           activeOpacity={0.8}
         >
-          <FlaskConical size={16} color="#B88700" />
+          <FlaskConical size={ICON.sm} color="#B88700" />
           <Text
             style={{
               flex: 1,
@@ -819,7 +820,7 @@ export default function AdminDashboard() {
                   marginBottom: 8,
                 }}
               >
-                <TrendingUp size={14} color={PRIMARY} />
+                <TrendingUp size={ICON.xs} color={PRIMARY} />
                 <SectionLabel>Ride Health</SectionLabel>
               </View>
               <DonutChart segments={healthSegments} size={112} />
@@ -867,7 +868,7 @@ export default function AdminDashboard() {
                   marginBottom: 12,
                 }}
               >
-                <AlertTriangle size={14} color={ERROR} />
+                <AlertTriangle size={ICON.xs} color={ERROR} />
                 <SectionLabel>Why Rides Cancel</SectionLabel>
               </View>
               {cancellationReasons.length === 0 ? (
@@ -945,7 +946,7 @@ export default function AdminDashboard() {
               }}
             >
               <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                <Trophy size={15} color={GOLD} />
+                <Trophy size={ICON.sm} color={GOLD} />
                 <SectionLabel>Top Drivers - 30 Days</SectionLabel>
               </View>
               <Text style={{ fontSize: 11, fontWeight: "800", color: PRIMARY }}>
@@ -1062,7 +1063,7 @@ export default function AdminDashboard() {
           >
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                <IndianRupee size={15} color={PURPLE} />
+                <IndianRupee size={ICON.sm} color={PURPLE} />
                 <Text
                   style={{ fontSize: 12, fontWeight: "800", color: TEXT_SECONDARY }}
                 >
@@ -1182,7 +1183,7 @@ export default function AdminDashboard() {
                         alignItems: "center",
                       }}
                     >
-                      <Car size={18} color={SUCCESS} />
+                      <Car size={ICON.md} color={SUCCESS} />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text
@@ -1255,7 +1256,7 @@ export default function AdminDashboard() {
               }}
               activeOpacity={0.8}
             >
-              <FlaskConical size={18} color="#B88700" />
+              <FlaskConical size={ICON.sm} color="#B88700" />
               <Text
                 style={{ color: "#B88700", fontSize: 14, fontWeight: "700" }}
               >

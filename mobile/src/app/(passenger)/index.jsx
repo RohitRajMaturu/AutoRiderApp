@@ -30,6 +30,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
 import * as Location from "expo-location";
 import TukTukGoLoader from "@/components/TukTukGoLoader";
+import { ICON } from "@/theme/iconScale";
 
 const TUKTUKGO_ICON = require("../../../assets/images/icon.png");
 const PRIMARY = "#43B8B3";
@@ -651,7 +652,7 @@ export default function PassengerHome() {
             }}
           >
             <MapPin
-              size={16}
+              size={ICON.sm}
               color={place.isCurrentLocation ? PRIMARY : TEXT_SECONDARY}
             />
             <View style={{ flex: 1 }}>
@@ -806,10 +807,10 @@ export default function PassengerHome() {
                     <Animated.View
                       style={{ transform: [{ scale: pulseAnim }] }}
                     >
-                      <Clock3 size={20} color="#B88700" />
+                      <Clock3 size={ICON.md} color="#B88700" />
                     </Animated.View>
                   ) : (
-                    <CheckCircle2 size={20} color={PRIMARY} />
+                    <CheckCircle2 size={ICON.md} color={PRIMARY} />
                   )}
                   <Text
                     style={{ fontSize: 15, fontWeight: "700", color: TEXT }}
@@ -898,7 +899,7 @@ export default function PassengerHome() {
                       gap: 5,
                     }}
                   >
-                    <Navigation size={15} color="#43B8B3" />
+                    <Navigation size={ICON.sm} color="#43B8B3" />
                     <Text style={{ fontSize: 11, fontWeight: "700", color: "#17272B" }}>
                       Navigate
                     </Text>
@@ -1017,7 +1018,7 @@ export default function PassengerHome() {
                               style={{ width: 44, height: 44 }}
                             />
                           ) : (
-                            <Car size={22} color="#fff" />
+                            <Car size={ICON.lg} color="#fff" />
                           )}
                         </View>
                         <View>
@@ -1049,7 +1050,7 @@ export default function PassengerHome() {
                             alignItems: "center",
                           }}
                         >
-                          <Phone size={20} color="#fff" />
+                          <Phone size={ICON.md} color="#fff" />
                         </TouchableOpacity>
                       )}
                     </View>
@@ -1111,7 +1112,7 @@ export default function PassengerHome() {
                           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         >
                           <Star
-                            size={28}
+                            size={ICON.xl}
                             color={value <= ratingValue ? "#F3B51B" : TEXT_MUTED}
                             fill={value <= ratingValue ? "#F3B51B" : "none"}
                           />
@@ -1263,7 +1264,7 @@ export default function PassengerHome() {
                       alignItems: "center",
                     }}
                   >
-                    <MapPin size={18} color={PRIMARY} />
+                    <MapPin size={ICON.md} color={PRIMARY} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text
@@ -1309,7 +1310,7 @@ export default function PassengerHome() {
                       }}
                       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     >
-                      <X size={16} color={TEXT_MUTED} />
+                      <X size={ICON.sm} color={TEXT_MUTED} />
                     </TouchableOpacity>
                   )}
                 </View>
@@ -1349,7 +1350,7 @@ export default function PassengerHome() {
                       alignItems: "center",
                     }}
                   >
-                    <Navigation2 size={18} color={TEXT_SECONDARY} />
+                    <Navigation2 size={ICON.md} color={TEXT_SECONDARY} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text
@@ -1394,7 +1395,7 @@ export default function PassengerHome() {
                       }}
                       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     >
-                      <X size={16} color={TEXT_MUTED} />
+                      <X size={ICON.sm} color={TEXT_MUTED} />
                     </TouchableOpacity>
                   )}
                 </View>
@@ -1484,7 +1485,7 @@ export default function PassengerHome() {
               >
                 {requestRide.isPending ? "Requesting..." : "Request Auto"}
               </Text>
-              {!requestRide.isPending && <ArrowRight size={18} color="#fff" />}
+              {!requestRide.isPending && <ArrowRight size={ICON.md} color="#fff" />}
             </TouchableOpacity>
           </View>
         )}

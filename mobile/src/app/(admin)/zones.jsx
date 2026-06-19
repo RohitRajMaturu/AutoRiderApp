@@ -26,6 +26,7 @@ import {
   Trash2,
   X,
 } from "lucide-react-native";
+import { ICON } from "@/theme/iconScale";
 
 const PRIMARY = "#F5A623";
 const BG = "#0D0F12";
@@ -383,7 +384,7 @@ export default function AdminZones() {
           }}
         >
           <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-            <Plus size={18} color={PRIMARY} />
+            <Plus size={ICON.md} color={PRIMARY} />
             <Text style={{ fontSize: 15, fontWeight: "800", color: TEXT }}>
               Create Service Zone
             </Text>
@@ -455,7 +456,7 @@ export default function AdminZones() {
                         paddingVertical: 10,
                       }}
                     >
-                      <Search size={16} color={TEXT_SECONDARY} />
+                      <Search size={ICON.sm} color={TEXT_SECONDARY} />
                       <TextInput
                         placeholder="Search area, locality, landmark..."
                         placeholderTextColor={TEXT_SECONDARY}
@@ -473,7 +474,7 @@ export default function AdminZones() {
                             setSearchPin(null);
                           }}
                         >
-                          <X size={16} color={TEXT_SECONDARY} />
+                          <X size={ICON.sm} color={TEXT_SECONDARY} />
                         </TouchableOpacity>
                       )}
                       <TouchableOpacity
@@ -491,7 +492,7 @@ export default function AdminZones() {
                         {isSearchingArea ? (
                           <ActivityIndicator size="small" color="#fff" />
                         ) : (
-                          <LocateFixed size={16} color="#fff" />
+                          <LocateFixed size={ICON.sm} color="#fff" />
                         )}
                       </TouchableOpacity>
                     </View>
@@ -703,7 +704,7 @@ export default function AdminZones() {
               paddingVertical: 10,
             }}
           >
-            <Search size={16} color={TEXT_SECONDARY} />
+            <Search size={ICON.sm} color={TEXT_SECONDARY} />
             <TextInput
               placeholder="Search zones"
               placeholderTextColor={TEXT_SECONDARY}
@@ -721,7 +722,7 @@ export default function AdminZones() {
                   setZonePage(1);
                 }}
               >
-                <X size={16} color={TEXT_SECONDARY} />
+                <X size={ICON.sm} color={TEXT_SECONDARY} />
               </TouchableOpacity>
             )}
           </View>
@@ -768,7 +769,7 @@ export default function AdminZones() {
           <ActivityIndicator color={PRIMARY} />
         ) : zones.length === 0 ? (
           <View style={{ alignItems: "center", paddingVertical: 40 }}>
-            <Map size={36} color={TEXT_SECONDARY} />
+            <Map size={ICON.xl} color={TEXT_SECONDARY} />
             <Text style={{ color: TEXT_SECONDARY, marginTop: 10 }}>
               No zones yet
             </Text>
@@ -804,9 +805,9 @@ export default function AdminZones() {
                 style={{ padding: 8 }}
               >
                 {zone.is_active ? (
-                  <ToggleRight size={30} color={SUCCESS} />
+                  <ToggleRight size={ICON.xl} color={SUCCESS} />
                 ) : (
-                  <ToggleLeft size={30} color={TEXT_SECONDARY} />
+                  <ToggleLeft size={ICON.xl} color={TEXT_SECONDARY} />
                 )}
               </TouchableOpacity>
               <TouchableOpacity
@@ -823,7 +824,7 @@ export default function AdminZones() {
                   borderColor: "#FECACA",
                 }}
               >
-                <Trash2 size={18} color={ERROR} />
+                <Trash2 size={ICON.md} color={ERROR} />
               </TouchableOpacity>
             </View>
           ))
@@ -855,7 +856,7 @@ export default function AdminZones() {
                 opacity: zonePage <= 1 ? 0.6 : 1,
               }}
             >
-              <ChevronLeft size={18} color={zonePage <= 1 ? TEXT_SECONDARY : "#fff"} />
+              <ChevronLeft size={ICON.md} color={zonePage <= 1 ? TEXT_SECONDARY : "#fff"} />
             </TouchableOpacity>
             <Text style={{ color: TEXT_SECONDARY, fontSize: 12, fontWeight: "800" }}>
               Page {pagination.page} of {pagination.totalPages}
@@ -876,7 +877,7 @@ export default function AdminZones() {
               }}
             >
               <ChevronRight
-                size={18}
+                size={ICON.md}
                 color={zonePage >= pagination.totalPages ? TEXT_SECONDARY : "#fff"}
               />
             </TouchableOpacity>

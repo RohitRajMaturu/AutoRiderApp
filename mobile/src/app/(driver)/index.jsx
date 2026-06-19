@@ -34,6 +34,7 @@ import * as ImagePicker from "expo-image-picker";
 import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedView";
 import TukTukGoLoader from "@/components/TukTukGoLoader";
 import { useAuth } from "@/utils/auth/useAuth";
+import { ICON } from "@/theme/iconScale";
 
 const TUKTUKGO_ICON = require("../../../assets/images/icon.png");
 const PRIMARY = "#43B8B3";
@@ -235,7 +236,7 @@ function RegistrationScreen() {
                 backgroundColor: SURFACE,
               }}
             >
-              <ImageIcon size={30} color={TEXT_MUTED} />
+              <ImageIcon size={ICON.xl} color={TEXT_MUTED} />
               <Text
                 style={{
                   marginTop: 8,
@@ -267,7 +268,7 @@ function RegistrationScreen() {
                 opacity: isUploading ? 0.6 : 1,
               }}
             >
-              <Camera size={17} color={PRIMARY_DARK} />
+              <Camera size={ICON.sm} color={PRIMARY_DARK} />
               <Text style={{ color: PRIMARY_DARK, fontSize: 13, fontWeight: "700" }}>
                 {isUploading ? "Uploading..." : "Camera"}
               </Text>
@@ -290,7 +291,7 @@ function RegistrationScreen() {
                 opacity: isUploading ? 0.6 : 1,
               }}
             >
-              <ImageIcon size={17} color={PRIMARY_DARK} />
+              <ImageIcon size={ICON.sm} color={PRIMARY_DARK} />
               <Text style={{ color: PRIMARY_DARK, fontSize: 13, fontWeight: "700" }}>
                 Gallery
               </Text>
@@ -714,7 +715,7 @@ function PendingScreen() {
           marginBottom: 24,
         }}
       >
-        <Clock size={48} color="#B88700" strokeWidth={1.5} />
+        <Clock size={ICON.xxl} color="#B88700" />
       </View>
       <Text
         style={{
@@ -991,7 +992,7 @@ function ActiveRideCard({ ride, onComplete, isCompleting }) {
                 marginTop: 2,
               }}
             >
-              <MapPin size={16} color={PRIMARY} />
+              <MapPin size={ICON.sm} color={PRIMARY} />
             </View>
             <View style={{ flex: 1 }}>
               <Text
@@ -1039,7 +1040,7 @@ function ActiveRideCard({ ride, onComplete, isCompleting }) {
               backgroundColor: PRIMARY_LIGHT,
             }}
           >
-            <Navigation size={15} color={PRIMARY} />
+            <Navigation size={ICON.sm} color={PRIMARY} />
             <Text style={{ fontSize: 13, fontWeight: "700", color: PRIMARY }}>
               Navigate to Pickup
             </Text>
@@ -1058,7 +1059,7 @@ function ActiveRideCard({ ride, onComplete, isCompleting }) {
                 marginTop: 2,
               }}
             >
-              <MapPin size={16} color="#647678" />
+              <MapPin size={ICON.sm} color="#647678" />
             </View>
             <View style={{ flex: 1 }}>
               <Text
@@ -1102,7 +1103,7 @@ function ActiveRideCard({ ride, onComplete, isCompleting }) {
               }}
               activeOpacity={0.85}
             >
-              <Phone size={18} color="#fff" />
+              <Phone size={ICON.md} color="#fff" />
               <Text style={{ color: "#fff", fontSize: 14, fontWeight: "700" }}>
                 Call
               </Text>
@@ -1528,9 +1529,9 @@ export default function DriverHome() {
                 }}
               >
                 {driver.is_online ? (
-                  <Wifi size={17} color={SUCCESS} />
+                  <Wifi size={ICON.md} color={SUCCESS} />
                 ) : (
-                  <WifiOff size={17} color={TEXT_MUTED} />
+                  <WifiOff size={ICON.md} color={TEXT_MUTED} />
                 )}
               </Animated.View>
             </Animated.View>
@@ -1561,7 +1562,7 @@ export default function DriverHome() {
               alignItems: "center",
             }}
           >
-            <IndianRupee size={18} color={PRIMARY_DARK} />
+            <IndianRupee size={ICON.md} color={PRIMARY_DARK} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 11, color: TEXT_MUTED, fontWeight: "700" }}>

@@ -1,6 +1,7 @@
 import { Tabs } from "expo-router";
 import { BarChart3, FileText, Map, Users, Route } from "lucide-react-native";
 import { useTheme } from "@/theme/ThemeContext";
+import { ICON } from "@/theme/iconScale";
 
 export default function AdminLayout() {
   const theme = useTheme();
@@ -34,8 +35,8 @@ export default function AdminLayout() {
           tabBarIcon: ({ color }) => (
             <BarChart3
               color={color}
-              size={22}
-              strokeWidth={color === active ? 2.5 : 1.8}
+              size={ICON.lg}
+              strokeWidth={color === active ? 2.5 : 1.5}
             />
           ),
         }}
@@ -47,8 +48,8 @@ export default function AdminLayout() {
           tabBarIcon: ({ color }) => (
             <Users
               color={color}
-              size={22}
-              strokeWidth={color === active ? 2.5 : 1.8}
+              size={ICON.lg}
+              strokeWidth={color === active ? 2.5 : 1.5}
             />
           ),
         }}
@@ -60,8 +61,8 @@ export default function AdminLayout() {
           tabBarIcon: ({ color }) => (
             <Route
               color={color}
-              size={22}
-              strokeWidth={color === active ? 2.5 : 1.8}
+              size={ICON.lg}
+              strokeWidth={color === active ? 2.5 : 1.5}
             />
           ),
         }}
@@ -73,8 +74,8 @@ export default function AdminLayout() {
           tabBarIcon: ({ color }) => (
             <Map
               color={color}
-              size={22}
-              strokeWidth={color === active ? 2.5 : 1.8}
+              size={ICON.lg}
+              strokeWidth={color === active ? 2.5 : 1.5}
             />
           ),
         }}
@@ -86,8 +87,8 @@ export default function AdminLayout() {
           tabBarIcon: ({ color }) => (
             <FileText
               color={color}
-              size={22}
-              strokeWidth={color === active ? 2.5 : 1.8}
+              size={ICON.lg}
+              strokeWidth={color === active ? 2.5 : 1.5}
             />
           ),
         }}

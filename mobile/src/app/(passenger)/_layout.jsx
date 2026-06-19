@@ -1,5 +1,6 @@
 import { Tabs } from "expo-router";
 import { Home, Clock, User } from "lucide-react-native";
+import { ICON } from "@/theme/iconScale";
 
 export default function PassengerLayout() {
   return (
@@ -26,11 +27,11 @@ export default function PassengerLayout() {
         name="index"
         options={{
           title: "Home",
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color }) => (
             <Home
               color={color}
-              size={22}
-              strokeWidth={color === "#43B8B3" ? 2.5 : 1.8}
+              size={ICON.lg}
+              strokeWidth={color === "#43B8B3" ? 2.5 : 1.5}
             />
           ),
         }}
@@ -39,11 +40,11 @@ export default function PassengerLayout() {
         name="rides"
         options={{
           title: "My Rides",
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color }) => (
             <Clock
               color={color}
-              size={22}
-              strokeWidth={color === "#43B8B3" ? 2.5 : 1.8}
+              size={ICON.lg}
+              strokeWidth={color === "#43B8B3" ? 2.5 : 1.5}
             />
           ),
         }}
@@ -52,11 +53,11 @@ export default function PassengerLayout() {
         name="profile"
         options={{
           title: "Profile",
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color }) => (
             <User
               color={color}
-              size={22}
-              strokeWidth={color === "#43B8B3" ? 2.5 : 1.8}
+              size={ICON.lg}
+              strokeWidth={color === "#43B8B3" ? 2.5 : 1.5}
             />
           ),
         }}

@@ -20,6 +20,7 @@ import {
   Calendar,
 } from "lucide-react-native";
 import { StatusBar } from "expo-status-bar";
+import { ICON } from "@/theme/iconScale";
 
 const PRIMARY = "#F5A623";
 const PRIMARY_LIGHT = "rgba(245,166,35,0.12)";
@@ -83,7 +84,7 @@ function DriverCard({ driver, onApprove, onReject, isUpdating }) {
               }}
             >
               <Car
-                size={22}
+                size={ICON.lg}
                 color={driver.is_approved ? SUCCESS : TEXT_SECONDARY}
               />
             </View>
@@ -123,7 +124,7 @@ function DriverCard({ driver, onApprove, onReject, isUpdating }) {
               </Text>
             </View>
             <ChevronDown
-              size={16}
+              size={ICON.sm}
               color={TEXT_SECONDARY}
               style={{ transform: [{ rotate: expanded ? "180deg" : "0deg" }] }}
             />
@@ -321,7 +322,7 @@ function DriverCard({ driver, onApprove, onReject, isUpdating }) {
                 }}
                 activeOpacity={0.8}
               >
-                <X size={16} color={ERROR} />
+                <X size={ICON.sm} color={ERROR} />
                 <Text style={{ color: ERROR, fontSize: 13, fontWeight: "700" }}>
                   Reject
                 </Text>
@@ -346,7 +347,7 @@ function DriverCard({ driver, onApprove, onReject, isUpdating }) {
                 }}
                 activeOpacity={0.85}
               >
-                <Check size={16} color="#fff" />
+                <Check size={ICON.sm} color="#fff" />
                 <Text
                   style={{ color: "#fff", fontSize: 13, fontWeight: "700" }}
                 >
@@ -374,7 +375,7 @@ function DriverCard({ driver, onApprove, onReject, isUpdating }) {
                 }}
                 activeOpacity={0.8}
               >
-                <Calendar size={16} color={PRIMARY} />
+                <Calendar size={ICON.sm} color={PRIMARY} />
                 <Text
                   style={{ color: PRIMARY, fontSize: 13, fontWeight: "700" }}
                 >
@@ -485,7 +486,7 @@ export default function AdminDrivers() {
             paddingVertical: 12,
           }}
         >
-          <Search size={16} color={TEXT_SECONDARY} />
+          <Search size={ICON.sm} color={TEXT_SECONDARY} />
           <TextInput
             placeholder="Search vehicle, phone, email..."
             placeholderTextColor={TEXT_SECONDARY}
@@ -495,7 +496,7 @@ export default function AdminDrivers() {
           />
           {search.length > 0 && (
             <TouchableOpacity onPress={() => setSearch("")}>
-              <X size={14} color={TEXT_SECONDARY} />
+              <X size={ICON.xs} color={TEXT_SECONDARY} />
             </TouchableOpacity>
           )}
         </View>

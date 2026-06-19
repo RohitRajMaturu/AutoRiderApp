@@ -18,6 +18,7 @@ import {
   ChevronDown,
 } from "lucide-react-native";
 import { StatusBar } from "expo-status-bar";
+import { ICON } from "@/theme/iconScale";
 
 const PRIMARY = "#F5A623";
 const BG = "#0D0F12";
@@ -111,7 +112,7 @@ function RideRow({ ride, onCancel, isCancelling }) {
                 alignItems: "center",
               }}
             >
-              <Icon size={18} color={config.text} strokeWidth={2} />
+              <Icon size={ICON.sm} color={config.text} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 13, fontWeight: "700", color: TEXT }}>
@@ -154,7 +155,7 @@ function RideRow({ ride, onCancel, isCancelling }) {
               </Text>
             </View>
             <ChevronDown
-              size={14}
+              size={ICON.xs}
               color={TEXT_SECONDARY}
               style={{ transform: [{ rotate: expanded ? "180deg" : "0deg" }] }}
             />

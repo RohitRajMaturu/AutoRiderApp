@@ -7,6 +7,7 @@ import { Clock, CheckCircle2, XCircle, Car } from "lucide-react-native";
 import { StatusBar } from "expo-status-bar";
 import { EmptyState, SkeletonLoader, StatusBadge } from "@/components/ui";
 import { useTheme } from "@/theme/ThemeContext";
+import { ICON } from "@/theme/iconScale";
 
 const FILTERS = [
   { key: "pending", label: "Pending" },
@@ -115,7 +116,7 @@ const RideCard = memo(function RideCard({ ride }) {
               width: 36,
             }}
           >
-            <Icon size={18} color={config.text} strokeWidth={2} />
+            <Icon size={ICON.sm} color={config.text} />
           </View>
           <View>
             <Text style={[theme.typography.caption, { color: theme.text }]}>
@@ -179,7 +180,7 @@ const RideCard = memo(function RideCard({ ride }) {
               paddingTop: theme.spacing[3],
             }}
           >
-            <Car size={13} color={theme.textMuted} />
+            <Car size={ICON.xs} color={theme.textMuted} />
             <Text style={[theme.typography.caption, { color: theme.textSecondary }]}>
               {ride.vehicle_number}
             </Text>
