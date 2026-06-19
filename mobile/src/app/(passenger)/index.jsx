@@ -387,7 +387,7 @@ export default function PassengerHome() {
       }
       pulseAnim.setValue(1);
     }
-  }, [activeRide?.status]);
+  }, [activeRide?.status, pulseAnim]);
 
   // Cleanup on unmount
   useEffect(() => {

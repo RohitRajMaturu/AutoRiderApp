@@ -149,7 +149,6 @@ export default function PassengerProfile() {
 
   const rides = ridesData?.rides || [];
   const completedRides = rides.filter((r) => r.status === "completed").length;
-  const initials = user?.email ? user.email.charAt(0).toUpperCase() : "?";
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>

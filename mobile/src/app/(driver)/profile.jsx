@@ -142,7 +142,6 @@ export default function DriverProfile() {
     ? new Date(driver.subscription_expiry)
     : null;
   const isSubscribed = expiry && expiry > new Date();
-  const initials = user?.email ? user.email.charAt(0).toUpperCase() : "D";
 
   const handleExitTestMode = async () => {
     Alert.alert("Exit Test Mode", "Go back to sign-in screen?", [

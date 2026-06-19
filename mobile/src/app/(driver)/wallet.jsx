@@ -26,7 +26,6 @@ const TEXT = "#17272B";
 const TEXT_SECONDARY = "#586C70";
 const TEXT_MUTED = "#647678";
 const SUCCESS = "#16A34A";
-const SUCCESS_LIGHT = "#DCFCE7";
 const DARK = "#17272B";
 
 const BENEFITS = [

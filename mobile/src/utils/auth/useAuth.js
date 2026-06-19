@@ -14,7 +14,7 @@ import queryClient from '@/utils/queryClient';
  */
 export const useAuth = () => {
   const { isReady, auth, setAuth } = useAuthStore();
-  const { isOpen, close, open } = useAuthModal();
+  const { close, open } = useAuthModal();
   const disableTestMode = useAppStore((state) => state.disableTestMode);
   const resetSessionState = useAppStore((state) => state.resetSessionState);
 
