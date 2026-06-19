@@ -1383,7 +1383,7 @@ export default function DriverHome() {
   const isExpired = !expiryDate || expiryDate < new Date();
   const toggleThumbTranslate = onlineToggleAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, 100],
+    outputRange: [0, 72],
   });
 
   return (
@@ -1451,25 +1451,6 @@ export default function DriverHome() {
             </View>
           </View>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <View
-            style={{
-              width: 42,
-              height: 42,
-              borderRadius: 21,
-              backgroundColor: PRIMARY_LIGHT,
-              borderWidth: 1,
-              borderColor: PRIMARY_BORDER,
-              justifyContent: "center",
-              alignItems: "center",
-              overflow: "hidden",
-            }}
-          >
-            <RNImage
-              source={TUKTUKGO_ICON}
-              style={{ width: 34, height: 34 }}
-              resizeMode="contain"
-            />
-          </View>
           <TouchableOpacity
             onPress={() => {
               if (!driver.is_online && isExpired) {
@@ -1488,9 +1469,9 @@ export default function DriverHome() {
           >
             <Animated.View
               style={{
-                width: 148,
-                height: 48,
-                borderRadius: 24,
+                width: 112,
+                height: 40,
+                borderRadius: 20,
                 padding: 4,
                 backgroundColor: driver.is_online ? SUCCESS : "#D8E4E5",
                 borderWidth: 1,
@@ -1502,8 +1483,8 @@ export default function DriverHome() {
               <Text
                 style={{
                   position: "absolute",
-                  left: driver.is_online ? 14 : 58,
-                  fontSize: 13,
+                  left: driver.is_online ? 12 : 47,
+                  fontSize: 11,
                   fontWeight: "800",
                   color: driver.is_online ? "#fff" : TEXT_MUTED,
                 }}
@@ -1517,8 +1498,8 @@ export default function DriverHome() {
               <Animated.View
                 style={{
                   width: 40,
-                  height: 40,
-                  borderRadius: 20,
+                  height: 32,
+                  borderRadius: 16,
                   backgroundColor: SURFACE,
                   alignItems: "center",
                   justifyContent: "center",
@@ -1526,9 +1507,9 @@ export default function DriverHome() {
                 }}
               >
                 {driver.is_online ? (
-                  <Wifi size={ICON.md} color={SUCCESS} />
+                  <Wifi size={ICON.sm} color={SUCCESS} />
                 ) : (
-                  <WifiOff size={ICON.md} color={TEXT_MUTED} />
+                  <WifiOff size={ICON.sm} color={TEXT_MUTED} />
                 )}
               </Animated.View>
             </Animated.View>

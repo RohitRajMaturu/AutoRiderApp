@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, Linking } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, Linking, Modal, Pressable } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/utils/auth/useAuth";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -75,6 +75,90 @@ function MenuItem({
   );
 }
 
+function SignOutSheet({ visible, onCancel, onConfirm }) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+      <Pressable
+        onPress={onCancel}
+        style={{
+          flex: 1,
+          backgroundColor: "#00000066",
+          justifyContent: "flex-end",
+        }}
+      >
+        <Pressable
+          style={{
+            backgroundColor: SURFACE,
+            borderTopLeftRadius: 26,
+            borderTopRightRadius: 26,
+            padding: 22,
+            paddingBottom: 30,
+          }}
+        >
+          <View
+            style={{
+              alignSelf: "center",
+              width: 42,
+              height: 4,
+              borderRadius: 2,
+              backgroundColor: BORDER,
+              marginBottom: 18,
+            }}
+          />
+          <View
+            style={{
+              width: 50,
+              height: 50,
+              borderRadius: 16,
+              backgroundColor: "#FEF2F2",
+              borderWidth: 1,
+              borderColor: "#FECACA",
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: 14,
+            }}
+          >
+            <LogOut size={ICON.lg} color="#DC2626" />
+          </View>
+          <Text style={{ fontSize: 20, fontWeight: "800", color: TEXT }}>
+            Sign out?
+          </Text>
+          <Text style={{ marginTop: 8, fontSize: 14, lineHeight: 20, color: TEXT_SECONDARY }}>
+            You can sign back in anytime to book rides and view your trip history.
+          </Text>
+          <View style={{ flexDirection: "row", gap: 12, marginTop: 22 }}>
+            <TouchableOpacity
+              onPress={onCancel}
+              style={{
+                flex: 1,
+                borderRadius: 14,
+                borderWidth: 1,
+                borderColor: BORDER,
+                paddingVertical: 14,
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ color: TEXT, fontSize: 14, fontWeight: "800" }}>Stay</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={onConfirm}
+              style={{
+                flex: 1,
+                borderRadius: 14,
+                backgroundColor: "#DC2626",
+                paddingVertical: 14,
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ color: "#fff", fontSize: 14, fontWeight: "800" }}>Sign Out</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
 export default function PassengerProfile() {
   const insets = useSafeAreaInsets();
   const { signOut, auth } = useAuth();
@@ -82,6 +166,8 @@ export default function PassengerProfile() {
   const queryClient = useQueryClient();
   const { testMode, disableTestMode } = useAppStore();
   const [phone, setPhone] = useState("");
+  const [isProfileOpen, setIsProfileOpen] = useState(true);
+  const [showSignOutSheet, setShowSignOutSheet] = useState(false);
   const authUserKey =
     auth?.user?.id || auth?.user?.email || auth?.user?.phone || "anonymous";
 
@@ -142,7 +228,7 @@ export default function PassengerProfile() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["userProfile", authUserKey] });
-      Alert.alert("Saved", "Your profile settings were updated.");
+      setIsProfileOpen(false);
     },
     onError: (err) => Alert.alert("Save Failed", err.message),
   });
@@ -311,21 +397,39 @@ export default function PassengerProfile() {
               padding: 16,
             }}
           >
-            <Text
-              style={{
-                fontSize: 11,
-                fontWeight: "700",
-                color: TEXT_MUTED,
-                textTransform: "uppercase",
-                letterSpacing: 0.8,
-              }}
-            >
-              Account Settings
-            </Text>
-            <Text style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 4 }}>
-              Keep your contact details ready for ride updates.
-            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: "700",
+                    color: TEXT_MUTED,
+                    textTransform: "uppercase",
+                    letterSpacing: 0.8,
+                  }}
+                >
+                  Account Settings
+                </Text>
+                <Text style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 4 }}>
+                  Keep your contact details ready for ride updates.
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setIsProfileOpen((value) => !value)}
+                style={{
+                  borderRadius: 999,
+                  backgroundColor: PRIMARY_LIGHT,
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                }}
+              >
+                <Text style={{ color: PRIMARY, fontSize: 12, fontWeight: "800" }}>
+                  {isProfileOpen ? "Hide" : "Edit"}
+                </Text>
+              </TouchableOpacity>
+            </View>
 
+            {isProfileOpen ? (
             <View style={{ marginTop: 16, gap: 12 }}>
               <View>
                 <Text style={{ fontSize: 11, fontWeight: "700", color: TEXT_MUTED, marginBottom: 6 }}>
@@ -389,6 +493,25 @@ export default function PassengerProfile() {
                 </Text>
               </TouchableOpacity>
             </View>
+            ) : (
+              <View
+                style={{
+                  marginTop: 16,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: BORDER,
+                  backgroundColor: "#F8FAFA",
+                  padding: 14,
+                }}
+              >
+                <Text style={{ color: TEXT_MUTED, fontSize: 11, fontWeight: "800", textTransform: "uppercase" }}>
+                  Saved Contact
+                </Text>
+                <Text style={{ marginTop: 4, color: TEXT, fontSize: 15, fontWeight: "700" }}>
+                  {phone || "No phone number added"}
+                </Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -491,16 +614,7 @@ export default function PassengerProfile() {
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
-              onPress={() => {
-                Alert.alert("Sign Out", "Are you sure you want to sign out?", [
-                  { text: "Cancel", style: "cancel" },
-                  {
-                    text: "Sign Out",
-                    style: "destructive",
-                    onPress: () => signOut(),
-                  },
-                ]);
-              }}
+              onPress={() => setShowSignOutSheet(true)}
               style={{
                 backgroundColor: "#FEF2F2",
                 borderRadius: 14,
@@ -523,6 +637,15 @@ export default function PassengerProfile() {
             </TouchableOpacity>
           )}
         </View>
+
+        <SignOutSheet
+          visible={showSignOutSheet}
+          onCancel={() => setShowSignOutSheet(false)}
+          onConfirm={() => {
+            setShowSignOutSheet(false);
+            signOut();
+          }}
+        />
 
         <Text
           style={{

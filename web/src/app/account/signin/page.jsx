@@ -61,6 +61,7 @@ function getInitialScreen() {
 
 function getInitialRole() {
   const params = readParams();
+  if (params.get("role") === "driver") return "driver";
   return params.get("role") === "admin" ? "admin" : "passenger";
 }
 
@@ -72,9 +73,9 @@ function updateAuthUrl(screen, role) {
   } else {
     params.delete("mode");
   }
-  if (role === "admin") {
-    params.set("role", "admin");
-  } else if (params.get("role") !== "admin") {
+  if (role === "admin" || role === "driver") {
+    params.set("role", role);
+  } else {
     params.delete("role");
   }
   const query = params.toString();
@@ -176,9 +177,14 @@ export default function SignInPage() {
 
   const isAdminSetup = role === "admin";
   const title = useMemo(() => {
-    if (screen === "signin") return "Admin Login";
+    if (screen === "signin") {
+      if (!allowSignup) return "Admin Login";
+      if (role === "driver") return "Driver Login";
+      if (role === "admin") return "Admin Login";
+      return "Passenger Login";
+    }
     return isAdminSetup ? "Create Admin" : "Create Account";
-  }, [isAdminSetup, screen]);
+  }, [allowSignup, isAdminSetup, role, screen]);
 
   useEffect(() => {
     fetch("/api/auth/config")

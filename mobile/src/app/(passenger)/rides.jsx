@@ -111,12 +111,12 @@ const RideCard = memo(function RideCard({ ride }) {
               alignItems: "center",
               backgroundColor: config.bg,
               borderRadius: theme.radii.pill,
-              height: 36,
+              height: 40,
               justifyContent: "center",
-              width: 36,
+              width: 40,
             }}
           >
-            <Icon size={ICON.sm} color={config.text} />
+            <Icon size={ICON.md} color={config.text} />
           </View>
           <View>
             <Text style={[theme.typography.caption, { color: theme.text }]}>
@@ -180,7 +180,7 @@ const RideCard = memo(function RideCard({ ride }) {
               paddingTop: theme.spacing[3],
             }}
           >
-            <Car size={ICON.xs} color={theme.textMuted} />
+            <Car size={ICON.sm} color={theme.textMuted} />
             <Text style={[theme.typography.caption, { color: theme.textSecondary }]}>
               {ride.vehicle_number}
             </Text>

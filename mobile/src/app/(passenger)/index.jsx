@@ -730,25 +730,6 @@ export default function PassengerHome() {
             </Text>
             </View>
           </View>
-          <View
-            style={{
-              width: 46,
-              height: 46,
-              borderRadius: 23,
-              backgroundColor: PRIMARY_LIGHT,
-              borderWidth: 1,
-              borderColor: PRIMARY_BORDER,
-              justifyContent: "center",
-              alignItems: "center",
-              overflow: "hidden",
-            }}
-          >
-            <Image
-              source={TUKTUKGO_ICON}
-              style={{ width: 38, height: 38 }}
-              resizeMode="contain"
-            />
-          </View>
         </View>
       </View>
 

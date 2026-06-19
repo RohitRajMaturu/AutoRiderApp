@@ -531,7 +531,7 @@ export default function Index() {
           </Text>
 
           <TouchableOpacity
-            onPress={() => signIn()}
+            onPress={() => signIn({ params: { role: "passenger" } })}
             style={{
               backgroundColor: SAFFRON,
               borderRadius: 14,
@@ -553,7 +553,27 @@ export default function Index() {
                 letterSpacing: 0,
               }}
             >
-              Continue with Email / Number
+              Continue as Passenger
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => signIn({ params: { role: "driver" } })}
+            style={{
+              backgroundColor: "#16A34A",
+              borderRadius: 14,
+              paddingVertical: 15,
+              alignItems: "center",
+              marginTop: 12,
+              flexDirection: "row",
+              justifyContent: "center",
+              gap: 8,
+            }}
+            activeOpacity={0.85}
+          >
+            <Gauge size={18} color="#fff" />
+            <Text style={{ color: "#fff", fontSize: 15, fontWeight: "800" }}>
+              Continue as Driver
             </Text>
           </TouchableOpacity>
 
