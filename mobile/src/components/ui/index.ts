@@ -3,4 +3,10 @@ export { Card } from "./Card";
 export { EmptyState } from "./EmptyState";
 export { OtpInput } from "./OtpInput";
 export { SkeletonLoader } from "./SkeletonLoader";
-export { StatusBadge, getDriverStatusConfig, getRideStatusConfig } from "./StatusBadge";
+export {
+  DRIVER_STATUS_CONFIG,
+  RIDE_STATUS_CONFIG,
+  StatusBadge,
+  getDriverStatusConfig,
+  getRideStatusConfig,
+} from "./StatusBadge";

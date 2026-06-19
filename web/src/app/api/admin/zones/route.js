@@ -57,6 +57,7 @@ export async function GET(request) {
         name,
         max_online_drivers,
         is_active,
+        dispatch_enabled,
         ST_AsGeoJSON(boundary::geometry)::json AS boundary,
         created_at,
         updated_at
@@ -110,7 +111,7 @@ export async function POST(request) {
           ${maxOnlineDrivers},
           ${session.user.id}
         )
-        RETURNING id, name, max_online_drivers, is_active, created_at, updated_at
+        RETURNING id, name, max_online_drivers, is_active, dispatch_enabled, created_at, updated_at
       `;
       await writeAdminAudit(session.user.id, "zone.create", "geo_zone", created[0].id, {
         name,
@@ -138,6 +139,8 @@ export async function PATCH(request) {
     const maxOnlineDrivers =
       body.max_online_drivers === undefined ? null : parseMaxOnlineDrivers(body.max_online_drivers);
     const isActive = body.is_active === undefined ? null : Boolean(body.is_active);
+    const dispatchEnabled =
+      body.dispatch_enabled === undefined ? null : Boolean(body.dispatch_enabled);
 
     if (!zoneId) {
       return Response.json({ error: "zone_id is required" }, { status: 400 });
@@ -158,18 +161,20 @@ export async function PATCH(request) {
                 boundary = ST_Multi(ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify(boundary)}), 4326))::geography,
                 max_online_drivers = COALESCE(${maxOnlineDrivers}, max_online_drivers),
                 is_active = COALESCE(${isActive}, is_active),
+                dispatch_enabled = COALESCE(${dispatchEnabled}, dispatch_enabled),
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ${zoneId}
-            RETURNING id, name, max_online_drivers, is_active, created_at, updated_at
+            RETURNING id, name, max_online_drivers, is_active, dispatch_enabled, created_at, updated_at
           `
         : await tx`
             UPDATE geo_zones
             SET name = COALESCE(${name}, name),
                 max_online_drivers = COALESCE(${maxOnlineDrivers}, max_online_drivers),
                 is_active = COALESCE(${isActive}, is_active),
+                dispatch_enabled = COALESCE(${dispatchEnabled}, dispatch_enabled),
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ${zoneId}
-            RETURNING id, name, max_online_drivers, is_active, created_at, updated_at
+            RETURNING id, name, max_online_drivers, is_active, dispatch_enabled, created_at, updated_at
           `;
       if (updated.length > 0) {
         await writeAdminAudit(session.user.id, "zone.update", "geo_zone", updated[0].id, body, tx);
@@ -206,7 +211,7 @@ export async function DELETE(request) {
       const deleted = await tx`
         DELETE FROM geo_zones
         WHERE id = ${zoneId}
-        RETURNING id, name, max_online_drivers, is_active
+        RETURNING id, name, max_online_drivers, is_active, dispatch_enabled
       `;
       if (deleted.length > 0) {
         await writeAdminAudit(session.user.id, "zone.delete", "geo_zone", deleted[0].id, {

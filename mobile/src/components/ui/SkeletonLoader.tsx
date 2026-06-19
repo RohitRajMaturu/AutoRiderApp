@@ -7,11 +7,12 @@ type SkeletonVariant = "card" | "list-item" | "metric";
 
 type SkeletonLoaderProps = {
   variant?: SkeletonVariant;
+  dark?: boolean;
 };
 
-export function SkeletonLoader({ variant = "card" }: SkeletonLoaderProps) {
+export function SkeletonLoader({ variant = "card", dark = false }: SkeletonLoaderProps) {
   const theme = useTheme();
-  const colorMode = "light";
+  const colorMode = dark ? "dark" : "light";
 
   if (variant === "metric") {
     return (

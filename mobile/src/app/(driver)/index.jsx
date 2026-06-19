@@ -25,6 +25,7 @@ import {
   X,
   Camera,
   Image as ImageIcon,
+  IndianRupee,
 } from "lucide-react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
@@ -66,6 +67,11 @@ function formatCancellationReason(reason) {
   return String(reason)
     .replace(/_/g, " ")
     .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function formatCurrency(value) {
+  const amount = Number(value);
+  return `Rs. ${Math.round(Number.isFinite(amount) ? amount : 0).toLocaleString("en-IN")}`;
 }
 
 // ─── Registration Form ────────────────────────────────────────────────────────
@@ -1134,6 +1140,7 @@ export default function DriverHome() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const notifiedCancelledRideIds = useRef(new Set());
+  const onlineToggleAnim = useRef(new Animated.Value(0)).current;
   const { auth } = useAuth();
   const authUserKey =
     auth?.user?.id || auth?.user?.email || auth?.user?.phone || "anonymous";
@@ -1170,6 +1177,26 @@ export default function DriverHome() {
     refetchInterval: 5000,
     staleTime: 3000,
   });
+
+  const { data: earningsData, isLoading: earningsLoading } = useQuery({
+    queryKey: ["driverEarnings", authUserKey],
+    queryFn: async () => {
+      const res = await fetch("/api/drivers/earnings");
+      if (!res.ok) throw new Error("Failed to load earnings");
+      return res.json();
+    },
+    enabled: !!driverData?.driver,
+    staleTime: 30000,
+  });
+
+  useEffect(() => {
+    Animated.spring(onlineToggleAnim, {
+      toValue: driverData?.driver?.is_online ? 1 : 0,
+      friction: 8,
+      tension: 90,
+      useNativeDriver: true,
+    }).start();
+  }, [driverData?.driver?.is_online, onlineToggleAnim]);
 
   useEffect(() => {
     const cancelledRide = (ridesData?.rides || []).find(
@@ -1356,6 +1383,10 @@ export default function DriverHome() {
     ? new Date(driver.subscription_expiry)
     : null;
   const isExpired = !expiryDate || expiryDate < new Date();
+  const toggleThumbTranslate = onlineToggleAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 100],
+  });
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
@@ -1452,38 +1483,93 @@ export default function DriverHome() {
               }
               toggleStatus.mutate(!driver.is_online);
             }}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 8,
-              paddingHorizontal: 16,
-              paddingVertical: 10,
-              borderRadius: 99,
-              backgroundColor: driver.is_online ? SUCCESS_LIGHT : "#F5F5F4",
-              borderWidth: 1.5,
-              borderColor: driver.is_online ? "#BBF7D0" : BORDER,
-            }}
-            activeOpacity={0.8}
+            activeOpacity={0.85}
+            disabled={toggleStatus.isPending}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: driver.is_online, disabled: toggleStatus.isPending }}
           >
-            {driver.is_online ? (
-              <Wifi size={16} color={SUCCESS} />
-            ) : (
-              <WifiOff size={16} color={TEXT_MUTED} />
-            )}
-            <Text
+            <Animated.View
               style={{
-                fontSize: 13,
-                fontWeight: "700",
-                color: driver.is_online ? SUCCESS : TEXT_SECONDARY,
+                width: 148,
+                height: 48,
+                borderRadius: 24,
+                padding: 4,
+                backgroundColor: driver.is_online ? SUCCESS : "#D8E4E5",
+                borderWidth: 1,
+                borderColor: driver.is_online ? "#BBF7D0" : BORDER,
+                opacity: toggleStatus.isPending ? 0.7 : 1,
+                justifyContent: "center",
               }}
             >
-              {toggleStatus.isPending
-                ? "..."
-                : driver.is_online
-                  ? "Online"
-                  : "Offline"}
-            </Text>
+              <Text
+                style={{
+                  position: "absolute",
+                  left: driver.is_online ? 14 : 58,
+                  fontSize: 13,
+                  fontWeight: "800",
+                  color: driver.is_online ? "#fff" : TEXT_MUTED,
+                }}
+              >
+                {toggleStatus.isPending
+                  ? "..."
+                  : driver.is_online
+                    ? "Online"
+                    : "Offline"}
+              </Text>
+              <Animated.View
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: SURFACE,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transform: [{ translateX: toggleThumbTranslate }],
+                }}
+              >
+                {driver.is_online ? (
+                  <Wifi size={17} color={SUCCESS} />
+                ) : (
+                  <WifiOff size={17} color={TEXT_MUTED} />
+                )}
+              </Animated.View>
+            </Animated.View>
           </TouchableOpacity>
+          </View>
+        </View>
+
+        <View
+          style={{
+            marginTop: 14,
+            borderRadius: 14,
+            borderWidth: 1,
+            borderColor: PRIMARY_BORDER,
+            backgroundColor: PRIMARY_LIGHT,
+            padding: 12,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 10,
+          }}
+        >
+          <View
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: 12,
+              backgroundColor: SURFACE,
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <IndianRupee size={18} color={PRIMARY_DARK} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 11, color: TEXT_MUTED, fontWeight: "700" }}>
+              Today earnings
+            </Text>
+            <Text style={{ fontSize: 18, color: TEXT, fontWeight: "800", marginTop: 1 }}>
+              {earningsLoading ? "Loading..." : formatCurrency(earningsData?.today)}
+            </Text>
           </View>
         </View>
 

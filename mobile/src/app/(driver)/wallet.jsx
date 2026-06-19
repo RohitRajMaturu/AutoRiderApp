@@ -6,6 +6,7 @@ import {
   Calendar,
   CheckCircle2,
   Info,
+  IndianRupee,
   Shield,
   Star,
   TrendingUp,
@@ -63,6 +64,11 @@ function formatExpiry(expiry) {
   });
 }
 
+function formatCurrency(value) {
+  const amount = Number(value);
+  return `Rs. ${Math.round(Number.isFinite(amount) ? amount : 0).toLocaleString("en-IN")}`;
+}
+
 export default function DriverWallet() {
   const insets = useSafeAreaInsets();
   const { auth } = useAuth();
@@ -78,6 +84,17 @@ export default function DriverWallet() {
     },
     enabled: !!auth,
     staleTime: 0,
+  });
+
+  const { data: earningsData, isLoading: earningsLoading } = useQuery({
+    queryKey: ["driverEarnings", authUserKey],
+    queryFn: async () => {
+      const res = await fetch("/api/drivers/earnings");
+      if (!res.ok) throw new Error("Failed to load earnings");
+      return res.json();
+    },
+    enabled: !!auth,
+    staleTime: 30000,
   });
 
   if (isLoading) {
@@ -283,6 +300,139 @@ export default function DriverWallet() {
                 enabled in this build.
               </Text>
             </View>
+          </View>
+        </View>
+
+        <View style={{ paddingHorizontal: 16, marginTop: 20 }}>
+          <Text
+            style={{
+              fontSize: 16,
+              fontWeight: "700",
+              color: TEXT,
+              marginBottom: 12,
+            }}
+          >
+            Earnings
+          </Text>
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            {[
+              { label: "Today", value: earningsData?.today },
+              { label: "7 Days", value: earningsData?.week },
+              { label: "30 Days", value: earningsData?.month },
+            ].map((item) => (
+              <View
+                key={item.label}
+                style={{
+                  flex: 1,
+                  backgroundColor: SURFACE,
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: BORDER,
+                  padding: 12,
+                }}
+              >
+                <View
+                  style={{
+                    width: 30,
+                    height: 30,
+                    borderRadius: 10,
+                    backgroundColor: PRIMARY_LIGHT,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    marginBottom: 10,
+                  }}
+                >
+                  <IndianRupee size={16} color={PRIMARY} />
+                </View>
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: "700",
+                    color: TEXT_MUTED,
+                    textTransform: "uppercase",
+                  }}
+                >
+                  {item.label}
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 15,
+                    fontWeight: "800",
+                    color: TEXT,
+                    marginTop: 4,
+                  }}
+                  numberOfLines={1}
+                >
+                  {earningsLoading ? "..." : formatCurrency(item.value)}
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          <View
+            style={{
+              backgroundColor: SURFACE,
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor: BORDER,
+              marginTop: 12,
+              overflow: "hidden",
+            }}
+          >
+            <View
+              style={{
+                padding: 14,
+                borderBottomWidth: 1,
+                borderBottomColor: "#F5F5F4",
+              }}
+            >
+              <Text style={{ fontSize: 13, fontWeight: "800", color: TEXT }}>
+                Recent Completed Rides
+              </Text>
+            </View>
+            {(earningsData?.recentRides || []).length === 0 ? (
+              <Text
+                style={{
+                  padding: 16,
+                  fontSize: 12,
+                  color: TEXT_SECONDARY,
+                  textAlign: "center",
+                }}
+              >
+                Completed ride earnings will appear here.
+              </Text>
+            ) : (
+              earningsData.recentRides.map((ride, index, arr) => (
+                <View
+                  key={ride.id}
+                  style={{
+                    padding: 14,
+                    borderBottomWidth: index < arr.length - 1 ? 1 : 0,
+                    borderBottomColor: "#F5F5F4",
+                    flexDirection: "row",
+                    gap: 12,
+                  }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      numberOfLines={1}
+                      style={{ fontSize: 13, fontWeight: "700", color: TEXT }}
+                    >
+                      {ride.pickup_address}
+                    </Text>
+                    <Text
+                      numberOfLines={1}
+                      style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 2 }}
+                    >
+                      {ride.dest_address}
+                    </Text>
+                  </View>
+                  <Text style={{ fontSize: 13, fontWeight: "800", color: PRIMARY }}>
+                    {formatCurrency(ride.estimated_fare)}
+                  </Text>
+                </View>
+              ))
+            )}
           </View>
         </View>
 

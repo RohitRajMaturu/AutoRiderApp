@@ -41,6 +41,7 @@ export async function findZoneForPoint(lat, lng, scopedSql = sql) {
     SELECT id, name, max_online_drivers
     FROM geo_zones
     WHERE is_active = true
+      AND dispatch_enabled = true
       AND ST_Covers(boundary::geometry, ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326))
     ORDER BY created_at ASC
     LIMIT 1
@@ -87,6 +88,8 @@ export async function selectZoneDrivers(zoneId, pickupLat, pickupLng, scopedSql 
     JOIN geo_zones z ON z.id = d.zone_id
     JOIN auth_users u ON u.id = d.user_id
     WHERE d.zone_id = ${zoneId}
+      AND z.is_active = true
+      AND z.dispatch_enabled = true
       AND d.is_online = true
       AND d.is_approved = true
       AND d.subscription_expiry > CURRENT_TIMESTAMP

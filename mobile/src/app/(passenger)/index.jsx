@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useCallback, useMemo, useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   Platform,
 } from "react-native";
 import MapView, { Marker } from "react-native-maps";
+import BottomSheet, { BottomSheetBackdrop, BottomSheetView } from "@gorhom/bottom-sheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   MapPin,
@@ -167,7 +168,7 @@ export default function PassengerHome() {
   const [isLocating, setIsLocating] = useState(false);
   const [ratingValue, setRatingValue] = useState(0);
   const [ratingFeedback, setRatingFeedback] = useState("");
-  const [showCancelReasons, setShowCancelReasons] = useState(false);
+  const [, setShowCancelReasons] = useState(false);
   const [selectedCancelReason, setSelectedCancelReason] = useState(
     CANCEL_REASONS[0].value,
   );
@@ -177,6 +178,29 @@ export default function PassengerHome() {
   );
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const pulseRef = useRef(null);
+  const cancelSheetRef = useRef(null);
+  const cancelSnapPoints = useMemo(() => ["48%", "72%"], []);
+  const renderCancelBackdrop = useCallback(
+    (props) => (
+      <BottomSheetBackdrop
+        {...props}
+        appearsOnIndex={0}
+        disappearsOnIndex={-1}
+        opacity={0.35}
+      />
+    ),
+    [],
+  );
+
+  const openCancelSheet = () => {
+    setShowCancelReasons(true);
+    requestAnimationFrame(() => cancelSheetRef.current?.snapToIndex(0));
+  };
+
+  const closeCancelSheet = () => {
+    cancelSheetRef.current?.close();
+    setShowCancelReasons(false);
+  };
 
   // ── Fetch active ride (only poll, never block UI on refetch) ──
   const { data: activeRide } = useQuery({
@@ -433,6 +457,7 @@ export default function PassengerHome() {
       return res.json();
     },
     onSuccess: () => {
+      cancelSheetRef.current?.close();
       setShowCancelReasons(false);
       setSelectedCancelReason(CANCEL_REASONS[0].value);
       setOtherCancelReason("");
@@ -444,13 +469,12 @@ export default function PassengerHome() {
 
   const rateRide = useMutation({
     mutationFn: async ({ rideId, rating, feedback }) => {
-      const res = await fetch(`/api/rides/${rideId}`, {
-        method: "PATCH",
+      const res = await fetch(`/api/rides/${rideId}/rating`, {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: "rate",
-          driver_rating: rating,
-          rating_feedback: feedback,
+          rating,
+          comment: feedback,
         }),
       });
       if (!res.ok) {
@@ -1172,203 +1196,25 @@ export default function PassengerHome() {
 
                 {/* Cancel */}
                 {activeRide.status !== "completed" && (
-                  <>
-                <TouchableOpacity
-                  onPress={() => setShowCancelReasons(true)}
-                  disabled={cancelRide.isPending}
-                  style={{
-                    marginTop: 16,
-                    alignItems: "center",
-                    paddingVertical: 12,
-                  }}
-                >
-                  <Text
+                  <TouchableOpacity
+                    onPress={openCancelSheet}
+                    disabled={cancelRide.isPending}
                     style={{
-                      color: "#DC2626",
-                      fontSize: 14,
-                      fontWeight: "600",
-                    }}
-                  >
-                    {cancelRide.isPending
-                      ? "Cancelling..."
-                      : "✕  Cancel Request"}
-                  </Text>
-                </TouchableOpacity>
-                {showCancelReasons && (
-                  <View
-                    style={{
-                      marginTop: 4,
-                      borderWidth: 1,
-                      borderColor: "#FECACA",
-                      borderRadius: 14,
-                      backgroundColor: "#FEF2F2",
-                      padding: 14,
+                      marginTop: 16,
+                      alignItems: "center",
+                      paddingVertical: 12,
                     }}
                   >
                     <Text
                       style={{
-                        fontSize: 15,
-                        fontWeight: "700",
-                        color: TEXT,
-                        marginBottom: 4,
+                        color: "#DC2626",
+                        fontSize: 14,
+                        fontWeight: "600",
                       }}
                     >
-                      Why are you cancelling?
+                      {cancelRide.isPending ? "Cancelling..." : "Cancel Request"}
                     </Text>
-                    <Text
-                      style={{
-                        fontSize: 12,
-                        color: TEXT_SECONDARY,
-                        marginBottom: 12,
-                      }}
-                    >
-                      Pick one reason so the driver gets clear context.
-                    </Text>
-
-                    {CANCEL_REASONS.map((item) => {
-                      const selected = selectedCancelReason === item.value;
-
-                      return (
-                        <TouchableOpacity
-                          key={item.value}
-                          onPress={() => setSelectedCancelReason(item.value)}
-                          disabled={cancelRide.isPending}
-                          style={{
-                            flexDirection: "row",
-                            alignItems: "center",
-                            paddingVertical: 8,
-                          }}
-                        >
-                          <View
-                            style={{
-                              width: 18,
-                              height: 18,
-                              borderRadius: 9,
-                              borderWidth: 2,
-                              borderColor: selected ? "#DC2626" : "#D6D3D1",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              marginRight: 10,
-                              backgroundColor: SURFACE,
-                            }}
-                          >
-                            {selected ? (
-                              <View
-                                style={{
-                                  width: 8,
-                                  height: 8,
-                                  borderRadius: 4,
-                                  backgroundColor: "#DC2626",
-                                }}
-                              />
-                            ) : null}
-                          </View>
-                          <Text
-                            style={{
-                              flex: 1,
-                              fontSize: 14,
-                              color: TEXT,
-                              fontWeight: selected ? "700" : "500",
-                            }}
-                          >
-                            {item.label}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-
-                    {selectedCancelReason === "other" && (
-                      <TextInput
-                        value={otherCancelReason}
-                        onChangeText={setOtherCancelReason}
-                        placeholder="Tell us the reason"
-                        placeholderTextColor={TEXT_MUTED}
-                        multiline
-                        maxLength={180}
-                        style={{
-                          minHeight: 78,
-                          marginTop: 8,
-                          paddingHorizontal: 12,
-                          paddingVertical: 10,
-                          borderRadius: 10,
-                          borderWidth: 1,
-                          borderColor: "#FECACA",
-                          backgroundColor: SURFACE,
-                          color: TEXT,
-                          fontSize: 14,
-                          textAlignVertical: "top",
-                        }}
-                      />
-                    )}
-
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        gap: 10,
-                        marginTop: 14,
-                      }}
-                    >
-                      <TouchableOpacity
-                        onPress={() => {
-                          setShowCancelReasons(false);
-                          setSelectedCancelReason(CANCEL_REASONS[0].value);
-                          setOtherCancelReason("");
-                        }}
-                        disabled={cancelRide.isPending}
-                        style={{
-                          flex: 1,
-                          paddingVertical: 12,
-                          borderRadius: 10,
-                          alignItems: "center",
-                          borderWidth: 1,
-                          borderColor: "#D8E4E5",
-                          backgroundColor: SURFACE,
-                        }}
-                      >
-                        <Text
-                          style={{
-                            fontSize: 13,
-                            fontWeight: "700",
-                            color: TEXT_SECONDARY,
-                          }}
-                        >
-                          Keep Ride
-                        </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() => submitCancelRide(activeRide.id)}
-                        disabled={
-                          cancelRide.isPending ||
-                          (selectedCancelReason === "other" &&
-                            otherCancelReason.trim().length === 0)
-                        }
-                        style={{
-                          flex: 1,
-                          paddingVertical: 12,
-                          borderRadius: 10,
-                          alignItems: "center",
-                          backgroundColor:
-                            cancelRide.isPending ||
-                            (selectedCancelReason === "other" &&
-                              otherCancelReason.trim().length === 0)
-                              ? "#E7A3A3"
-                              : "#DC2626",
-                        }}
-                      >
-                        <Text
-                          style={{
-                            fontSize: 13,
-                            fontWeight: "700",
-                            color: "#fff",
-                          }}
-                        >
-                          {cancelRide.isPending ? "Cancelling..." : "Cancel Ride"}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                )}
-                  </>
+                  </TouchableOpacity>
                 )}
               </View>
             </View>
@@ -1622,10 +1468,10 @@ export default function PassengerHome() {
                 alignItems: "center",
                 gap: 10,
                 shadowColor: PRIMARY,
-                shadowOffset: { width: 0, height: 6 },
-                shadowOpacity: canRequest ? 0.3 : 0,
-                shadowRadius: 12,
-                elevation: canRequest ? 6 : 0,
+                shadowOffset: { width: 0, height: 10 },
+                shadowOpacity: canRequest ? 0.5 : 0,
+                shadowRadius: 24,
+                elevation: canRequest ? 14 : 0,
               }}
             >
               <Text
@@ -1636,7 +1482,7 @@ export default function PassengerHome() {
                   letterSpacing: 0.3,
                 }}
               >
-                {requestRide.isPending ? "Requesting..." : "🛺  Request Auto"}
+                {requestRide.isPending ? "Requesting..." : "Request Auto"}
               </Text>
               {!requestRide.isPending && <ArrowRight size={18} color="#fff" />}
             </TouchableOpacity>
@@ -1740,6 +1586,169 @@ export default function PassengerHome() {
           </View>
         </View>
       </ScrollView>
+      <BottomSheet
+        ref={cancelSheetRef}
+        index={-1}
+        snapPoints={cancelSnapPoints}
+        enablePanDownToClose
+        backdropComponent={renderCancelBackdrop}
+        onClose={() => setShowCancelReasons(false)}
+        backgroundStyle={{ backgroundColor: SURFACE }}
+        handleIndicatorStyle={{ backgroundColor: BORDER, width: 42 }}
+      >
+        <BottomSheetView style={{ paddingHorizontal: 18, paddingBottom: 24 }}>
+          <Text
+            style={{
+              fontSize: 17,
+              fontWeight: "800",
+              color: TEXT,
+            }}
+          >
+            Why are you cancelling?
+          </Text>
+          <Text style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 4 }}>
+            Pick one reason so the driver gets clear context.
+          </Text>
+
+          <View
+            style={{
+              marginTop: 16,
+              borderTopWidth: 1,
+              borderTopColor: BORDER,
+            }}
+          >
+            {CANCEL_REASONS.map((item) => {
+              const selected = selectedCancelReason === item.value;
+
+              return (
+                <TouchableOpacity
+                  key={item.value}
+                  onPress={() => setSelectedCancelReason(item.value)}
+                  disabled={cancelRide.isPending}
+                  style={{
+                    minHeight: 44,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    borderBottomWidth: 1,
+                    borderBottomColor: BORDER,
+                    backgroundColor: selected ? "#FEE2E2" : SURFACE,
+                    paddingHorizontal: 10,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: 9,
+                      borderWidth: 2,
+                      borderColor: selected ? "#DC2626" : "#D6D3D1",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginRight: 10,
+                      backgroundColor: SURFACE,
+                    }}
+                  >
+                    {selected ? (
+                      <View
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: 4,
+                          backgroundColor: "#DC2626",
+                        }}
+                      />
+                    ) : null}
+                  </View>
+                  <Text
+                    style={{
+                      flex: 1,
+                      fontSize: 14,
+                      color: TEXT,
+                      fontWeight: selected ? "800" : "600",
+                    }}
+                  >
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {selectedCancelReason === "other" && (
+            <TextInput
+              value={otherCancelReason}
+              onChangeText={setOtherCancelReason}
+              placeholder="Tell us the reason"
+              placeholderTextColor={TEXT_MUTED}
+              multiline
+              maxLength={180}
+              style={{
+                minHeight: 78,
+                marginTop: 12,
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+                borderRadius: 10,
+                borderWidth: 1,
+                borderColor: "#FECACA",
+                backgroundColor: "#FEF2F2",
+                color: TEXT,
+                fontSize: 14,
+                textAlignVertical: "top",
+              }}
+            />
+          )}
+
+          <View style={{ flexDirection: "row", gap: 10, marginTop: 16 }}>
+            <TouchableOpacity
+              onPress={() => {
+                closeCancelSheet();
+                setSelectedCancelReason(CANCEL_REASONS[0].value);
+                setOtherCancelReason("");
+              }}
+              disabled={cancelRide.isPending}
+              style={{
+                flex: 1,
+                paddingVertical: 13,
+                borderRadius: 12,
+                alignItems: "center",
+                borderWidth: 1,
+                borderColor: BORDER,
+                backgroundColor: SURFACE,
+              }}
+            >
+              <Text style={{ fontSize: 13, fontWeight: "800", color: TEXT_SECONDARY }}>
+                Keep Ride
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => activeRide?.id && submitCancelRide(activeRide.id)}
+              disabled={
+                cancelRide.isPending ||
+                !activeRide?.id ||
+                (selectedCancelReason === "other" &&
+                  otherCancelReason.trim().length === 0)
+              }
+              style={{
+                flex: 1,
+                paddingVertical: 13,
+                borderRadius: 12,
+                alignItems: "center",
+                backgroundColor:
+                  cancelRide.isPending ||
+                  !activeRide?.id ||
+                  (selectedCancelReason === "other" &&
+                    otherCancelReason.trim().length === 0)
+                    ? "#E7A3A3"
+                    : "#DC2626",
+              }}
+            >
+              <Text style={{ fontSize: 13, fontWeight: "800", color: "#fff" }}>
+                {cancelRide.isPending ? "Cancelling..." : "Cancel Ride"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </BottomSheetView>
+      </BottomSheet>
     </View>
   );
 }

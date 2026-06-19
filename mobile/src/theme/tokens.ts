@@ -102,6 +102,27 @@ export const theme = {
   },
 } as const;
 
+export const adminTheme = {
+  bg: "#0D0F12",
+  surface1: "#151820",
+  surface2: "#1C2028",
+  surface3: "#242830",
+  border: "rgba(255,255,255,0.08)",
+  accent: "#F5A623",
+  accentDim: "rgba(245,166,35,0.12)",
+  text1: "#F0F2F5",
+  text2: "#8A8F9E",
+  text3: "#565C6E",
+  ok: "#22C55E",
+  okDim: "rgba(34,197,94,0.12)",
+  err: "#EF4444",
+  errDim: "rgba(239,68,68,0.12)",
+  warn: "#F59E0B",
+  warnDim: "rgba(245,158,11,0.12)",
+  info: "#38BDF8",
+} as const;
+
 export type AppTheme = typeof theme;
+export type AdminTheme = typeof adminTheme;
 export type ThemeSpacing = keyof typeof spacing;
 export type TypographyToken = keyof typeof typography;

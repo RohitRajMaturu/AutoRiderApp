@@ -1,6 +1,6 @@
 import React from "react";
 import { Text, View, type StyleProp, type ViewStyle } from "react-native";
-import { useTheme } from "@/theme/ThemeContext";
+import { theme as defaultTheme, useTheme } from "@/theme/ThemeContext";
 
 type StatusConfig = Record<
   string,
@@ -17,6 +17,21 @@ type StatusBadgeProps = {
   config: StatusConfig;
   style?: StyleProp<ViewStyle>;
 };
+
+export const RIDE_STATUS_CONFIG = {
+  requested: { bg: defaultTheme.warnDim, text: defaultTheme.warn, label: "Finding Driver" },
+  accepted: { bg: defaultTheme.accentDim, text: defaultTheme.accent, label: "Accepted" },
+  completed: { bg: defaultTheme.okDim, text: defaultTheme.ok, label: "Completed" },
+  cancelled: { bg: defaultTheme.errDim, text: defaultTheme.err, label: "Cancelled" },
+} satisfies StatusConfig;
+
+export const DRIVER_STATUS_CONFIG = {
+  online: { bg: defaultTheme.okDim, text: defaultTheme.ok, label: "Online" },
+  idle: { bg: defaultTheme.okDim, text: defaultTheme.ok, label: "Idle" },
+  on_trip: { bg: defaultTheme.accentDim, text: defaultTheme.accent, label: "On Trip" },
+  offline: { bg: defaultTheme.surface3, text: defaultTheme.text3, label: "Offline" },
+  pending: { bg: defaultTheme.warnDim, text: defaultTheme.warn, label: "Pending" },
+} satisfies StatusConfig;
 
 export function StatusBadge({ status, config, style }: StatusBadgeProps) {
   const theme = useTheme();

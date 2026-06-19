@@ -91,6 +91,8 @@ export async function GET(request) {
       sql`
         SELECT
           gz.name as zone_name,
+          gz.id as zone_id,
+          gz.dispatch_enabled,
           gz.max_online_drivers,
           COUNT(DISTINCT r.id) FILTER (WHERE r.status IN ('requested', 'accepted')) as active_rides,
           COUNT(DISTINCT d.id) FILTER (WHERE d.is_online = true AND d.is_approved = true) as online_drivers
@@ -99,7 +101,7 @@ export async function GET(request) {
           AND r.created_at >= CURRENT_DATE AT TIME ZONE 'Asia/Kolkata'
         LEFT JOIN drivers d ON d.zone_id = gz.id
         WHERE gz.is_active = true
-        GROUP BY gz.id, gz.name, gz.max_online_drivers
+        GROUP BY gz.id, gz.name, gz.dispatch_enabled, gz.max_online_drivers
         ORDER BY active_rides DESC
       `,
       sql`
@@ -176,6 +178,8 @@ export async function GET(request) {
       })),
       zoneActivity: zoneActivityRows.map((row) => ({
         zone_name: row.zone_name,
+        zone_id: row.zone_id,
+        dispatch_enabled: row.dispatch_enabled !== false,
         max_online_drivers: toInt(row.max_online_drivers),
         active_rides: toInt(row.active_rides),
         online_drivers: toInt(row.online_drivers),
