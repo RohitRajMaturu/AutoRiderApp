@@ -10,11 +10,10 @@ const callbackUrl = '/api/auth/token';
 const onboardingUrl = '/onboarding';
 
 function buildAuthPath(mode, params = {}, callback = callbackUrl) {
-  const query = new URLSearchParams({ callbackUrl: callback });
+  const query = new URLSearchParams({ callbackUrl: callback, client: 'mobile' });
   const page = mode === 'signup' ? 'signin' : mode;
   if (mode === 'signup') {
     query.set('mode', 'signup');
-    query.set('client', 'mobile');
   }
   Object.entries(params || {}).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') {
