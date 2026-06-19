@@ -11,8 +11,6 @@ import {
 import useAuth from "@/utils/useAuth";
 import TukTukGoLoader from "@/components/TukTukGoLoader";
 
-const callbackUrl = "/admin";
-
 const callouts = [
   {
     Icon: Activity,
@@ -31,12 +29,19 @@ const callouts = [
   },
 ];
 
+function getAdminCallbackUrl() {
+  if (typeof window === "undefined") return "/admin";
+  const callbackUrl = new URLSearchParams(window.location.search).get("callbackUrl");
+  return callbackUrl?.startsWith("/") ? callbackUrl : "/admin";
+}
+
 export default function AdminLoginPage() {
   const { signInWithCredentials } = useAuth();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const callbackUrl = getAdminCallbackUrl();
 
   const onSubmit = async (event) => {
     event.preventDefault();

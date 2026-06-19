@@ -10,9 +10,9 @@ export async function loader({ request }) {
   ]);
   const session = await auth(request);
   const url = new URL(request.url);
-  const signinUrl = `/account/signin?callbackUrl=${encodeURIComponent(
+  const signinUrl = `/admin-login?callbackUrl=${encodeURIComponent(
     url.pathname,
-  )}&role=admin`;
+  )}`;
 
   if (!session?.user?.id) {
     return redirect(signinUrl);

@@ -9,7 +9,7 @@ export async function loader({ request }) {
     import("@/app/api/utils/sql"),
   ]);
   const session = await auth(request);
-  const signinUrl = `/account/signin?role=admin&callbackUrl=${encodeURIComponent(
+  const signinUrl = `/admin-login?callbackUrl=${encodeURIComponent(
     "/admin",
   )}`;
 
