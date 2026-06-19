@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { redirect } from "react-router";
 import {
   Activity,
   ArrowRight,
@@ -11,6 +10,7 @@ import {
 } from "lucide-react";
 import AdminShell from "@/components/AdminShell";
 import StatusBadge from "@/components/ui/StatusBadge";
+import { ICON } from "@/lib/iconScale";
 
 const PRIMARY = "#F5A623";
 const BG = "#0D0F12";
@@ -22,30 +22,6 @@ const ERROR = "#EF4444";
 const GOLD = "#F59E0B";
 const SURFACE = "#1C2028";
 const SURFACE_2 = "#242830";
-
-export async function loader({ request }) {
-  const [{ auth }, { default: sql }] = await Promise.all([
-    import("@/auth"),
-    import("@/app/api/utils/sql"),
-  ]);
-  const session = await auth(request);
-  const signinUrl = `/account/signin?role=admin&callbackUrl=${encodeURIComponent(
-    "/admin",
-  )}`;
-
-  if (!session?.user?.id) {
-    return redirect(signinUrl);
-  }
-
-  const rows = await sql`
-    SELECT role FROM auth_users WHERE id = ${session.user.id} LIMIT 1
-  `;
-  if (rows[0]?.role !== "admin") {
-    return redirect(signinUrl);
-  }
-
-  return null;
-}
 
 function numberValue(value) {
   const parsed = Number(value);
@@ -72,7 +48,7 @@ function Metric({ label, value, tone, Icon }) {
           className="flex h-12 w-12 items-center justify-center rounded-lg"
           style={{ backgroundColor: `${tone}18`, color: tone }}
         >
-          <Icon size={24} />
+          <Icon size={ICON.xxl} />
         </div>
       </div>
     </div>
@@ -259,7 +235,7 @@ export default function AdminPage() {
           <div className="space-y-5">
             <div className="rounded-lg border p-5 shadow-sm" style={{ borderColor: BORDER, background: SURFACE }}>
               <div className="mb-4 flex items-center gap-2">
-                <Users size={18} color={PRIMARY} />
+                <Users size={ICON.lg} color={PRIMARY} />
                 <h2 className="text-base font-semibold">Top Drivers</h2>
               </div>
               <div className="space-y-3">
@@ -289,7 +265,7 @@ export default function AdminPage() {
             >
               <div>
                 <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: PRIMARY }}>
-                  <Activity size={18} />
+                  <Activity size={ICON.md} />
                   More data
                 </div>
                 <p className="mt-2 text-xl font-semibold">Ops Dashboard</p>
@@ -297,7 +273,7 @@ export default function AdminPage() {
                   Fleet heartbeat, zones, audit log, cancellation analytics, and live operations.
                 </p>
               </div>
-              <ArrowRight size={24} color={PRIMARY} />
+              <ArrowRight size={ICON.xl} color={PRIMARY} />
             </a>
           </div>
         </section>

@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   LogOut,
 } from "lucide-react";
+import { ICON } from "@/lib/iconScale";
 
 function formatIstTime(date = new Date()) {
   return new Intl.DateTimeFormat("en-IN", {
@@ -94,7 +95,7 @@ export default function AdminShell({
                 }}
                 title={collapsed ? label : undefined}
               >
-                <Icon size={18} />
+                <Icon size={ICON.md} />
                 {!collapsed ? <span className="truncate">{label}</span> : null}
               </Link>
             );
@@ -109,7 +110,7 @@ export default function AdminShell({
             style={{ borderColor: "var(--ar-border)", color: "var(--ar-t2)" }}
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            {collapsed ? <ChevronRight size={17} /> : <ChevronLeft size={17} />}
+            {collapsed ? <ChevronRight size={ICON.md} /> : <ChevronLeft size={ICON.md} />}
           </button>
           <div className="flex items-center gap-3">
             <div
@@ -133,7 +134,7 @@ export default function AdminShell({
             style={{ color: "var(--ar-t2)" }}
             title={collapsed ? "Sign out" : undefined}
           >
-            <LogOut size={16} />
+            <LogOut size={ICON.md} />
             {!collapsed ? <span>Sign out</span> : null}
           </Link>
         </div>

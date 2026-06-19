@@ -1,5 +1,4 @@
 import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
-import { redirect } from "react-router";
 import {
   useMutation,
   useQuery,
@@ -19,6 +18,7 @@ import { ChevronDown, ChevronUp, Search, Users } from "lucide-react";
 import { toast } from "sonner";
 import AdminShell from "@/components/AdminShell";
 import StatusBadge, { statusForDriver as driverStatusKey } from "@/components/ui/StatusBadge";
+import { ICON } from "@/lib/iconScale";
 
 const PRIMARY = "#F5A623";
 const BG = "#0D0F12";
@@ -31,31 +31,6 @@ const PURPLE = "#38BDF8";
 const BORDER = "rgba(255,255,255,0.08)";
 const SURFACE = "#1C2028";
 const SURFACE_2 = "#242830";
-
-export async function loader({ request }) {
-  const [{ auth }, { default: sql }] = await Promise.all([
-    import("@/auth"),
-    import("@/app/api/utils/sql"),
-  ]);
-  const session = await auth(request);
-  const url = new URL(request.url);
-  const signinUrl = `/account/signin?callbackUrl=${encodeURIComponent(
-    url.pathname,
-  )}&role=admin`;
-
-  if (!session?.user?.id) {
-    return redirect(signinUrl);
-  }
-
-  const rows = await sql`
-    SELECT role FROM auth_users WHERE id = ${session.user.id} LIMIT 1
-  `;
-  if (rows[0]?.role !== "admin") {
-    return redirect(signinUrl);
-  }
-
-  return null;
-}
 
 function numberValue(value) {
   const parsed = Number(value);
@@ -770,7 +745,7 @@ function DriverTable({ drivers, sectionRef }) {
     >
       {label}
       {active ? (
-        sort.dir === "asc" ? <ChevronUp size={13} /> : <ChevronDown size={13} />
+        sort.dir === "asc" ? <ChevronUp size={ICON.xs} /> : <ChevronDown size={ICON.xs} />
       ) : null}
     </button>
     );
@@ -789,7 +764,7 @@ function DriverTable({ drivers, sectionRef }) {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <label className="flex h-9 items-center gap-2 rounded-lg border px-3" style={{ borderColor: BORDER, background: SURFACE_2 }}>
-            <Search size={15} color={TEXT_SEC} />
+            <Search size={ICON.sm} color={TEXT_SEC} />
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
@@ -1010,7 +985,7 @@ function DriverTable({ drivers, sectionRef }) {
         })}
         {visible.length === 0 ? (
           <div className="rounded-lg border px-3 py-8 text-center" style={{ borderColor: BORDER, color: TEXT_SEC }}>
-            <Users className="mx-auto mb-2" size={32} color="var(--ar-t3)" />
+            <Users className="mx-auto mb-2" size={ICON.xxl} color="var(--ar-t3)" />
             <p className="text-sm font-medium">No drivers match this filter</p>
             <p className="mt-1 text-xs" style={{ color: "var(--ar-t3)" }}>
               Try clearing search or changing status filter
