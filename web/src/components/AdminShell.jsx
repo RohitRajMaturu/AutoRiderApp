@@ -69,12 +69,11 @@ export default function AdminShell({
         }}
       >
         <div className="flex h-16 items-center gap-3 px-4">
-          <div
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-sm font-semibold"
-            style={{ background: "var(--ar-accent)", color: "var(--ar-bg)" }}
-          >
-            AR
-          </div>
+          <img
+            src="/tuktukGo.png"
+            alt=""
+            className="h-8 w-8 shrink-0 rounded-lg object-cover"
+          />
           {!collapsed ? (
             <span className="truncate text-sm font-semibold">TukTukGo</span>
           ) : null}

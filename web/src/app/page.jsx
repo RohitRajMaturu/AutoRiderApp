@@ -71,7 +71,7 @@ export default function LandingPage() {
                   <div className="mt-3 flex items-center justify-between">
                     <div>
                       <div className="text-sm font-black">3 min away</div>
-                      <div className="text-xs font-bold text-slate-500">KA 05 AR 2026</div>
+                      <div className="text-xs font-bold text-slate-500">KA 05 TG 2026</div>
                     </div>
                     <div className="rounded-lg bg-[#F3B51B] px-3 py-2 text-sm font-black">
                       Rs. 86
