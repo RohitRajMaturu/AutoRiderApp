@@ -8,8 +8,8 @@ TukTukGo is an India-focused auto-rickshaw ride connection platform.
 
 Core actors:
 - Passenger: request rides, choose pickup/drop, adjust pickup on a map, cancel rides, view history.
-- Driver: register vehicle/documents, wait for approval, toggle online, accept nearby rides, complete rides.
-- Admin: review drivers, inspect ride/admin stats, manage subscription eligibility.
+- Driver: register vehicle/documents, complete KYC, wait for approval, toggle online, accept nearby rides, complete rides.
+- Admin: review drivers, inspect ride/admin stats, manage subscription eligibility, and review KYC submissions.
 
 Primary stack:
 - Mobile: Expo React Native, Expo Router, TanStack Query, Zustand, SecureStore, AsyncStorage.
@@ -56,6 +56,13 @@ flowchart LR
   Api --> Worker[Maintenance worker]
   Mobile --> Motion[React Native motion components]
   Motion --> Json[auto-motion JSON assets]
+  Mobile --> DriverKyc[Driver KYC submission]
+  DriverKyc --> Api
+  Web --> AdminKyc[Admin KYC review]
+  AdminKyc --> Api
+  Api --> KycDispatcher[KYC dispatcher]
+  KycDispatcher --> HyperVerge[HyperVerge adapter]
+  HyperVerge -. vendor docs pending .-> HyperVergePrivate[Face/DL/RC endpoint details]
 ```
 
 ## Runtime And Verification
@@ -88,6 +95,8 @@ Backend-only secrets and controls:
 - `MAINTENANCE_INTERVAL_SECONDS`: scheduled cleanup cadence, default `30`.
 - `RATE_LIMIT_MAX_REQUESTS`: API requests per method/path/IP window, default `120`; set `0` to disable locally.
 - `RATE_LIMIT_WINDOW_MS`: rate-limit window, default `60000`.
+- `HYPERVERGE_APP_ID`: HyperVerge app id for driver KYC.
+- `HYPERVERGE_APP_KEY`: HyperVerge app key for driver KYC.
 
 ## Database State
 
@@ -103,9 +112,10 @@ Main tables:
 - `auth_sessions`
 - `auth_verification_tokens`
 - `drivers`
+- `driver_kyc_checks`
 - `rides`
 
-The domain schema includes driver approval/online state, subscription expiry, last known driver coordinates, passenger/driver ride ownership, status timestamps, provider place IDs, route distance/duration/fare metadata, and route polyline/provider fields.
+The domain schema includes driver approval/online state, subscription expiry, KYC status fields, vendor-tagged KYC audit checks, last known driver coordinates, passenger/driver ride ownership, status timestamps, provider place IDs, route distance/duration/fare metadata, and route polyline/provider fields.
 
 ## Mobile Architecture
 
@@ -114,6 +124,7 @@ Routing is Expo Router based:
 - `mobile/src/app/_layout.jsx`: TanStack Query provider, splash handling, auth modal, route stacks.
 - `mobile/src/app/(passenger)/`: passenger home/profile/rides tabs.
 - `mobile/src/app/(driver)/`: driver dashboard/profile/wallet tabs.
+- `mobile/src/app/(driver)/kyc-submit.jsx`: five-step driver KYC submission flow; hidden from the tab bar.
 - `mobile/src/app/(admin)/`: admin dashboard/drivers/rides tabs.
 - `mobile/src/components/motion/`: reusable TukTukGo motion components for loaders, success states, empty states, button loaders, and press micro-interactions.
 - `mobile/assets/animations/auto-motion/`: generated vector Lottie JSON assets for ride lifecycle, GPS, payment, empty, button, and splash states.
@@ -126,6 +137,7 @@ Auth and API behavior:
 - Mobile stores auth as `{ jwt, user }` in SecureStore under `auto-ride-auth`.
 - `/api/auth/token` returns `{ jwt, user, auth }`.
 - Mobile fetch helpers attach the stored JWT as a bearer token for backend API calls.
+- Passenger, driver, and admin role route groups redirect unauthenticated users back to `/` so device back navigation after logout cannot expose a stale role screen.
 - Test mode persists with `@autoconnect_test_mode` and `@autoconnect_test_role`; it is useful for demos but can hide real auth/backend failures.
 
 Passenger location behavior:
@@ -167,8 +179,10 @@ Major API groups:
 - `POST/GET /api/rides`
 - `GET/PATCH /api/rides/:id`
 - `POST/GET /api/drivers`
+- `POST /api/drivers/kyc-submit`
 - `PATCH /api/drivers/status`
 - `GET/PATCH /api/admin/drivers`
+- `GET/PATCH /api/admin/kyc`
 - `GET /api/admin/rides`
 - `GET /api/admin/stats`
 - `POST /api/admin/setup`
@@ -190,16 +204,28 @@ Passenger ride request:
 5. Passenger cancels through `PATCH /api/rides/:id` with `{ action: "cancel" }`.
 
 Driver ride handling:
-1. Approved driver toggles online via `PATCH /api/drivers/status`.
-2. Backend requires active subscription before online status is allowed.
-3. Driver coordinates are stored from device location when available.
-4. Driver ride feed polls `/api/rides` every 5 seconds and returns assigned rides plus dispatched unassigned requests for the driver's active service zone.
-5. Driver accepts through `{ action: "accept" }` and completes through `{ action: "complete" }`.
+1. Driver completes KYC from `/(driver)/kyc-submit`.
+2. Driver dashboard blocks online mode unless `drivers.kyc_status = 'approved'`.
+3. Approved driver toggles online via `PATCH /api/drivers/status`.
+4. Backend requires active subscription before online status is allowed.
+5. Driver coordinates are stored from device location when available.
+6. Driver ride feed polls `/api/rides` every 5 seconds and returns assigned rides plus dispatched unassigned requests for the driver's active service zone.
+7. Driver accepts through `{ action: "accept" }` and completes through `{ action: "complete" }`.
 
 Admin:
 1. Admin dashboard calls `/api/admin/stats` and `/api/admin/drivers`.
 2. Driver review uses `PATCH /api/admin/drivers`.
-3. Admin setup is local/bootstrap only: it requires `ENABLE_ADMIN_SETUP=true`, is blocked once any admin exists, and is unavailable when `NODE_ENV=production`.
+3. KYC review uses `/admin-kyc` and `GET/PATCH /api/admin/kyc`.
+4. Admin setup is local/bootstrap only: it requires `ENABLE_ADMIN_SETUP=true`, is blocked once any admin exists, and is unavailable when `NODE_ENV=production`.
+
+Driver KYC:
+1. `011_driver_kyc.sql` adds driver KYC fields and `driver_kyc_checks`.
+2. `web/src/lib/kyc/contract.js` defines the vendor-neutral result shape.
+3. `web/src/lib/kyc/config.js` selects `KYC_VENDOR = "hyperverge"`.
+4. `web/src/lib/kyc/verifyDriver.js` dispatches to the configured vendor adapter.
+5. `web/src/lib/kyc/adapters/hyperverge.js` isolates HyperVerge endpoint/credential knowledge.
+6. `POST /api/drivers/kyc-submit` persists driver KYC fields, stores only Aadhaar last 4, calls the dispatcher, and inserts vendor-tagged audit rows.
+7. HyperVerge OCR `/readKYC` is scaffolded, while face-match, DL lookup, and RC lookup gracefully record `not_run` until confirmed vendor endpoints are supplied.
 
 ## Maps, Places, And Fare Logic
 
@@ -228,6 +254,11 @@ Current coverage:
 - Admin driver update validation, admin-only access, and missing-row handling.
 - Driver ride discovery filtering by zone and dispatch notification record.
 
+Latest verified checks:
+- `cd mobile; npm run lint`
+- `cd web; npm run typecheck`
+- `cd web; npm run db:migrate` applied `011_driver_kyc.sql`
+
 Run with:
 
 ```powershell
@@ -238,6 +269,9 @@ npm run test:api
 ## Remaining Work
 
 High-value next tasks:
+- Add real HyperVerge credentials and confirmed face-match/DL/RC endpoint mappings.
+- Confirm whether HyperVerge `/readKYC` accepts hosted image URLs or requires raw uploaded bytes.
+- Run sandbox KYC submissions end-to-end and confirm full Aadhaar is never stored or logged.
 - Manually confirm WebView sign-in and bearer-token API calls across Expo Go and device builds.
 - Add passenger fare/ETA preview if the product decision changes.
 - Add payment-backed driver subscription renewal with verified webhooks.

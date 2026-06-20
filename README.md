@@ -100,6 +100,8 @@ The mobile app does not call Ola Maps directly. Expo screens call backend routes
 
 Mobile auth stores `{ jwt, user }` in SecureStore under the stable key `auto-ride-auth`. `/api/auth/token` returns this shape after WebView sign-in, and mobile API calls send the JWT as a bearer token.
 
+Mobile role screens are guarded after logout. If a user signs out and then uses the device back button, passenger, driver, and admin route groups redirect back to the welcome/login screen instead of showing the previous logged-in role UI.
+
 Backend `/api/*` routes include basic rate limiting and security headers. Set `RATE_LIMIT_MAX_REQUESTS=0` only for local debugging.
 
 Ride discovery is polling-based by design for the Secunderabad pilot:
@@ -117,6 +119,43 @@ Ride discovery is polling-based by design for the Secunderabad pilot:
 - Fare calculation exists server-side as base fare INR 35 plus INR 18 per kilometer, but passenger-facing fare/surge UI is intentionally not enabled yet.
 - Native mobile ride request screen shows pickup/destination pins and supports drag-to-adjust pickup without exposing Ola Maps keys.
 - Configurable local fallback data for development when Ola Maps is unavailable or `OLAMAPS_API_KEY` is not configured.
+
+## Completed Driver KYC Work
+
+The driver KYC foundation is implemented with a vendor-swappable architecture:
+
+- Database migration `011_driver_kyc.sql` adds driver KYC fields and `driver_kyc_checks`.
+- Migration has been applied locally with `npm run db:migrate`.
+- Vendor-neutral contract lives in `web/src/lib/kyc/contract.js`.
+- Runtime vendor switch lives in `web/src/lib/kyc/config.js`.
+- Dispatcher lives in `web/src/lib/kyc/verifyDriver.js`.
+- HyperVerge-specific adapter shell lives in `web/src/lib/kyc/adapters/hyperverge.js`.
+- Driver KYC submission API is available at `POST /api/drivers/kyc-submit`.
+- Mobile driver KYC flow is available at `mobile/src/app/(driver)/kyc-submit.jsx`.
+- Driver dashboard blocks online mode until `kyc_status = 'approved'`.
+- Admin KYC review queue is available at `/admin-kyc`.
+- Admin API for KYC review is available at `GET/PATCH /api/admin/kyc`.
+- `web/.env.example` includes `HYPERVERGE_APP_ID` and `HYPERVERGE_APP_KEY` placeholders.
+
+KYC data handling rules:
+
+- Full Aadhaar is sent only in the KYC submission request body.
+- Only the last 4 Aadhaar digits are stored in `drivers.aadhaar_number_masked`.
+- Vendor responses are stored in `driver_kyc_checks.raw_result` for audit.
+- API routes and admin/mobile app code call the vendor-neutral dispatcher, not the HyperVerge adapter directly.
+
+## Pending Driver KYC Work
+
+The KYC system is structurally complete, but live HyperVerge verification needs vendor-provided integration details:
+
+- Add real `HYPERVERGE_APP_ID` and `HYPERVERGE_APP_KEY` values to the deployed web environment.
+- Confirm whether HyperVerge `/readKYC` accepts hosted image URLs directly or requires raw image bytes.
+- Confirm face-match endpoint path and response shape.
+- Confirm DL active-status lookup endpoint path and response shape.
+- Confirm RC active-status lookup endpoint path and response shape.
+- Map real HyperVerge OCR, tampering, status, and confidence fields inside `web/src/lib/kyc/adapters/hyperverge.js`.
+- Run sandbox KYC submissions end-to-end once credentials and confirmed endpoints are available.
+- Verify that full Aadhaar never appears in logs, DB rows, or vendor raw results after sandbox testing.
 
 ## Backend Verification
 
@@ -185,6 +224,13 @@ flowchart LR
   Api --> Maintenance[Maintenance worker]
   Mobile --> Motion[React Native motion components]
   Motion --> MotionAssets[auto-motion JSON assets]
+  Mobile --> DriverKyc[Driver KYC flow]
+  DriverKyc --> Api
+  WebLanding --> AdminKyc[Admin KYC review]
+  AdminKyc --> Api
+  Api --> KycDispatcher[KYC dispatcher]
+  KycDispatcher --> HyperVerge[HyperVerge adapter]
+  HyperVerge -. pending confirmed endpoints .-> HyperVergeDocs[Face/DL/RC docs]
 ```
 
 ## Single VPS Backend
@@ -215,6 +261,7 @@ worker rather than inside request handlers.
 Pending items:
 
 - Complete real-device E2E testing for passenger, driver, and admin flows.
+- Complete HyperVerge live verification once credentials and private endpoint docs are available.
 - Verify polling-based ride discovery on the deployed VPS.
 - Verify the maintenance worker marks expired drivers offline and cancels timed-out accepted rides.
 - Replace GeoJSON polygon import with map-based polygon drawing/editing when operations need visual zone editing.
