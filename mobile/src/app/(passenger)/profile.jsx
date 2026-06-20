@@ -641,9 +641,9 @@ export default function PassengerProfile() {
         <SignOutSheet
           visible={showSignOutSheet}
           onCancel={() => setShowSignOutSheet(false)}
-          onConfirm={() => {
+          onConfirm={async () => {
             setShowSignOutSheet(false);
-            signOut();
+            await signOut();
           }}
         />
 

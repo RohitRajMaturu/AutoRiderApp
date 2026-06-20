@@ -11,7 +11,7 @@ A lightweight auto-rickshaw ride connection platform for India.
 
 ## Core Features
 - **Passengers**: Request rides, adjust pickup on a native map, see driver details, track ride history.
-- **Drivers**: Register vehicle/license, toggle online/offline status, accept nearby rides.
+- **Drivers**: Create their account, register vehicle/license, complete KYC, toggle online/offline status, accept nearby rides.
 - **Admin**: Approve/Reject driver applications, manage subscriptions.
 - **Subscription Model**: Drivers need an active subscription to go online.
 
@@ -55,6 +55,10 @@ To become an admin for testing:
 6. Remove `ENABLE_ADMIN_SETUP` before production. The route is blocked once an admin exists.
 
 The setup route is also hard-disabled when `NODE_ENV=production`.
+
+Passenger and driver accounts are self-service from the mobile welcome screen.
+Admins do not create driver login accounts; they approve/reject driver
+applications and KYC after the driver signs up and submits details.
 
 ### Test Accounts
 Seeded test users from `web/scripts/seed-test-users.mjs` use temporary password `12345` after running `007_seed_account_passwords.sql`:

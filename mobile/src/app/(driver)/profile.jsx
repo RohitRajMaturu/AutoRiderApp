@@ -715,9 +715,9 @@ export default function DriverProfile() {
         <SignOutSheet
           visible={showSignOutSheet}
           onCancel={() => setShowSignOutSheet(false)}
-          onConfirm={() => {
+          onConfirm={async () => {
             setShowSignOutSheet(false);
-            signOut();
+            await signOut();
           }}
         />
 

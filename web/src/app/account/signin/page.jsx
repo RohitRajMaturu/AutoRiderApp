@@ -488,9 +488,22 @@ export default function SignInPage() {
                   </form>
                 </>
               )}
-              <p className="mt-5 text-center text-sm text-slate-500">
-                Web access is restricted to admin sign in.
-              </p>
+              {allowSignup ? (
+                <p className="mt-5 text-center text-sm text-slate-500">
+                  New here?{" "}
+                  <button
+                    type="button"
+                    onClick={() => setScreen("signup")}
+                    className="font-extrabold text-[#43B8B3] hover:underline"
+                  >
+                    Create an account
+                  </button>
+                </p>
+              ) : (
+                <p className="mt-5 text-center text-sm text-slate-500">
+                  Web access is restricted to admin sign in.
+                </p>
+              )}
             </div>
           </motion.div>
         ) : (

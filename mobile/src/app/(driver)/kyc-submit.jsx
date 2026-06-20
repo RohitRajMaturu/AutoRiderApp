@@ -2,6 +2,8 @@ import React, { useMemo, useState } from "react";
 import {
   Alert,
   Image,
+  Modal,
+  Pressable,
   ScrollView,
   Text,
   TextInput,
@@ -13,7 +15,16 @@ import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as ImagePicker from "expo-image-picker";
-import { ArrowLeft, Camera, CheckCircle2, FileText, Image as ImageIcon } from "lucide-react-native";
+import {
+  ArrowLeft,
+  CalendarDays,
+  Camera,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  FileText,
+  Image as ImageIcon,
+} from "lucide-react-native";
 import { AutoMotionScene } from "@/components/motion";
 import TukTukGoLoader from "@/components/TukTukGoLoader";
 import { ICON } from "@/theme/iconScale";
@@ -31,6 +42,82 @@ const TEXT_MUTED = "#647678";
 const SUCCESS = "#16A34A";
 
 const STEPS = ["Details", "Docs", "Aadhaar", "Selfie", "Review"];
+const CURRENT_YEAR = new Date().getFullYear();
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
+
+function pad2(value) {
+  return String(value).padStart(2, "0");
+}
+
+function daysInMonth(month, year) {
+  return new Date(year, month, 0).getDate();
+}
+
+function parseDisplayDate(value, fallbackYear = CURRENT_YEAR) {
+  const raw = String(value || "").trim();
+  const displayMatch = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (displayMatch) {
+    return {
+      day: Number(displayMatch[1]),
+      month: Number(displayMatch[2]),
+      year: Number(displayMatch[3]),
+    };
+  }
+
+  const isoMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) {
+    return {
+      day: Number(isoMatch[3]),
+      month: Number(isoMatch[2]),
+      year: Number(isoMatch[1]),
+    };
+  }
+
+  const hyphenMatch = raw.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  if (hyphenMatch) {
+    return {
+      day: Number(hyphenMatch[1]),
+      month: Number(hyphenMatch[2]),
+      year: Number(hyphenMatch[3]),
+    };
+  }
+
+  return { day: 1, month: 1, year: fallbackYear };
+}
+
+function clampDateParts(parts, minYear, maxYear) {
+  const year = Math.min(maxYear, Math.max(minYear, parts.year));
+  const month = Math.min(12, Math.max(1, parts.month));
+  const day = Math.min(daysInMonth(month, year), Math.max(1, parts.day));
+  return { day, month, year };
+}
+
+function formatDisplayDate(parts) {
+  return `${pad2(parts.day)}/${pad2(parts.month)}/${parts.year}`;
+}
+
+function createMonthCells({ month, year }) {
+  const firstDay = new Date(year, month - 1, 1).getDay();
+  const totalDays = daysInMonth(month, year);
+  return [
+    ...Array.from({ length: firstDay }, () => null),
+    ...Array.from({ length: totalDays }, (_, index) => index + 1),
+  ];
+}
 
 function readDriverName(driver, auth) {
   return driver?.full_name || auth?.user?.name || auth?.user?.email || "";
@@ -73,8 +160,12 @@ export default function DriverKycSubmit() {
       setDriverName((value) => value || readDriverName(driver, auth));
       setDlNumber((value) => value || driver?.dl_number || "");
       setRcNumber((value) => value || driver?.rc_number || "");
-      setDob((value) => value || driver?.dob || "");
-      setDlExpiry((value) => value || driver?.dl_expiry || "");
+      setDob((value) =>
+        value || (driver?.dob ? formatDisplayDate(parseDisplayDate(driver.dob, 1995)) : ""),
+      );
+      setDlExpiry((value) =>
+        value || (driver?.dl_expiry ? formatDisplayDate(parseDisplayDate(driver.dl_expiry, CURRENT_YEAR + 5)) : ""),
+      );
       setDlPhotoUrl((value) => value || driver?.license_storage_path || driver?.license_url || "");
       setDlPreview((value) => value || driver?.license_url || "");
       setRcPhotoUrl((value) => value || driver?.rc_photo_storage_path || driver?.rc_photo_url || "");
@@ -265,9 +356,23 @@ export default function DriverKycSubmit() {
         {step === 0 ? (
           <Card title="Personal details">
             <Field label="Full name" value={driverName} onChangeText={setDriverName} />
-            <Field label="Date of birth (YYYY-MM-DD)" value={dob} onChangeText={setDob} />
+            <DatePickerField
+              label="Date of birth"
+              value={dob}
+              onChange={setDob}
+              minYear={1940}
+              maxYear={CURRENT_YEAR - 18}
+              fallbackYear={1995}
+            />
             <Field label="DL number" value={dlNumber} onChangeText={setDlNumber} autoCapitalize="characters" />
-            <Field label="DL expiry (YYYY-MM-DD)" value={dlExpiry} onChangeText={setDlExpiry} />
+            <DatePickerField
+              label="DL expiry"
+              value={dlExpiry}
+              onChange={setDlExpiry}
+              minYear={CURRENT_YEAR}
+              maxYear={CURRENT_YEAR + 30}
+              fallbackYear={CURRENT_YEAR + 5}
+            />
             <Field label="RC number" value={rcNumber} onChangeText={setRcNumber} autoCapitalize="characters" />
           </Card>
         ) : null}
@@ -358,6 +463,283 @@ function Field({ label, ...props }) {
         placeholderTextColor={TEXT_MUTED}
         style={{ borderRadius: 12, borderWidth: 1, borderColor: BORDER, paddingHorizontal: 14, paddingVertical: 12, color: TEXT, fontSize: 15, fontWeight: "700" }}
       />
+    </View>
+  );
+}
+
+function DatePickerField({ label, value, onChange, minYear, maxYear, fallbackYear }) {
+  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState("calendar");
+  const [draft, setDraft] = useState(() =>
+    clampDateParts(parseDisplayDate(value, fallbackYear), minYear, maxYear),
+  );
+  const [yearRangeStart, setYearRangeStart] = useState(() => {
+    const selectedYear = clampDateParts(parseDisplayDate(value, fallbackYear), minYear, maxYear).year;
+    return Math.max(minYear, selectedYear - (selectedYear % 12));
+  });
+
+  const displayValue = value || "dd/mm/yyyy";
+  const monthCells = useMemo(() => createMonthCells(draft), [draft]);
+  const yearRange = useMemo(
+    () =>
+      Array.from({ length: 12 }, (_, index) => yearRangeStart + index).filter(
+        (year) => year >= minYear && year <= maxYear,
+      ),
+    [maxYear, minYear, yearRangeStart],
+  );
+
+  const changeMonth = (delta) => {
+    setDraft((current) => {
+      const next = { ...current, month: current.month + delta };
+      if (next.month > 12) {
+        next.month = 1;
+        next.year += 1;
+      }
+      if (next.month < 1) {
+        next.month = 12;
+        next.year -= 1;
+      }
+      return clampDateParts(next, minYear, maxYear);
+    });
+  };
+
+  const selectYear = (year) => {
+    setDraft((current) => clampDateParts({ ...current, year }, minYear, maxYear));
+    setMode("calendar");
+  };
+
+  const moveYearRange = (delta) => {
+    setYearRangeStart((current) => Math.min(maxYear - 11, Math.max(minYear, current + delta)));
+  };
+
+  const openPicker = () => {
+    const nextDraft = clampDateParts(parseDisplayDate(value, fallbackYear), minYear, maxYear);
+    setDraft(nextDraft);
+    setYearRangeStart(Math.max(minYear, nextDraft.year - (nextDraft.year % 12)));
+    setMode("calendar");
+    setOpen(true);
+  };
+
+  return (
+    <View>
+      <Text style={{ color: TEXT_MUTED, fontSize: 11, fontWeight: "800", marginBottom: 6, textTransform: "uppercase" }}>{label}</Text>
+      <TouchableOpacity
+        activeOpacity={0.86}
+        onPress={openPicker}
+        style={{
+          alignItems: "center",
+          borderColor: BORDER,
+          borderRadius: 12,
+          borderWidth: 1,
+          flexDirection: "row",
+          gap: 10,
+          paddingHorizontal: 14,
+          paddingVertical: 12,
+        }}
+      >
+        <CalendarDays size={ICON.md} color={PRIMARY} />
+        <Text style={{ color: value ? TEXT : TEXT_MUTED, flex: 1, fontSize: 15, fontWeight: "800" }}>
+          {displayValue}
+        </Text>
+        <Text style={{ color: TEXT_MUTED, fontSize: 12, fontWeight: "800" }}>Pick</Text>
+      </TouchableOpacity>
+
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+        <Pressable
+          onPress={() => setOpen(false)}
+          style={{
+            alignItems: "center",
+            backgroundColor: "#00000066",
+            flex: 1,
+            justifyContent: "center",
+            padding: 20,
+          }}
+        >
+          <Pressable onPress={() => {}} style={{ width: "100%" }}>
+            <View style={{ backgroundColor: SURFACE, borderRadius: 22, padding: 18 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: TEXT, fontSize: 18, fontWeight: "900" }}>{label}</Text>
+                  <Text style={{ color: TEXT_SECONDARY, fontSize: 12, marginTop: 4 }}>
+                    {formatDisplayDate(draft)}
+                  </Text>
+                </View>
+                <View
+                  style={{
+                    backgroundColor: PRIMARY_LIGHT,
+                    borderColor: PRIMARY_BORDER,
+                    borderRadius: 13,
+                    borderWidth: 1,
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                  }}
+                >
+                  <Text style={{ color: PRIMARY, fontSize: 13, fontWeight: "900" }}>dd/mm/yyyy</Text>
+                </View>
+              </View>
+
+              {mode === "calendar" ? (
+                <View style={{ marginTop: 18 }}>
+                  <View
+                    style={{
+                      alignItems: "center",
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <TouchableOpacity
+                      activeOpacity={0.82}
+                      onPress={() => changeMonth(-1)}
+                      style={{ alignItems: "center", backgroundColor: "#F5F5F4", borderRadius: 12, height: 42, justifyContent: "center", width: 42 }}
+                    >
+                      <ChevronLeft size={ICON.md} color={TEXT_SECONDARY} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      activeOpacity={0.86}
+                      onPress={() => setMode("years")}
+                      style={{ alignItems: "center", borderRadius: 14, paddingHorizontal: 16, paddingVertical: 10 }}
+                    >
+                      <Text style={{ color: TEXT, fontSize: 18, fontWeight: "900" }}>
+                        {MONTHS[draft.month - 1]} {draft.year}
+                      </Text>
+                      <Text style={{ color: PRIMARY, fontSize: 11, fontWeight: "900", marginTop: 2 }}>
+                        Tap to change year
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      activeOpacity={0.82}
+                      onPress={() => changeMonth(1)}
+                      style={{ alignItems: "center", backgroundColor: "#F5F5F4", borderRadius: 12, height: 42, justifyContent: "center", width: 42 }}
+                    >
+                      <ChevronRight size={ICON.md} color={TEXT_SECONDARY} />
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={{ flexDirection: "row", marginTop: 18 }}>
+                    {WEEKDAYS.map((day, index) => (
+                      <Text key={`${day}-${index}`} style={{ color: TEXT_MUTED, flex: 1, fontSize: 12, fontWeight: "900", textAlign: "center" }}>
+                        {day}
+                      </Text>
+                    ))}
+                  </View>
+
+                  <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 8 }}>
+                    {monthCells.map((day, index) => {
+                      const selected = day === draft.day;
+                      return (
+                        <View key={`${day || "blank"}-${index}`} style={{ alignItems: "center", height: 42, justifyContent: "center", width: `${100 / 7}%` }}>
+                          {day ? (
+                            <TouchableOpacity
+                              activeOpacity={0.84}
+                              onPress={() => setDraft((current) => ({ ...current, day }))}
+                              style={{
+                                alignItems: "center",
+                                backgroundColor: selected ? PRIMARY : "transparent",
+                                borderColor: selected ? PRIMARY : BORDER,
+                                borderRadius: 999,
+                                borderWidth: selected ? 0 : 1,
+                                height: 34,
+                                justifyContent: "center",
+                                width: 34,
+                              }}
+                            >
+                              <Text style={{ color: selected ? SURFACE : TEXT, fontSize: 14, fontWeight: "900" }}>
+                                {day}
+                              </Text>
+                            </TouchableOpacity>
+                          ) : null}
+                        </View>
+                      );
+                    })}
+                  </View>
+                </View>
+              ) : (
+                <View style={{ marginTop: 18 }}>
+                  <View style={{ alignItems: "center", flexDirection: "row", justifyContent: "space-between" }}>
+                    <TouchableOpacity
+                      activeOpacity={0.82}
+                      onPress={() => moveYearRange(-12)}
+                      style={{ alignItems: "center", backgroundColor: "#F5F5F4", borderRadius: 12, height: 42, justifyContent: "center", width: 42 }}
+                    >
+                      <ChevronLeft size={ICON.md} color={TEXT_SECONDARY} />
+                    </TouchableOpacity>
+                    <Text style={{ color: TEXT, fontSize: 18, fontWeight: "900" }}>
+                      {yearRange[0]} - {yearRange[yearRange.length - 1]}
+                    </Text>
+                    <TouchableOpacity
+                      activeOpacity={0.82}
+                      onPress={() => moveYearRange(12)}
+                      style={{ alignItems: "center", backgroundColor: "#F5F5F4", borderRadius: 12, height: 42, justifyContent: "center", width: 42 }}
+                    >
+                      <ChevronRight size={ICON.md} color={TEXT_SECONDARY} />
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 16 }}>
+                    {yearRange.map((year) => {
+                      const selected = year === draft.year;
+                      return (
+                        <TouchableOpacity
+                          activeOpacity={0.84}
+                          key={year}
+                          onPress={() => selectYear(year)}
+                          style={{
+                            alignItems: "center",
+                            backgroundColor: selected ? PRIMARY : "#F7FBFA",
+                            borderColor: selected ? PRIMARY : BORDER,
+                            borderRadius: 14,
+                            borderWidth: 1,
+                            height: 48,
+                            justifyContent: "center",
+                            width: "31.6%",
+                          }}
+                        >
+                          <Text style={{ color: selected ? SURFACE : TEXT, fontSize: 15, fontWeight: "900" }}>
+                            {year}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              )}
+
+              <View style={{ flexDirection: "row", gap: 10, marginTop: 16 }}>
+                <TouchableOpacity
+                  activeOpacity={0.86}
+                  onPress={() => setOpen(false)}
+                  style={{
+                    alignItems: "center",
+                    borderColor: BORDER,
+                    borderRadius: 14,
+                    borderWidth: 1,
+                    flex: 1,
+                    paddingVertical: 14,
+                  }}
+                >
+                  <Text style={{ color: TEXT, fontWeight: "900" }}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  activeOpacity={0.86}
+                  onPress={() => {
+                    onChange(formatDisplayDate(draft));
+                    setOpen(false);
+                  }}
+                  style={{
+                    alignItems: "center",
+                    backgroundColor: PRIMARY,
+                    borderRadius: 14,
+                    flex: 1,
+                    paddingVertical: 14,
+                  }}
+                >
+                  <Text style={{ color: SURFACE, fontWeight: "900" }}>Apply</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }

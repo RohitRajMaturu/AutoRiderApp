@@ -1,4 +1,3 @@
-import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useCallback, useEffect } from 'react';
 import { useAuthModal, useAuthStore, authKey, secureStoreOptions } from './store';
@@ -53,14 +52,18 @@ export const useAuth = () => {
   }, [open]);
 
   const signOut = useCallback(async () => {
-    queryClient.clear();
-    resetSessionState();
-    await disableTestMode();
-    setAuth(null);
     close();
-    router.replace('/');
-    open({ mode: 'signin' });
-  }, [close, disableTestMode, open, resetSessionState, setAuth]);
+    setAuth(null);
+    queryClient.clear();
+
+    await Promise.allSettled([
+      queryClient.cancelQueries(),
+      Promise.resolve(resetSessionState()),
+      Promise.resolve(disableTestMode()),
+      SecureStore.deleteItemAsync(authKey, secureStoreOptions),
+    ]);
+    queryClient.clear();
+  }, [close, disableTestMode, resetSessionState, setAuth]);
 
   return {
     isReady,

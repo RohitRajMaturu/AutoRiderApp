@@ -10,6 +10,8 @@ import {
   Easing,
   Alert,
   Linking,
+  Modal,
+  Pressable,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -20,6 +22,7 @@ import {
   Trophy,
   Car,
   FlaskConical,
+  LogOut,
 } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, {
@@ -50,6 +53,91 @@ const GOLD = "#F59E0B";
 const PURPLE = "#38BDF8";
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
+function SignOutSheet({ visible, onCancel, onConfirm }) {
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onCancel}>
+      <Pressable
+        onPress={onCancel}
+        style={{
+          backgroundColor: "rgba(0,0,0,0.62)",
+          flex: 1,
+          justifyContent: "flex-end",
+        }}
+      >
+        <Pressable
+          onPress={() => {}}
+          style={{
+            backgroundColor: SURFACE,
+            borderTopLeftRadius: 26,
+            borderTopRightRadius: 26,
+            padding: 22,
+            paddingBottom: 30,
+          }}
+        >
+          <View
+            style={{
+              alignSelf: "center",
+              backgroundColor: BORDER,
+              borderRadius: 2,
+              height: 4,
+              marginBottom: 18,
+              width: 42,
+            }}
+          />
+          <View
+            style={{
+              alignItems: "center",
+              backgroundColor: "rgba(239,68,68,0.12)",
+              borderColor: "rgba(239,68,68,0.26)",
+              borderRadius: 16,
+              borderWidth: 1,
+              height: 50,
+              justifyContent: "center",
+              marginBottom: 14,
+              width: 50,
+            }}
+          >
+            <LogOut size={ICON.lg} color={ERROR} />
+          </View>
+          <Text style={{ color: TEXT, fontSize: 20, fontWeight: "900" }}>Sign out?</Text>
+          <Text style={{ color: TEXT_SECONDARY, fontSize: 14, lineHeight: 20, marginTop: 8 }}>
+            You will leave the admin console and return to the public start screen.
+          </Text>
+          <View style={{ flexDirection: "row", gap: 12, marginTop: 22 }}>
+            <TouchableOpacity
+              activeOpacity={0.84}
+              onPress={onCancel}
+              style={{
+                alignItems: "center",
+                borderColor: BORDER,
+                borderRadius: 14,
+                borderWidth: 1,
+                flex: 1,
+                paddingVertical: 14,
+              }}
+            >
+              <Text style={{ color: TEXT, fontSize: 14, fontWeight: "900" }}>Stay</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              activeOpacity={0.84}
+              onPress={onConfirm}
+              style={{
+                alignItems: "center",
+                backgroundColor: ERROR,
+                borderRadius: 14,
+                flex: 1,
+                paddingVertical: 14,
+              }}
+            >
+              <Text style={{ color: "#fff", fontSize: 14, fontWeight: "900" }}>Sign Out</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
 
 function numberValue(value) {
   const parsed = Number(value);
@@ -462,6 +550,7 @@ export default function AdminDashboard() {
   const { testMode, disableTestMode } = useAppStore();
   const [chartView, setChartView] = useState("today");
   const [chartMetric, setChartMetric] = useState("rides");
+  const [showSignOutSheet, setShowSignOutSheet] = useState(false);
   const webUrl = (
     process.env.EXPO_PUBLIC_WEB_URL || "http://localhost:4000"
   ).replace(/\/$/, "");
@@ -1265,7 +1354,7 @@ export default function AdminDashboard() {
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
-              onPress={() => signOut()}
+              onPress={() => setShowSignOutSheet(true)}
               style={{
                 backgroundColor: SURFACE,
                 borderRadius: 12,
@@ -1286,6 +1375,14 @@ export default function AdminDashboard() {
           )}
         </ScrollView>
       )}
+      <SignOutSheet
+        visible={showSignOutSheet}
+        onCancel={() => setShowSignOutSheet(false)}
+        onConfirm={async () => {
+          setShowSignOutSheet(false);
+          await signOut();
+        }}
+      />
     </View>
   );
 }

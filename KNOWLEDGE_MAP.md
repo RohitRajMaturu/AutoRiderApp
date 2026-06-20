@@ -7,9 +7,9 @@ Use this document as context for Claude, Codex, or another implementation agent.
 TukTukGo is an India-focused auto-rickshaw ride connection platform.
 
 Core actors:
-- Passenger: request rides, choose pickup/drop, adjust pickup on a map, cancel rides, view history.
-- Driver: register vehicle/documents, complete KYC, wait for approval, toggle online, accept nearby rides, complete rides.
-- Admin: review drivers, inspect ride/admin stats, manage subscription eligibility, and review KYC submissions.
+- Passenger: self-sign up, request rides, choose pickup/drop, adjust pickup on a map, cancel rides, view history.
+- Driver: self-sign up, register vehicle/documents, complete KYC, wait for approval, toggle online, accept nearby rides, complete rides.
+- Admin: review drivers, inspect ride/admin stats, manage subscription eligibility, and review KYC submissions. Admins approve driver applications; they do not need to create driver login accounts.
 
 Primary stack:
 - Mobile: Expo React Native, Expo Router, TanStack Query, Zustand, SecureStore, AsyncStorage.
@@ -212,13 +212,15 @@ Passenger ride request:
 5. Passenger cancels through `PATCH /api/rides/:id` with `{ action: "cancel" }`.
 
 Driver ride handling:
-1. Driver completes KYC from `/(driver)/kyc-submit`.
-2. Driver dashboard blocks online mode unless `drivers.kyc_status = 'approved'`.
-3. Approved driver toggles online via `PATCH /api/drivers/status`.
-4. Backend requires active subscription before online status is allowed.
-5. Driver coordinates are stored from device location when available.
-6. Driver ride feed polls `/api/rides` every 5 seconds and returns assigned rides plus dispatched unassigned requests for the driver's active service zone.
-7. Driver accepts through `{ action: "accept" }` and completes through `{ action: "complete" }`.
+1. Driver creates an account from the mobile welcome screen.
+2. Driver registers vehicle/license details in the driver dashboard.
+3. Driver completes KYC from `/(driver)/kyc-submit`.
+4. Driver dashboard blocks online mode unless `drivers.kyc_status = 'approved'`.
+5. Approved driver toggles online via `PATCH /api/drivers/status`.
+6. Backend requires active subscription before online status is allowed.
+7. Driver coordinates are stored from device location when available.
+8. Driver ride feed polls `/api/rides` every 5 seconds and returns assigned rides plus dispatched unassigned requests for the driver's active service zone.
+9. Driver accepts through `{ action: "accept" }` and completes through `{ action: "complete" }`.
 
 Admin:
 1. Admin dashboard calls `/api/admin/stats` and `/api/admin/drivers`.

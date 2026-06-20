@@ -1,94 +1,192 @@
-import { ArrowRight, Download, ShieldCheck, Smartphone } from "lucide-react";
+import {
+  ArrowRight,
+  BadgeCheck,
+  Gauge,
+  MapPinned,
+  ShieldCheck,
+  Smartphone,
+  UserRound,
+  WalletCards,
+} from "lucide-react";
 
 const IOS_APP_URL = "#ios-app";
 const ANDROID_APP_URL = "#android-app";
 
+const actions = [
+  {
+    title: "Passengers",
+    copy: "Book an auto, track arrival, and keep every trip in one place.",
+    href: ANDROID_APP_URL,
+    cta: "Download mobile app",
+    Icon: UserRound,
+  },
+  {
+    title: "Drivers",
+    copy: "Register, finish KYC, and start accepting rides after approval.",
+    href: ANDROID_APP_URL,
+    cta: "Get driver app",
+    Icon: Gauge,
+  },
+  {
+    title: "Admins",
+    copy: "Approve drivers, monitor rides, manage zones, and review KYC.",
+    href: "/admin-login",
+    cta: "Open admin console",
+    Icon: ShieldCheck,
+  },
+];
+
+const metrics = [
+  ["Live", "ride matching"],
+  ["KYC", "driver checks"],
+  ["Fair", "fare visibility"],
+  ["Zone", "aware dispatch"],
+];
+
+const flow = [
+  ["Set pickup", "Use map-based pickup and destination search for faster bookings."],
+  ["Match nearby auto", "Drivers see clean ride requests with distance and fare context."],
+  ["Track and complete", "Passengers and admins can follow the trip lifecycle clearly."],
+];
+
 export default function LandingPage() {
   return (
     <main className="min-h-screen bg-[#F6FAFA] text-[#17272B]">
-      <section className="relative isolate min-h-screen overflow-hidden">
-        <div className="absolute inset-x-0 top-0 h-[62vh] bg-[#43B8B3]" />
-        <div className="absolute inset-x-0 top-[62vh] h-20 bg-[#F3B51B]" />
+      <section className="relative isolate min-h-[92vh] overflow-hidden bg-[#123034]">
+        <img
+          src="/images/welcome-auto-rickshaw-transparent.png"
+          alt="TukTukGo auto rickshaw"
+          className="pointer-events-none absolute bottom-[-18px] right-[-90px] z-0 w-[560px] max-w-none opacity-95 sm:right-[-40px] md:w-[680px] lg:right-[4vw] lg:w-[760px]"
+        />
+        <div className="absolute inset-0 z-0 bg-[#123034]/72" />
+        <div className="absolute inset-x-0 bottom-0 z-0 h-24 bg-[#F6FAFA]" />
 
-        <header className="relative z-10 mx-auto flex max-w-6xl items-center justify-between px-5 py-5 sm:px-8">
+        <header className="relative z-10 mx-auto flex max-w-7xl items-center justify-between px-5 py-5 sm:px-8">
           <a href="/" className="flex items-center gap-3 font-black text-white">
-            <img src="/tuktukGo.png" alt="" className="tuktukgo-logo-mark h-10 w-10 rounded-xl" />
+            <img src="/tuktukGo.png" alt="" className="h-11 w-11 rounded-xl object-cover" />
             <span className="text-lg">TukTukGo</span>
           </a>
-          <a
-            href="/admin-login"
-            className="inline-flex h-10 items-center gap-2 rounded-lg bg-white px-4 text-sm font-black text-[#17272B] shadow-sm transition hover:bg-[#F7FBFA]"
-          >
-            <ShieldCheck size={17} />
-            Admin Login
-          </a>
+          <div className="flex items-center gap-2">
+            <a
+              href={ANDROID_APP_URL}
+              className="hidden h-10 items-center rounded-lg px-4 text-sm font-black text-white/88 transition hover:bg-white/10 sm:inline-flex"
+            >
+              Download App
+            </a>
+            <a
+              href="/admin-login"
+              className="inline-flex h-10 items-center gap-2 rounded-lg bg-white px-4 text-sm font-black text-[#17272B] shadow-sm transition hover:bg-[#F7FBFA]"
+            >
+              <ShieldCheck size={17} />
+              Admin
+            </a>
+          </div>
         </header>
 
-        <div className="relative z-10 mx-auto grid min-h-[calc(100vh-80px)] max-w-6xl items-center gap-8 px-5 pb-10 pt-2 sm:px-8 lg:grid-cols-[1fr_460px]">
-          <div className="max-w-2xl pb-10 text-white">
-            <p className="mb-4 inline-flex items-center gap-2 rounded-lg bg-white/15 px-3 py-2 text-sm font-black">
+        <div className="relative z-10 mx-auto flex min-h-[calc(92vh-84px)] max-w-7xl flex-col justify-center px-5 pb-28 pt-8 sm:px-8 lg:pb-32">
+          <div className="max-w-3xl text-white">
+            <p className="mb-5 inline-flex items-center gap-2 rounded-lg bg-white/14 px-3 py-2 text-sm font-black">
               <Smartphone size={16} />
-              Book city auto rides in seconds
+              Auto rides built for Indian city movement
             </p>
-            <h1 className="text-5xl font-black leading-[1.02] tracking-normal sm:text-7xl">
+            <h1 className="text-5xl font-black leading-[1.02] tracking-normal sm:text-7xl lg:text-8xl">
               TukTukGo
             </h1>
-            <p className="mt-5 max-w-xl text-lg font-semibold leading-8 text-white/90">
-              Fast local auto bookings, live driver tracking, simple fares, and safer trips for everyday city movement.
+            <p className="mt-5 max-w-2xl text-lg font-semibold leading-8 text-white/88 sm:text-xl">
+              Book autos quickly, keep drivers verified, and give admins one clean console for dispatch, KYC, zones, and ride operations.
             </p>
+
             <div className="mt-8 flex flex-wrap gap-3">
               <a
                 href={ANDROID_APP_URL}
-                className="inline-flex h-12 items-center gap-2 rounded-lg bg-[#17272B] px-5 text-sm font-black text-white transition hover:bg-[#24383C]"
+                className="inline-flex items-center gap-2 rounded-lg bg-[#F3B51B] px-5 py-4 text-sm font-black text-[#17272B] shadow-xl shadow-black/20 transition hover:bg-[#FFD15C]"
               >
-                <Download size={18} />
-                Android App
+                Download Android App
+                <ArrowRight size={18} />
               </a>
               <a
                 href={IOS_APP_URL}
-                className="inline-flex h-12 items-center gap-2 rounded-lg bg-white px-5 text-sm font-black text-[#17272B] transition hover:bg-[#F7FBFA]"
+                className="inline-flex items-center gap-2 rounded-lg border border-white/24 bg-white/12 px-5 py-4 text-sm font-black text-white backdrop-blur transition hover:bg-white/18"
               >
-                <Download size={18} />
-                iOS App
+                Download iOS App
               </a>
             </div>
           </div>
+        </div>
+      </section>
 
-          <div className="relative mx-auto aspect-[0.74] w-full max-w-[360px] rounded-[34px] border-[10px] border-[#17272B] bg-white p-4 shadow-2xl">
-            <div className="absolute left-1/2 top-2 h-5 w-24 -translate-x-1/2 rounded-full bg-[#17272B]" />
-            <div className="mt-8 overflow-hidden rounded-[24px] bg-[#EAF0F1]">
-              <div className="bg-[#43B8B3] px-5 pb-16 pt-6 text-white">
-                <div className="text-sm font-black text-white/80">Pickup confirmed</div>
-                <div className="mt-3 text-3xl font-black">Driver arriving</div>
-              </div>
-              <div className="-mt-10 px-5 pb-5">
-                <div className="rounded-lg bg-white p-4 shadow-lg">
-                  <img
-                    src="/images/welcome-auto-rickshaw-transparent.png"
-                    alt="Auto rickshaw"
-                    className="mx-auto h-36 w-full object-contain"
-                  />
-                  <div className="mt-3 flex items-center justify-between">
-                    <div>
-                      <div className="text-sm font-black">3 min away</div>
-                      <div className="text-xs font-bold text-slate-500">KA 05 TG 2026</div>
-                    </div>
-                    <div className="rounded-lg bg-[#F3B51B] px-3 py-2 text-sm font-black">
-                      Rs. 86
-                    </div>
-                  </div>
-                </div>
-                <a
-                  href="/admin-login"
-                  className="mt-4 flex h-12 items-center justify-center gap-2 rounded-lg bg-[#43B8B3] text-sm font-black text-white"
-                >
-                  Admin console
-                  <ArrowRight size={17} />
-                </a>
-              </div>
+      <section className="relative z-20 mx-auto -mt-20 max-w-7xl px-5 pb-16 sm:px-8">
+        <div className="grid gap-3 rounded-2xl border border-[#D8E4E5] bg-white p-3 shadow-2xl shadow-[#17272B]/10 md:grid-cols-4">
+          {metrics.map(([value, label]) => (
+            <div key={label} className="rounded-xl bg-[#F7FBFA] px-4 py-5">
+              <div className="text-2xl font-black text-[#17272B]">{value}</div>
+              <div className="mt-1 text-sm font-bold text-[#586C70]">{label}</div>
             </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-5 pb-20 sm:px-8">
+        <div className="grid gap-4 lg:grid-cols-3">
+          {actions.map(({ title, copy, href, cta, Icon }) => (
+            <a
+              key={title}
+              href={href}
+              className="group rounded-xl border border-[#D8E4E5] bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-[#43B8B3] hover:shadow-xl hover:shadow-[#43B8B3]/10"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[#E7F6F4] text-[#238B86]">
+                  <Icon size={24} />
+                </div>
+                <ArrowRight className="mt-2 text-[#BFD1D3] transition group-hover:translate-x-1 group-hover:text-[#43B8B3]" size={20} />
+              </div>
+              <h2 className="mt-5 text-xl font-black">{title}</h2>
+              <p className="mt-2 min-h-[52px] text-sm font-semibold leading-6 text-[#586C70]">{copy}</p>
+              <div className="mt-5 text-sm font-black text-[#238B86]">{cta}</div>
+            </a>
+          ))}
+        </div>
+      </section>
+
+      <section className="border-y border-[#D8E4E5] bg-white">
+        <div className="mx-auto grid max-w-7xl gap-10 px-5 py-16 sm:px-8 lg:grid-cols-[0.9fr_1.1fr]">
+          <div>
+            <p className="inline-flex items-center gap-2 rounded-lg bg-[#E7F6F4] px-3 py-2 text-sm font-black text-[#238B86]">
+              <MapPinned size={16} />
+              How it works
+            </p>
+            <h2 className="mt-5 text-3xl font-black leading-tight sm:text-4xl">
+              Simple enough for daily rides. Structured enough for operations.
+            </h2>
+          </div>
+          <div className="grid gap-3">
+            {flow.map(([title, copy], index) => (
+              <div key={title} className="flex gap-4 rounded-xl border border-[#D8E4E5] bg-[#F7FBFA] p-4">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#17272B] text-sm font-black text-white">
+                  {index + 1}
+                </div>
+                <div>
+                  <h3 className="font-black">{title}</h3>
+                  <p className="mt-1 text-sm font-semibold leading-6 text-[#586C70]">{copy}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
+      </section>
+
+      <section className="mx-auto grid max-w-7xl gap-4 px-5 py-16 sm:px-8 md:grid-cols-3">
+        {[
+          [BadgeCheck, "Verified driver onboarding", "KYC, document uploads, face match, and admin review stay connected."],
+          [WalletCards, "Subscription aware dispatch", "Drivers only receive rides when approval and subscription status allow it."],
+          [ShieldCheck, "Admin control center", "Operations teams can watch rides, drivers, audits, and zones from one console."],
+        ].map(([Icon, title, copy]) => (
+          <div key={title} className="rounded-xl bg-[#17272B] p-5 text-white">
+            <Icon size={25} className="text-[#F3B51B]" />
+            <h3 className="mt-4 font-black">{title}</h3>
+            <p className="mt-2 text-sm font-semibold leading-6 text-white/72">{copy}</p>
+          </div>
+        ))}
       </section>
     </main>
   );
