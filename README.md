@@ -86,6 +86,13 @@ FAST2SMS_API_KEY=your_fast2sms_api_key
 CORS_ORIGINS=https://your-domain.com,https://your-other-domain.com
 RATE_LIMIT_MAX_REQUESTS=120
 RATE_LIMIT_WINDOW_MS=60000
+UPLOAD_STORAGE_PROVIDER=r2
+UPLOAD_S3_ENDPOINT=https://ACCOUNT_ID.r2.cloudflarestorage.com
+UPLOAD_S3_BUCKET=auto-ride-kyc
+UPLOAD_S3_REGION=auto
+UPLOAD_S3_ACCESS_KEY_ID=your_r2_access_key_id
+UPLOAD_S3_SECRET_ACCESS_KEY=your_r2_secret_access_key
+UPLOAD_SIGNED_URL_TTL_SECONDS=3600
 ```
 
 FAST2SMS_API_KEY is required for phone OTP on signup and signin. Without it, OTP requests will silently fail. Get a key at fast2sms.com. CORS_ORIGINS should be set to your deployed web domain(s) in production; omitting it disables CORS validation, which is acceptable only for local development.
@@ -103,6 +110,30 @@ Mobile auth stores `{ jwt, user }` in SecureStore under the stable key `auto-rid
 Mobile role screens are guarded after logout. If a user signs out and then uses the device back button, passenger, driver, and admin route groups redirect back to the welcome/login screen instead of showing the previous logged-in role UI.
 
 Backend `/api/*` routes include basic rate limiting and security headers. Set `RATE_LIMIT_MAX_REQUESTS=0` only for local debugging.
+
+### Upload Storage
+
+Local development stores uploaded images under `web/public/uploads`.
+Production should use private object storage. Cloudflare R2 is the recommended
+cost-effective default because it is S3-compatible and avoids the usual object
+storage egress costs.
+
+Use these production settings:
+
+```env
+UPLOAD_STORAGE_PROVIDER=r2
+UPLOAD_S3_ENDPOINT=https://ACCOUNT_ID.r2.cloudflarestorage.com
+UPLOAD_S3_BUCKET=auto-ride-kyc
+UPLOAD_S3_REGION=auto
+UPLOAD_S3_ACCESS_KEY_ID=your_r2_access_key_id
+UPLOAD_S3_SECRET_ACCESS_KEY=your_r2_secret_access_key
+UPLOAD_SIGNED_URL_TTL_SECONDS=3600
+```
+
+The app code talks to a vendor-neutral storage adapter, not directly to R2. To
+migrate later, copy the bucket objects to another S3-compatible provider and
+change the `UPLOAD_S3_*` environment variables. Keep KYC buckets private; the
+backend returns signed read URLs for HyperVerge and mobile previews.
 
 Ride discovery is polling-based by design for the Secunderabad pilot:
 - Drivers poll `/api/rides` every 5 seconds while online.

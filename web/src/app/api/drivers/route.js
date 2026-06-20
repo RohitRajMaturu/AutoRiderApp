@@ -1,8 +1,16 @@
 import sql from "@/app/api/utils/sql";
+import { resolveDriverUploadUrls } from "@/app/api/utils/object-storage";
 import { auth } from "@/auth";
 
 function readString(value) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function getOrigin(request) {
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  if (forwardedProto && forwardedHost) return `${forwardedProto}://${forwardedHost}`;
+  return new URL(request.url).origin;
 }
 
 export async function POST(request) {
@@ -63,7 +71,9 @@ export async function GET(request) {
       LIMIT 1
     `;
 
-    return Response.json({ driver: rows[0] || null });
+    return Response.json({
+      driver: resolveDriverUploadUrls(rows[0] || null, getOrigin(request)),
+    });
   } catch (err) {
     console.error("GET /api/drivers/me error:", err);
     return Response.json({ error: "Internal Server Error" }, { status: 500 });

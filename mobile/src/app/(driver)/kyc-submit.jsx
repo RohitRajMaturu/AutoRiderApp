@@ -75,9 +75,12 @@ export default function DriverKycSubmit() {
       setRcNumber((value) => value || driver?.rc_number || "");
       setDob((value) => value || driver?.dob || "");
       setDlExpiry((value) => value || driver?.dl_expiry || "");
-      setDlPhotoUrl((value) => value || driver?.license_url || "");
-      setRcPhotoUrl((value) => value || driver?.rc_photo_url || "");
-      setSelfieUrl((value) => value || driver?.selfie_url || "");
+      setDlPhotoUrl((value) => value || driver?.license_storage_path || driver?.license_url || "");
+      setDlPreview((value) => value || driver?.license_url || "");
+      setRcPhotoUrl((value) => value || driver?.rc_photo_storage_path || driver?.rc_photo_url || "");
+      setRcPreview((value) => value || driver?.rc_photo_url || "");
+      setSelfieUrl((value) => value || driver?.selfie_storage_path || driver?.selfie_url || "");
+      setSelfiePreview((value) => value || driver?.selfie_url || "");
     },
   });
 
@@ -116,6 +119,7 @@ export default function DriverKycSubmit() {
       if (result.canceled || !asset?.uri) return;
 
       const form = new FormData();
+      form.append("scope", "kyc");
       form.append("file", {
         uri: asset.uri,
         name: `${field}.jpg`,
@@ -128,14 +132,14 @@ export default function DriverKycSubmit() {
       }
 
       if (field === "dl") {
-        setDlPhotoUrl(body.url);
-        setDlPreview(asset.uri);
+        setDlPhotoUrl(body.path || body.url);
+        setDlPreview(asset.uri || body.url);
       } else if (field === "rc") {
-        setRcPhotoUrl(body.url);
-        setRcPreview(asset.uri);
+        setRcPhotoUrl(body.path || body.url);
+        setRcPreview(asset.uri || body.url);
       } else {
-        setSelfieUrl(body.url);
-        setSelfiePreview(asset.uri);
+        setSelfieUrl(body.path || body.url);
+        setSelfiePreview(asset.uri || body.url);
       }
     } catch (err) {
       Alert.alert("Upload Failed", err.message || "Could not upload image");

@@ -154,6 +154,7 @@ function RegistrationScreen() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          scope: "driver-registration",
           base64: `data:${mimeType};base64,${asset.base64}`,
         }),
       });
@@ -163,10 +164,10 @@ function RegistrationScreen() {
       }
 
       if (field === "auto") {
-        setAutoPhotoUrl(body.url);
+        setAutoPhotoUrl(body.path || body.url);
         setAutoPhotoPreview(asset.uri || body.url);
       } else {
-        setLicenseUrl(body.url);
+        setLicenseUrl(body.path || body.url);
         setLicensePreview(asset.uri || body.url);
       }
     } catch (err) {

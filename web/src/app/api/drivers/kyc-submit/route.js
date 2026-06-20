@@ -1,4 +1,5 @@
 import sql from "@/app/api/utils/sql";
+import { resolveUploadUrl } from "@/app/api/utils/object-storage";
 import { auth } from "@/auth";
 import { KYC_VENDOR } from "@/lib/kyc/config";
 import { verifyDriver } from "@/lib/kyc/verifyDriver";
@@ -16,6 +17,13 @@ function kycStatusFor(verificationStatus) {
   if (verificationStatus === "APPROVED") return "approved";
   if (verificationStatus === "REJECTED") return "rejected";
   return "pending_review";
+}
+
+function getOrigin(request) {
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  if (forwardedProto && forwardedHost) return `${forwardedProto}://${forwardedHost}`;
+  return new URL(request.url).origin;
 }
 
 async function runTransaction(callback) {
@@ -72,15 +80,16 @@ export async function POST(request) {
       return Response.json({ error: "Driver profile not found" }, { status: 404 });
     }
 
+    const origin = getOrigin(request);
     const result = await verifyDriver({
       driverId: driver.id,
       driverName,
       dob,
       dlNumber,
       rcNumber,
-      dlPhotoUrl,
-      rcPhotoUrl,
-      selfieUrl,
+      dlPhotoUrl: resolveUploadUrl(dlPhotoUrl, origin),
+      rcPhotoUrl: resolveUploadUrl(rcPhotoUrl, origin),
+      selfieUrl: resolveUploadUrl(selfieUrl, origin),
       aadhaarNumberFull,
     });
 

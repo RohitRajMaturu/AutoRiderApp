@@ -1,9 +1,17 @@
 import sql from "@/app/api/utils/sql";
 import { requireAdmin, writeAdminAudit } from "@/app/api/utils/admin";
+import { resolveDriverUploadUrls } from "@/app/api/utils/object-storage";
 import { auth } from "@/auth";
 
 function readString(value) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function getOrigin(request) {
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  if (forwardedProto && forwardedHost) return `${forwardedProto}://${forwardedHost}`;
+  return new URL(request.url).origin;
 }
 
 export async function GET(request) {
@@ -39,7 +47,10 @@ export async function GET(request) {
       ORDER BY d.kyc_submitted_at ASC NULLS LAST, d.created_at ASC
     `;
 
-    return Response.json({ drivers: rows });
+    const origin = getOrigin(request);
+    return Response.json({
+      drivers: rows.map((driver) => resolveDriverUploadUrls(driver, origin)),
+    });
   } catch (err) {
     console.error("GET /api/admin/kyc error:", err);
     return Response.json({ error: "Internal Server Error" }, { status: 500 });
