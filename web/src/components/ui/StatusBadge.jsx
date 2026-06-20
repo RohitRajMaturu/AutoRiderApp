@@ -8,6 +8,10 @@ const STATUS = {
   accepted: { label: "In Trip", color: "var(--ar-accent)", dim: "var(--ar-accent-dim)", pulse: true },
   completed: { label: "Completed", color: "var(--ar-ok)", dim: "var(--ar-ok-dim)", pulse: false },
   cancelled: { label: "Cancelled", color: "var(--ar-err)", dim: "var(--ar-err-dim)", pulse: false },
+  pending_review: { label: "KYC Review", color: "var(--ar-warn)", dim: "var(--ar-warn-dim)", pulse: false },
+  approved: { label: "Approved", color: "var(--ar-ok)", dim: "var(--ar-ok-dim)", pulse: false },
+  rejected: { label: "Rejected", color: "var(--ar-err)", dim: "var(--ar-err-dim)", pulse: false },
+  resubmission_required: { label: "Resubmit", color: "var(--ar-err)", dim: "var(--ar-err-dim)", pulse: false },
 };
 
 export function statusForDriver(driver) {

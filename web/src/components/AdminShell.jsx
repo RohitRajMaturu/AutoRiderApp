@@ -4,6 +4,7 @@ import {
   Activity,
   ChevronLeft,
   ChevronRight,
+  FileCheck2,
   LayoutDashboard,
   LogOut,
 } from "lucide-react";
@@ -22,6 +23,7 @@ function formatIstTime(date = new Date()) {
 const navItems = [
   { label: "Command Center", route: "/admin", Icon: LayoutDashboard },
   { label: "Operations", route: "/admin-ops", Icon: Activity },
+  { label: "KYC Review", route: "/admin-kyc", Icon: FileCheck2 },
 ];
 
 export default function AdminShell({
