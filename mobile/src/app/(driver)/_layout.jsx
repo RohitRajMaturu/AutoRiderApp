@@ -71,6 +71,12 @@ export default function DriverLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="kyc-submit"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }
