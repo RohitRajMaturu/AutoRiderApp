@@ -19,7 +19,6 @@ import {
   ShieldCheck,
   UserRound,
   Settings,
-  Crown,
 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -44,7 +43,7 @@ function RolePickerModal({ visible, onClose, onSelect }) {
     },
     {
       id: "driver",
-      emoji: "🛺",
+      Icon: Gauge,
       title: "Driver",
       desc: "Go online, accept rides, manage subscription",
       color: "#16A34A",
@@ -173,11 +172,7 @@ function RolePickerModal({ visible, onClose, onSelect }) {
                       elevation: 2,
                     }}
                   >
-                    {role.Icon ? (
-                      <role.Icon size={26} color={role.color} strokeWidth={2.4} />
-                    ) : (
-                      <Text style={{ fontSize: 27, lineHeight: 31 }}>{role.emoji}</Text>
-                    )}
+                    <role.Icon size={26} color={role.color} strokeWidth={2.4} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text
@@ -537,6 +532,9 @@ export default function Index() {
               borderRadius: 14,
               paddingVertical: 17,
               alignItems: "center",
+              flexDirection: "row",
+              justifyContent: "center",
+              gap: 8,
               shadowColor: SAFFRON,
               shadowOffset: { width: 0, height: 6 },
               shadowOpacity: 0.35,
@@ -545,6 +543,7 @@ export default function Index() {
             }}
             activeOpacity={0.85}
           >
+            <UserRound size={18} color="#fff" />
             <Text
               style={{
                 color: "#fff",
@@ -591,7 +590,7 @@ export default function Index() {
             }}
             activeOpacity={0.85}
           >
-            <Crown size={18} color="#FBBF24" />
+            <ShieldCheck size={18} color="#FBBF24" />
             <Text style={{ color: "#fff", fontSize: 15, fontWeight: "800" }}>
               Continue as Admin
             </Text>
