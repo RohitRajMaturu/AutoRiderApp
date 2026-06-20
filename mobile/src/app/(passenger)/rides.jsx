@@ -4,7 +4,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { FlashList } from "@shopify/flash-list";
 import { Clock, CheckCircle2, XCircle, Car, MapPin, Sparkles } from "lucide-react-native";
-import Svg, { Circle, Path, Rect } from "react-native-svg";
 import { StatusBar } from "expo-status-bar";
 import { SkeletonLoader, StatusBadge } from "@/components/ui";
 import { useTheme } from "@/theme/ThemeContext";
@@ -249,25 +248,30 @@ function FilterTabs({ activeFilter, onChange }) {
   );
 }
 
-function AutoRickshawSvg({ size = 64 }) {
+function PassengerRideBadge() {
   return (
-    <Svg width={size} height={size * 0.72} viewBox="0 0 160 116">
-      <Path d="M34 61H18c-5 0-9 4-9 9v17h134V71c0-6-5-10-11-10h-13" fill="#17272B" opacity="0.16" />
-      <Rect x="35" y="43" width="84" height="43" rx="10" fill="#F3B51B" />
-      <Path d="M46 44c6-17 19-27 36-27h12c13 0 23 10 25 27H46Z" fill="#1F8A4C" />
-      <Path d="M58 39c5-10 14-16 25-16h7c9 0 16 6 19 16H58Z" fill="#E7F6F4" />
-      <Path d="M119 43l18 27-4 17h-23l4-27-8-17h13Z" fill="#17272B" opacity="0.88" />
-      <Rect x="23" y="72" width="112" height="16" rx="7" fill="#F3B51B" />
-      <Path d="M37 58h42v18H37z" fill="#FFD15C" opacity="0.78" />
-      <Path d="M91 58h17v18H91z" fill="#FFD15C" opacity="0.7" />
-      <Circle cx="49" cy="94" r="14" fill="#17272B" />
-      <Circle cx="49" cy="94" r="6" fill="#BFD1D3" />
-      <Circle cx="114" cy="94" r="14" fill="#17272B" />
-      <Circle cx="114" cy="94" r="6" fill="#BFD1D3" />
-      <Path d="M25 68h-9c-4 0-7 3-7 7v4h16V68Z" fill="#1F8A4C" />
-      <Rect x="61" y="86" width="40" height="5" rx="2.5" fill="#17272B" opacity="0.2" />
-      <Path d="M54 23c8-9 17-13 28-13" stroke="#17272B" strokeWidth="4" strokeLinecap="round" opacity="0.18" />
-    </Svg>
+    <View
+      style={{
+        alignItems: "center",
+        backgroundColor: "#FFFFFF",
+        borderColor: "#FFFFFF",
+        borderRadius: 999,
+        borderWidth: 3,
+        elevation: 4,
+        flexDirection: "row",
+        gap: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.12,
+        shadowRadius: 14,
+      }}
+    >
+      <Text style={{ color: "#238B86", fontSize: 24, fontWeight: "900" }}>
+        🛺
+      </Text>
+    </View>
   );
 }
 
@@ -426,16 +430,16 @@ function RidesEmptyState({ title, description }) {
         <Animated.View
           style={{
             alignItems: "center",
-            height: 68,
+            height: 56,
             justifyContent: "center",
             position: "absolute",
-            right: 24,
-            top: 58,
+            right: 18,
+            top: 64,
             transform: [{ translateY: autoTranslateY }, { rotate: autoRotate }],
-            width: 88,
+            width: 136,
           }}
         >
-          <AutoRickshawSvg size={88} />
+          <PassengerRideBadge />
         </Animated.View>
         <View
           style={{

@@ -28,6 +28,27 @@ const TEXT_MUTED = "#647678";
 const SUPPORT_WHATSAPP_URL = `https://wa.me/${process.env.EXPO_PUBLIC_SUPPORT_PHONE ?? "919999999999"}`;
 const PRIVACY_POLICY_URL = process.env.EXPO_PUBLIC_PRIVACY_URL ?? "#";
 
+function PassengerBadge() {
+  return (
+    <View
+      style={{
+        alignItems: "center",
+        backgroundColor: PRIMARY_LIGHT,
+        borderColor: PRIMARY_BORDER,
+        borderRadius: 99,
+        borderWidth: 1,
+        marginTop: 8,
+        paddingHorizontal: 14,
+        paddingVertical: 5,
+      }}
+    >
+      <Text style={{ color: PRIMARY, fontSize: 18, fontWeight: "700" }}>
+        🛺
+      </Text>
+    </View>
+  );
+}
+
 function MenuItem({
   icon: Icon,
   label,
@@ -166,7 +187,7 @@ export default function PassengerProfile() {
   const queryClient = useQueryClient();
   const { testMode, disableTestMode } = useAppStore();
   const [phone, setPhone] = useState("");
-  const [isProfileOpen, setIsProfileOpen] = useState(true);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [showSignOutSheet, setShowSignOutSheet] = useState(false);
   const authUserKey =
     auth?.user?.id || auth?.user?.email || auth?.user?.phone || "anonymous";
@@ -316,8 +337,10 @@ export default function PassengerProfile() {
           <Text style={{ fontSize: 20, fontWeight: "700", color: TEXT }}>
             {testMode ? "Guest Passenger" : auth?.user?.email || "—"}
           </Text>
+          <PassengerBadge />
           <View
             style={{
+              display: "none",
               marginTop: 8,
               paddingHorizontal: 14,
               paddingVertical: 5,
@@ -493,25 +516,7 @@ export default function PassengerProfile() {
                 </Text>
               </TouchableOpacity>
             </View>
-            ) : (
-              <View
-                style={{
-                  marginTop: 16,
-                  borderRadius: 12,
-                  borderWidth: 1,
-                  borderColor: BORDER,
-                  backgroundColor: "#F8FAFA",
-                  padding: 14,
-                }}
-              >
-                <Text style={{ color: TEXT_MUTED, fontSize: 11, fontWeight: "800", textTransform: "uppercase" }}>
-                  Saved Contact
-                </Text>
-                <Text style={{ marginTop: 4, color: TEXT, fontSize: 15, fontWeight: "700" }}>
-                  {phone || "No phone number added"}
-                </Text>
-              </View>
-            )}
+            ) : null}
           </View>
         </View>
 
