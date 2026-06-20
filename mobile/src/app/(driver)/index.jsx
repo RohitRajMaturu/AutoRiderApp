@@ -13,11 +13,13 @@ import {
   Image as RNImage,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 import {
   MapPin,
   Navigation,
   Phone,
   Clock,
+  FileText,
   Wifi,
   WifiOff,
   Camera,
@@ -913,6 +915,75 @@ function RideRequestCard({ ride, onAccept, isAccepting }) {
 }
 
 // ─── Active Ride Card ─────────────────────────────────────────────────────────
+function KycGateScreen({ status, reason }) {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const isRejected = status === "rejected" || status === "resubmission_required";
+  const isPending = status === "pending_review";
+
+  return (
+    <View style={{ flex: 1, backgroundColor: BG }}>
+      <StatusBar style="dark" />
+      <View
+        style={{
+          flex: 1,
+          paddingTop: insets.top + 28,
+          paddingHorizontal: 24,
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <View
+          style={{
+            width: 82,
+            height: 82,
+            borderRadius: 26,
+            backgroundColor: isRejected ? "#FEF2F2" : PRIMARY_LIGHT,
+            borderWidth: 1,
+            borderColor: isRejected ? "#FECACA" : PRIMARY_BORDER,
+            alignItems: "center",
+            justifyContent: "center",
+            marginBottom: 24,
+          }}
+        >
+          <FileText size={ICON.xxl} color={isRejected ? "#DC2626" : PRIMARY} />
+        </View>
+        <Text style={{ fontSize: 24, fontWeight: "900", color: TEXT, textAlign: "center" }}>
+          {isPending
+            ? "KYC under review"
+            : isRejected
+              ? "KYC needs resubmission"
+              : "Complete driver KYC"}
+        </Text>
+        <Text style={{ marginTop: 10, fontSize: 15, color: TEXT_SECONDARY, lineHeight: 22, textAlign: "center" }}>
+          {isPending
+            ? "Your documents are being reviewed. Online mode stays disabled until approval."
+            : isRejected
+              ? reason || "Please resubmit clear documents with matching details."
+              : "Verify your license, RC, Aadhaar, and selfie before going online."}
+        </Text>
+        {!isPending ? (
+          <TouchableOpacity
+            onPress={() => router.push("/(driver)/kyc-submit")}
+            style={{
+              marginTop: 28,
+              width: "100%",
+              borderRadius: 16,
+              backgroundColor: PRIMARY,
+              paddingVertical: 16,
+              alignItems: "center",
+            }}
+          >
+            <Text style={{ color: "#fff", fontSize: 15, fontWeight: "900" }}>
+              {isRejected ? "Resubmit KYC" : "Start KYC"}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
 function ActiveRideCard({ ride, onComplete, isCompleting }) {
   return (
     <View
@@ -1370,6 +1441,15 @@ export default function DriverHome() {
 
   const driver = driverData?.driver;
   if (!driver) return <RegistrationScreen />;
+  const kycStatus = driver.kyc_status || "not_started";
+  if (kycStatus !== "approved") {
+    return (
+      <KycGateScreen
+        status={kycStatus}
+        reason={driver.kyc_rejection_reason}
+      />
+    );
+  }
   if (!driver.is_approved) return <PendingScreen />;
 
   const rides = ridesData?.rides || [];
