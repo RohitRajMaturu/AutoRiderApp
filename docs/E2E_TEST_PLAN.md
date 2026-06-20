@@ -7,9 +7,9 @@ driver account, and one passenger account on real devices.
 
 - Neon database migrations are applied.
 - PostGIS is enabled.
-- FastAPI realtime backend is running with `--workers 1`.
-- Mobile app has `EXPO_PUBLIC_REALTIME_WS_URL` set to the FastAPI host.
-- MSG91 template IDs and auth key are configured for SMS/OTP fallback tests.
+- The React Router web backend is deployed and reachable from both devices.
+- The maintenance worker is running beside the web backend.
+- `FAST2SMS_API_KEY` is configured for signup/signin OTP tests.
 - At least one active service zone covers the physical test pickup location.
 
 ## Admin Flow
@@ -38,28 +38,26 @@ driver account, and one passenger account on real devices.
 - Set destination.
 - Request a ride.
 - Confirm request is accepted with HTTP `202` behavior and appears active.
-- Confirm driver device receives the realtime ride alert.
+- Confirm driver polling shows the ride request within the normal polling window.
 - Driver accepts ride.
 - Confirm passenger device shows accepted ride and driver details.
 - Driver completes ride.
 - Confirm passenger ride closes and admin ride history updates.
 
-## Reconnect Replay
+## Polling Recovery
 
 - Driver goes online.
 - Kill or background the driver app.
 - Passenger creates a ride request while driver is disconnected.
 - Reopen the driver app.
-- Confirm pending ride request is replayed after WebSocket reconnect.
+- Confirm the pending ride request appears after the next driver poll.
 
-## SMS Fallback
+## OTP And Offline Behavior
 
-- Driver is approved/subscribed but WebSocket is unavailable or app is offline.
-- Passenger creates a ride in the same zone.
-- Confirm driver receives MSG91 ride alert SMS.
-- Driver opens app and accepts ride.
-- Simulate passenger WebSocket unavailable.
-- Confirm passenger receives ride accepted fallback SMS.
+- Sign out and sign back in with phone OTP.
+- Confirm OTP send/verify works through the deployed backend.
+- Background the driver app while online.
+- Confirm the maintenance worker marks the driver offline after the heartbeat timeout.
 
 ## Abuse And Timeout Guards
 
@@ -76,6 +74,6 @@ driver account, and one passenger account on real devices.
 - No blank screens or stuck loading states.
 - Ride state transitions remain valid.
 - Admin audit entries exist for admin actions.
-- WebSocket delivery works when connected.
-- SMS fallback works when WebSocket delivery is unavailable.
+- Polling discovery works within the expected window.
+- Phone OTP works through the configured SMS provider.
 - Driver heartbeat and subscription expiry enforcement work on real devices.

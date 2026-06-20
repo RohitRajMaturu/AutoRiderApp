@@ -97,6 +97,13 @@ Backend-only secrets and controls:
 - `RATE_LIMIT_WINDOW_MS`: rate-limit window, default `60000`.
 - `HYPERVERGE_APP_ID`: HyperVerge app id for driver KYC.
 - `HYPERVERGE_APP_KEY`: HyperVerge app key for driver KYC.
+- `HYPERVERGE_READ_KYC_URL`: HyperVerge OCR/readKYC endpoint.
+- `HYPERVERGE_FACE_MATCH_URL`: HyperVerge face-match endpoint; must be set to the confirmed private path before live auto-approval.
+- `HYPERVERGE_DL_LOOKUP_URL`: HyperVerge DL lookup endpoint; must be set to the confirmed private path before live auto-approval.
+- `HYPERVERGE_RC_LOOKUP_URL`: HyperVerge RC lookup endpoint; must be set to the confirmed private path before live auto-approval.
+- `UPLOAD_STORAGE_PROVIDER`: `local` for development, `r2` or `s3` for S3-compatible object storage in production.
+- `UPLOAD_S3_ENDPOINT`, `UPLOAD_S3_BUCKET`, `UPLOAD_S3_REGION`, `UPLOAD_S3_ACCESS_KEY_ID`, `UPLOAD_S3_SECRET_ACCESS_KEY`: private upload storage configuration, recommended with Cloudflare R2 for KYC documents.
+- `UPLOAD_SIGNED_URL_TTL_SECONDS`: signed read URL lifetime for private KYC previews and HyperVerge fetches.
 
 ## Database State
 
@@ -126,6 +133,7 @@ Routing is Expo Router based:
 - `mobile/src/app/(driver)/`: driver dashboard/profile/wallet tabs.
 - `mobile/src/app/(driver)/kyc-submit.jsx`: five-step driver KYC submission flow; hidden from the tab bar.
 - `mobile/src/app/(admin)/`: admin dashboard/drivers/rides tabs.
+- `mobile/src/app/(admin)/zones.jsx`: service-zone management with area search, map-based rectangle creation, polygon drawing, existing-zone editing, and GeoJSON fallback import.
 - `mobile/src/components/motion/`: reusable TukTukGo motion components for loaders, success states, empty states, button loaders, and press micro-interactions.
 - `mobile/assets/animations/auto-motion/`: generated vector Lottie JSON assets for ride lifecycle, GPS, payment, empty, button, and splash states.
 - `docs/MOTION_SYSTEM.md`: storyboard, timing, Lottie/Rive handoff, theme, dimensions, performance, and implementation guide for the animation system.
@@ -217,6 +225,7 @@ Admin:
 2. Driver review uses `PATCH /api/admin/drivers`.
 3. KYC review uses `/admin-kyc` and `GET/PATCH /api/admin/kyc`.
 4. Admin setup is local/bootstrap only: it requires `ENABLE_ADMIN_SETUP=true`, is blocked once any admin exists, and is unavailable when `NODE_ENV=production`.
+5. Admin Zones can create and edit PostGIS service boundaries visually from the mobile map using rectangle or polygon drawing; GeoJSON paste remains available for import and recovery.
 
 Driver KYC:
 1. `011_driver_kyc.sql` adds driver KYC fields and `driver_kyc_checks`.
@@ -225,7 +234,9 @@ Driver KYC:
 4. `web/src/lib/kyc/verifyDriver.js` dispatches to the configured vendor adapter.
 5. `web/src/lib/kyc/adapters/hyperverge.js` isolates HyperVerge endpoint/credential knowledge.
 6. `POST /api/drivers/kyc-submit` persists driver KYC fields, stores only Aadhaar last 4, calls the dispatcher, and inserts vendor-tagged audit rows.
-7. HyperVerge OCR `/readKYC` is scaffolded, while face-match, DL lookup, and RC lookup gracefully record `not_run` until confirmed vendor endpoints are supplied.
+7. HyperVerge OCR `/readKYC`, face-match, DL lookup, and RC lookup are wired through configurable endpoint URLs. Live auto-approval still requires real HyperVerge credentials, confirmed private endpoint paths, and sandbox response verification.
+   The face-match, DL lookup, and RC lookup URLs intentionally have no default path; unset values record `not_run` instead of calling a guessed vendor URL.
+8. KYC document uploads use the project upload route and storage adapter. Local development writes to `web/public/uploads`; production should use private R2/S3-compatible object storage and signed read URLs.
 
 ## Maps, Places, And Fare Logic
 
@@ -268,14 +279,14 @@ npm run test:api
 
 ## Remaining Work
 
-High-value next tasks:
-- Add real HyperVerge credentials and confirmed face-match/DL/RC endpoint mappings.
-- Confirm whether HyperVerge `/readKYC` accepts hosted image URLs or requires raw uploaded bytes.
-- Run sandbox KYC submissions end-to-end and confirm full Aadhaar is never stored or logged.
-- Manually confirm WebView sign-in and bearer-token API calls across Expo Go and device builds.
-- Add passenger fare/ETA preview if the product decision changes.
+External launch gates:
+- Add real HyperVerge credentials, set confirmed private face-match/DL/RC endpoint URLs, run sandbox KYC submissions, and confirm full Aadhaar is never stored or logged.
+- Run the real-device E2E checklist for passenger, driver, admin, KYC, polling ride discovery, and maintenance cleanup on the deployed VPS.
+- Configure production R2/S3-compatible storage credentials and verify private KYC uploads plus signed read URLs against HyperVerge.
+
+Deferred product decisions:
 - Add payment-backed driver subscription renewal with verified webhooks.
-- Add Expo push notifications for ride requested, accepted, cancelled, and completed.
+- Add Expo push notifications for ride requested, accepted, cancelled, and completed when the pilot needs out-of-app alerts.
 - Add observability, structured audit logging, privacy policy, and location retention rules.
 - Continue expanding lower-risk validation and tests as new provider/admin/payment routes are added.
 

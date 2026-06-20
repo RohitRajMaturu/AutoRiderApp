@@ -3,9 +3,9 @@ import { KYC_RULES } from "../contract";
 const HV_BASE_URL = process.env.HYPERVERGE_BASE_URL || "https://hyperverge.co";
 const HV_READ_KYC_URL =
   process.env.HYPERVERGE_READ_KYC_URL || `${HV_BASE_URL}/readKYC`;
-const HV_FACE_MATCH_URL = process.env.HYPERVERGE_FACE_MATCH_URL || HV_BASE_URL;
-const HV_DL_LOOKUP_URL = process.env.HYPERVERGE_DL_LOOKUP_URL || HV_BASE_URL;
-const HV_RC_LOOKUP_URL = process.env.HYPERVERGE_RC_LOOKUP_URL || HV_BASE_URL;
+const HV_FACE_MATCH_URL = process.env.HYPERVERGE_FACE_MATCH_URL;
+const HV_DL_LOOKUP_URL = process.env.HYPERVERGE_DL_LOOKUP_URL;
+const HV_RC_LOOKUP_URL = process.env.HYPERVERGE_RC_LOOKUP_URL;
 
 function hvHeaders() {
   const appId = process.env.HYPERVERGE_APP_ID;
@@ -17,6 +17,13 @@ function hvHeaders() {
     appid: appId,
     appkey: appKey,
   };
+}
+
+function requireEndpoint(value, label) {
+  if (!value) {
+    throw new Error(`HyperVerge ${label} endpoint is not configured`);
+  }
+  return value;
 }
 
 async function readDocument(imageUrl, clientId) {
@@ -42,7 +49,7 @@ async function matchFace(image1, image2, clientId) {
   form.append("image2", image2);
   form.append("clientId", clientId);
 
-  const res = await fetch(HV_FACE_MATCH_URL, {
+  const res = await fetch(requireEndpoint(HV_FACE_MATCH_URL, "face-match"), {
     method: "POST",
     headers: hvHeaders(),
     body: form,
@@ -55,7 +62,7 @@ async function matchFace(image1, image2, clientId) {
 }
 
 async function lookupDlStatus(dlNumber, dob, clientId) {
-  const res = await fetch(HV_DL_LOOKUP_URL, {
+  const res = await fetch(requireEndpoint(HV_DL_LOOKUP_URL, "DL lookup"), {
     method: "POST",
     headers: {
       ...hvHeaders(),
@@ -75,7 +82,7 @@ async function lookupDlStatus(dlNumber, dob, clientId) {
 }
 
 async function lookupRcStatus(registrationNumber, clientId) {
-  const res = await fetch(HV_RC_LOOKUP_URL, {
+  const res = await fetch(requireEndpoint(HV_RC_LOOKUP_URL, "RC lookup"), {
     method: "POST",
     headers: {
       ...hvHeaders(),

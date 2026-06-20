@@ -19,6 +19,7 @@ import {
   ChevronRight,
   LocateFixed,
   Map,
+  Pencil,
   Plus,
   Search,
   ToggleLeft,
@@ -62,6 +63,15 @@ function buildRectangleBoundary(swLat, swLng, neLat, neLng) {
   };
 }
 
+function buildPolygonBoundary(points) {
+  const coordinates = points.map((point) => [point.longitude, point.latitude]);
+  coordinates.push([points[0].longitude, points[0].latitude]);
+  return {
+    type: "Polygon",
+    coordinates: [coordinates],
+  };
+}
+
 function normalizeRectangleFromPoints(points) {
   if (points.length < 2) return null;
   const lats = points.map((point) => point.latitude);
@@ -72,6 +82,22 @@ function normalizeRectangleFromPoints(points) {
     north: Math.max(...lats),
     east: Math.max(...lngs),
   };
+}
+
+function polygonPointsFromBoundary(boundary) {
+  const geometry = boundary?.type === "Feature" ? boundary.geometry : boundary;
+  const ring =
+    geometry?.type === "Polygon"
+      ? geometry.coordinates?.[0]
+      : geometry?.type === "MultiPolygon"
+        ? geometry.coordinates?.[0]?.[0]
+        : null;
+  if (!Array.isArray(ring)) return [];
+  const points = ring
+    .slice(0, -1)
+    .map(([longitude, latitude]) => ({ latitude: Number(latitude), longitude: Number(longitude) }))
+    .filter((point) => Number.isFinite(point.latitude) && Number.isFinite(point.longitude));
+  return points;
 }
 
 function rectanglePolygon(rectangle) {
@@ -119,6 +145,8 @@ export default function AdminZones() {
   const [neLng, setNeLng] = useState("");
   const [geoJson, setGeoJson] = useState("");
   const [mapPoints, setMapPoints] = useState([]);
+  const [polygonPoints, setPolygonPoints] = useState([]);
+  const [editingZone, setEditingZone] = useState(null);
   const [areaSearch, setAreaSearch] = useState("");
   const [areaSuggestions, setAreaSuggestions] = useState([]);
   const [searchPin, setSearchPin] = useState(null);
@@ -144,7 +172,19 @@ export default function AdminZones() {
     },
   });
 
-  const createZone = useMutation({
+  const resetZoneForm = () => {
+    setName("");
+    setSwLat("");
+    setSwLng("");
+    setNeLat("");
+    setNeLng("");
+    setGeoJson("");
+    setMapPoints([]);
+    setPolygonPoints([]);
+    setEditingZone(null);
+  };
+
+  const saveZone = useMutation({
     mutationFn: async () => {
       const cap = Number(maxDrivers);
       if (!name.trim() || !Number.isInteger(cap) || cap < 1 || cap > 500) {
@@ -154,6 +194,11 @@ export default function AdminZones() {
       let boundary;
       if (mode === "geojson") {
         boundary = parseGeoJsonBoundary(geoJson);
+      } else if (mode === "polygon") {
+        if (polygonPoints.length < 3) {
+          throw new Error("Tap at least three map points to draw a polygon.");
+        }
+        boundary = buildPolygonBoundary(polygonPoints);
       } else {
         const south = toNumber(swLat);
         const west = toNumber(swLng);
@@ -168,10 +213,12 @@ export default function AdminZones() {
         boundary = buildRectangleBoundary(south, west, north, east);
       }
 
+      const isEditing = Boolean(editingZone?.id);
       const res = await fetch("/api/admin/zones", {
-        method: "POST",
+        method: isEditing ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          ...(isEditing ? { zone_id: editingZone.id } : {}),
           name: name.trim(),
           max_online_drivers: cap,
           boundary,
@@ -184,16 +231,10 @@ export default function AdminZones() {
       return res.json();
     },
     onSuccess: () => {
-      setName("");
-      setSwLat("");
-      setSwLng("");
-      setNeLat("");
-      setNeLng("");
-      setGeoJson("");
-      setMapPoints([]);
+      resetZoneForm();
       setZonePage(1);
       queryClient.invalidateQueries({ queryKey: ["adminZones"] });
-      Alert.alert("Zone Created", "Drivers can now be matched inside this boundary.");
+      Alert.alert("Zone Saved", "Drivers can now be matched inside this boundary.");
     },
     onError: (err) => Alert.alert("Zone Error", err.message),
   });
@@ -244,6 +285,7 @@ export default function AdminZones() {
   };
   const selectedRectangle = normalizeRectangleFromPoints(mapPoints);
   const selectedPolygon = rectanglePolygon(selectedRectangle);
+  const activeMapPolygon = mode === "polygon" ? polygonPoints : selectedPolygon;
 
   const setRectangleFromMap = (points) => {
     setMapPoints(points);
@@ -257,7 +299,15 @@ export default function AdminZones() {
 
   const handleMapPress = (event) => {
     const point = event.nativeEvent.coordinate;
+    if (mode === "polygon") {
+      setPolygonPoints((points) => [...points, point]);
+      return;
+    }
     setRectangleFromMap(mapPoints.length >= 2 ? [point] : [...mapPoints, point]);
+  };
+
+  const undoPolygonPoint = () => {
+    setPolygonPoints((points) => points.slice(0, -1));
   };
 
   const searchArea = async () => {
@@ -327,6 +377,20 @@ export default function AdminZones() {
     setZoneDirection(field === "created_at" ? "desc" : "asc");
   };
 
+  const switchMode = (nextMode) => {
+    setMode(nextMode);
+    if (nextMode !== "rectangle") {
+      setMapPoints([]);
+      setSwLat("");
+      setSwLng("");
+      setNeLat("");
+      setNeLng("");
+    }
+    if (nextMode !== "polygon") {
+      setPolygonPoints([]);
+    }
+  };
+
   const confirmDeleteZone = (zone) => {
     Alert.alert(
       "Delete Zone?",
@@ -340,6 +404,33 @@ export default function AdminZones() {
         },
       ],
     );
+  };
+
+  const editZone = (zone) => {
+    const points = polygonPointsFromBoundary(zone.boundary);
+    setEditingZone(zone);
+    setName(zone.name || "");
+    setMaxDrivers(String(zone.max_online_drivers || 25));
+    setGeoJson(JSON.stringify(zone.boundary || {}, null, 2));
+    setPolygonPoints(points);
+    setMode(points.length >= 3 ? "polygon" : "geojson");
+    setMapPoints([]);
+    const rectangle = normalizeRectangleFromPoints(points);
+    if (rectangle) {
+      setSwLat(formatCoord(rectangle.south));
+      setSwLng(formatCoord(rectangle.west));
+      setNeLat(formatCoord(rectangle.north));
+      setNeLng(formatCoord(rectangle.east));
+      mapRef.current?.animateToRegion(
+        {
+          latitude: (rectangle.south + rectangle.north) / 2,
+          longitude: (rectangle.west + rectangle.east) / 2,
+          latitudeDelta: Math.max(rectangle.north - rectangle.south, 0.01) * 1.8,
+          longitudeDelta: Math.max(rectangle.east - rectangle.west, 0.01) * 1.8,
+        },
+        450,
+      );
+    }
   };
 
   return (
@@ -386,17 +477,36 @@ export default function AdminZones() {
           <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
             <Plus size={ICON.md} color={PRIMARY} />
             <Text style={{ fontSize: 15, fontWeight: "800", color: TEXT }}>
-              Create Service Zone
+              {editingZone ? "Edit Service Zone" : "Create Service Zone"}
             </Text>
           </View>
+          {editingZone ? (
+            <TouchableOpacity
+              onPress={resetZoneForm}
+              style={{
+                alignSelf: "flex-start",
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                borderRadius: 10,
+                borderWidth: 1,
+                borderColor: BORDER,
+                backgroundColor: BG,
+              }}
+            >
+              <Text style={{ color: TEXT_SECONDARY, fontWeight: "800", fontSize: 12 }}>
+                Cancel Editing
+              </Text>
+            </TouchableOpacity>
+          ) : null}
           <View style={{ flexDirection: "row", gap: 8 }}>
             {[
               { key: "rectangle", label: "Rectangle" },
+              { key: "polygon", label: "Polygon" },
               { key: "geojson", label: "GeoJSON" },
             ].map((item) => (
               <TouchableOpacity
                 key={item.key}
-                onPress={() => setMode(item.key)}
+                onPress={() => switchMode(item.key)}
                 style={{
                   flex: 1,
                   paddingVertical: 9,
@@ -434,7 +544,7 @@ export default function AdminZones() {
             keyboardType="number-pad"
             style={{ backgroundColor: BG, color: TEXT, borderRadius: 10, padding: 12 }}
           />
-          {mode === "rectangle" ? (
+          {mode === "rectangle" || mode === "polygon" ? (
             <>
               {Platform.OS !== "web" && (
                 <>
@@ -547,9 +657,17 @@ export default function AdminZones() {
                           pinColor={index === 0 ? PRIMARY : SUCCESS}
                         />
                       ))}
-                      {selectedPolygon.length === 4 && (
+                      {polygonPoints.map((point, index) => (
+                        <Marker
+                          key={`polygon-${point.latitude}-${point.longitude}-${index}`}
+                          coordinate={point}
+                          title={`Point ${index + 1}`}
+                          pinColor={PRIMARY}
+                        />
+                      ))}
+                      {activeMapPolygon.length >= 3 && (
                         <Polygon
-                          coordinates={selectedPolygon}
+                          coordinates={activeMapPolygon}
                           strokeColor={PRIMARY}
                           fillColor="rgba(67,184,179,0.22)"
                           strokeWidth={2}
@@ -564,7 +682,7 @@ export default function AdminZones() {
                         bottom: 10,
                         padding: 10,
                         borderRadius: 10,
-                        backgroundColor: "rgba(255,255,255,0.96)",
+                        backgroundColor: "rgba(13,15,18,0.92)",
                         borderWidth: 1,
                         borderColor: `${PRIMARY}66`,
                         shadowColor: "#000",
@@ -575,77 +693,112 @@ export default function AdminZones() {
                       }}
                     >
                       <Text style={{ color: TEXT, fontSize: 12, fontWeight: "800" }}>
-                        {mapPoints.length < 2
-                          ? `Tap ${2 - mapPoints.length} more corner${mapPoints.length === 1 ? "" : "s"}`
-                          : "Rectangle selected"}
+                        {mode === "polygon"
+                          ? polygonPoints.length < 3
+                            ? `Tap ${3 - polygonPoints.length} more point${polygonPoints.length === 2 ? "" : "s"}`
+                            : `${polygonPoints.length} point polygon selected`
+                          : mapPoints.length < 2
+                            ? `Tap ${2 - mapPoints.length} more corner${mapPoints.length === 1 ? "" : "s"}`
+                            : "Rectangle selected"}
                       </Text>
                       <Text style={{ color: TEXT_SECONDARY, fontSize: 11, marginTop: 3 }}>
-                        Search to jump, pan manually, then tap two opposite corners.
+                        {mode === "polygon"
+                          ? "Search to jump, then tap each boundary vertex in order."
+                          : "Search to jump, pan manually, then tap two opposite corners."}
                       </Text>
                     </View>
                   </View>
                 </>
               )}
-              {Platform.OS !== "web" && mapPoints.length > 0 && (
-                <TouchableOpacity
-                  onPress={() => {
-                    setMapPoints([]);
-                    setSwLat("");
-                    setSwLng("");
-                    setNeLat("");
-                    setNeLng("");
-                  }}
-                  style={{
-                    alignSelf: "flex-start",
-                    paddingHorizontal: 12,
-                    paddingVertical: 8,
-                    borderRadius: 10,
-                    borderWidth: 1,
-                    borderColor: BORDER,
-                    backgroundColor: BG,
-                  }}
-                >
-                  <Text style={{ color: TEXT_SECONDARY, fontWeight: "800", fontSize: 12 }}>
-                    Clear Map Selection
-                  </Text>
-                </TouchableOpacity>
+              {Platform.OS !== "web" && (mapPoints.length > 0 || polygonPoints.length > 0) && (
+                <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
+                  {mode === "polygon" && polygonPoints.length > 0 ? (
+                    <TouchableOpacity
+                      onPress={undoPolygonPoint}
+                      style={{
+                        paddingHorizontal: 12,
+                        paddingVertical: 8,
+                        borderRadius: 10,
+                        borderWidth: 1,
+                        borderColor: BORDER,
+                        backgroundColor: BG,
+                      }}
+                    >
+                      <Text style={{ color: TEXT_SECONDARY, fontWeight: "800", fontSize: 12 }}>
+                        Undo Point
+                      </Text>
+                    </TouchableOpacity>
+                  ) : null}
+                  <TouchableOpacity
+                    onPress={() => {
+                      setMapPoints([]);
+                      setPolygonPoints([]);
+                      setSwLat("");
+                      setSwLng("");
+                      setNeLat("");
+                      setNeLng("");
+                    }}
+                    style={{
+                      paddingHorizontal: 12,
+                      paddingVertical: 8,
+                      borderRadius: 10,
+                      borderWidth: 1,
+                      borderColor: BORDER,
+                      backgroundColor: BG,
+                    }}
+                  >
+                    <Text style={{ color: TEXT_SECONDARY, fontWeight: "800", fontSize: 12 }}>
+                      Clear Map Selection
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               )}
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <TextInput
-                  placeholder="SW lat"
-                  placeholderTextColor={TEXT_SECONDARY}
-                  value={swLat}
-                  onChangeText={setSwLat}
-                  keyboardType="decimal-pad"
-                  style={{ flex: 1, backgroundColor: BG, color: TEXT, borderRadius: 10, padding: 12 }}
-                />
-                <TextInput
-                  placeholder="SW lng"
-                  placeholderTextColor={TEXT_SECONDARY}
-                  value={swLng}
-                  onChangeText={setSwLng}
-                  keyboardType="decimal-pad"
-                  style={{ flex: 1, backgroundColor: BG, color: TEXT, borderRadius: 10, padding: 12 }}
-                />
-              </View>
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <TextInput
-                  placeholder="NE lat"
-                  placeholderTextColor={TEXT_SECONDARY}
-                  value={neLat}
-                  onChangeText={setNeLat}
-                  keyboardType="decimal-pad"
-                  style={{ flex: 1, backgroundColor: BG, color: TEXT, borderRadius: 10, padding: 12 }}
-                />
-                <TextInput
-                  placeholder="NE lng"
-                  placeholderTextColor={TEXT_SECONDARY}
-                  value={neLng}
-                  onChangeText={setNeLng}
-                  keyboardType="decimal-pad"
-                  style={{ flex: 1, backgroundColor: BG, color: TEXT, borderRadius: 10, padding: 12 }}
-                />
-              </View>
+              {mode === "rectangle" ? (
+                <>
+                  <View style={{ flexDirection: "row", gap: 8 }}>
+                    <TextInput
+                      placeholder="SW lat"
+                      placeholderTextColor={TEXT_SECONDARY}
+                      value={swLat}
+                      onChangeText={setSwLat}
+                      keyboardType="decimal-pad"
+                      style={{ flex: 1, backgroundColor: BG, color: TEXT, borderRadius: 10, padding: 12 }}
+                    />
+                    <TextInput
+                      placeholder="SW lng"
+                      placeholderTextColor={TEXT_SECONDARY}
+                      value={swLng}
+                      onChangeText={setSwLng}
+                      keyboardType="decimal-pad"
+                      style={{ flex: 1, backgroundColor: BG, color: TEXT, borderRadius: 10, padding: 12 }}
+                    />
+                  </View>
+                  <View style={{ flexDirection: "row", gap: 8 }}>
+                    <TextInput
+                      placeholder="NE lat"
+                      placeholderTextColor={TEXT_SECONDARY}
+                      value={neLat}
+                      onChangeText={setNeLat}
+                      keyboardType="decimal-pad"
+                      style={{ flex: 1, backgroundColor: BG, color: TEXT, borderRadius: 10, padding: 12 }}
+                    />
+                    <TextInput
+                      placeholder="NE lng"
+                      placeholderTextColor={TEXT_SECONDARY}
+                      value={neLng}
+                      onChangeText={setNeLng}
+                      keyboardType="decimal-pad"
+                      style={{ flex: 1, backgroundColor: BG, color: TEXT, borderRadius: 10, padding: 12 }}
+                    />
+                  </View>
+                </>
+              ) : (
+                <Text style={{ color: TEXT_SECONDARY, fontSize: 12, lineHeight: 18 }}>
+                  {polygonPoints.length
+                    ? `${polygonPoints.length} polygon point${polygonPoints.length === 1 ? "" : "s"} selected.`
+                    : "Tap the map to add polygon boundary points."}
+                </Text>
+              )}
             </>
           ) : (
             <TextInput
@@ -667,8 +820,8 @@ export default function AdminZones() {
             />
           )}
           <TouchableOpacity
-            onPress={() => createZone.mutate()}
-            disabled={createZone.isPending}
+            onPress={() => saveZone.mutate()}
+            disabled={saveZone.isPending}
             style={{
               backgroundColor: PRIMARY,
               borderRadius: 10,
@@ -677,7 +830,7 @@ export default function AdminZones() {
             }}
           >
             <Text style={{ color: "#fff", fontWeight: "800" }}>
-              {createZone.isPending ? "Creating..." : "Create Zone"}
+              {saveZone.isPending ? "Saving..." : editingZone ? "Save Zone" : "Create Zone"}
             </Text>
           </TouchableOpacity>
         </View>
@@ -799,6 +952,21 @@ export default function AdminZones() {
                   Cap {zone.max_online_drivers} online drivers
                 </Text>
               </View>
+              <TouchableOpacity
+                onPress={() => editZone(zone)}
+                style={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: 12,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: BG,
+                  borderWidth: 1,
+                  borderColor: BORDER,
+                }}
+              >
+                <Pencil size={ICON.md} color={PRIMARY} />
+              </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => toggleZone.mutate(zone)}
                 disabled={toggleZone.isPending}

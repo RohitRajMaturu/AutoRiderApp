@@ -103,6 +103,11 @@ Ride matching uses admin-managed PostGIS service zones. Run `npm run db:migrate`
 then create at least one active zone from the Admin Zones tab before testing new
 passenger requests or driver online status.
 
+Admin service zones can be created or edited visually from the mobile Admin
+Zones tab. Operations can search an area, tap two corners for a rectangle, tap
+three or more vertices for a custom polygon, or paste GeoJSON when importing an
+existing boundary.
+
 The mobile app does not call Ola Maps directly. Expo screens call backend routes under `/api/locations/*` and `/api/routes/estimate`, keeping the provider key out of the client bundle.
 
 Mobile auth stores `{ jwt, user }` in SecureStore under the stable key `auto-ride-auth`. `/api/auth/token` returns this shape after WebView sign-in, and mobile API calls send the JWT as a bearer token.
@@ -150,6 +155,8 @@ Ride discovery is polling-based by design for the Secunderabad pilot:
 - Fare calculation exists server-side as base fare INR 35 plus INR 18 per kilometer, but passenger-facing fare/surge UI is intentionally not enabled yet.
 - Native mobile ride request screen shows pickup/destination pins and supports drag-to-adjust pickup without exposing Ola Maps keys.
 - Configurable local fallback data for development when Ola Maps is unavailable or `OLAMAPS_API_KEY` is not configured.
+- Mobile Admin Zones supports map-based rectangle creation, polygon drawing,
+  existing-zone editing, and GeoJSON import fallback for service boundaries.
 
 ## Completed Driver KYC Work
 
@@ -176,14 +183,20 @@ KYC data handling rules:
 - Vendor responses are stored in `driver_kyc_checks.raw_result` for audit.
 - API routes and admin/mobile app code call the vendor-neutral dispatcher, not the HyperVerge adapter directly.
 
-## Pending Driver KYC Work
+## External Driver KYC Launch Gates
 
-The KYC system is structurally complete, but live HyperVerge verification still needs credentials and sandbox validation:
+The KYC system is structurally complete. Live HyperVerge verification still
+depends on external credentials and sandbox validation:
 
 - Add real `HYPERVERGE_APP_ID` and `HYPERVERGE_APP_KEY` values to the deployed web environment.
-- Set the deployed HyperVerge endpoint URLs if they differ from the shared defaults in `web/.env.example`.
+- Set the deployed HyperVerge endpoint URLs to the final private paths from HyperVerge.
 - Run sandbox KYC submissions end-to-end once credentials and confirmed endpoints are available.
 - Verify that full Aadhaar never appears in logs, DB rows, or vendor raw results after sandbox testing.
+
+`HYPERVERGE_FACE_MATCH_URL`, `HYPERVERGE_DL_LOOKUP_URL`, and
+`HYPERVERGE_RC_LOOKUP_URL` are intentionally blank in `web/.env.example` until
+HyperVerge provides confirmed private paths. If they are unset, those checks
+record `not_run` instead of calling a guessed URL.
 
 ## Backend Verification
 
@@ -280,19 +293,21 @@ Use the production server command chosen by the VPS process manager for the web
 app, and keep `npm run maintenance` running alongside it. Horizontal scaling,
 push delivery, and multi-city coordination are intentionally deferred.
 
-## Pending Production Work
+## Production Launch Gates
 
 The app currently runs as a lightweight Node/React Router backend. Ride
 discovery is polling-based, and cleanup runs in the scheduled maintenance
 worker rather than inside request handlers.
 
-Pending items:
+Code-complete items that still need environment or field validation:
 
 - Complete real-device E2E testing for passenger, driver, and admin flows.
 - Complete HyperVerge live verification once credentials and private endpoint docs are available.
 - Verify polling-based ride discovery on the deployed VPS.
 - Verify the maintenance worker marks expired drivers offline and cancels timed-out accepted rides.
-- Replace GeoJSON polygon import with map-based polygon drawing/editing when operations need visual zone editing.
+
+Deferred product decisions:
+
 - Add push notifications only when the pilot needs out-of-app ride alerts.
 
 ## Project Structure
