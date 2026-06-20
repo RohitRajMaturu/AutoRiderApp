@@ -717,7 +717,11 @@ export default function DriverProfile() {
           onCancel={() => setShowSignOutSheet(false)}
           onConfirm={async () => {
             setShowSignOutSheet(false);
-            await signOut();
+            try {
+              await signOut();
+            } catch {
+              Alert.alert("Sign out", "You have been returned to the start screen.");
+            }
           }}
         />
 

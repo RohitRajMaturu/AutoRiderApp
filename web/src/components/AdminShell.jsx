@@ -131,7 +131,7 @@ export default function AdminShell({
             ) : null}
           </div>
           <Link
-            to="/account/logout"
+            to="/account/logout?role=admin"
             className="flex h-9 items-center justify-center gap-2 rounded-lg text-xs font-semibold"
             style={{ color: "var(--ar-t2)" }}
             title={collapsed ? "Sign out" : undefined}
