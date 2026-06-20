@@ -49,6 +49,7 @@ const TEXT_MUTED = "#647678";
 const SUCCESS = "#16A34A";
 const SUCCESS_LIGHT = "#DCFCE7";
 const DARK = "#17272B";
+const PRIVACY_POLICY_URL = process.env.EXPO_PUBLIC_PRIVACY_URL ?? "#";
 
 function openGoogleMaps(destLat, destLng, destLabel) {
   const label = encodeURIComponent(destLabel || "Destination");
@@ -85,6 +86,7 @@ function RegistrationScreen() {
   const [licensePreview, setLicensePreview] = useState("");
   const [uploadingField, setUploadingField] = useState(null);
   const [step, setStep] = useState(1);
+  const [consentGiven, setConsentGiven] = useState(false);
 
   const registerDriver = useMutation({
     mutationFn: async () => {
@@ -95,6 +97,9 @@ function RegistrationScreen() {
           vehicle_number: vehicle.toUpperCase().trim(),
           auto_photo_url: autoPhotoUrl,
           license_url: licenseUrl,
+          dataConsentGiven: consentGiven,
+          dataConsentAt: new Date().toISOString(),
+          dataConsentVersion: "v1",
         }),
       });
       if (!res.ok) {
@@ -633,6 +638,49 @@ function RegistrationScreen() {
                 start accepting rides once approved.
               </Text>
             </View>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => setConsentGiven((value) => !value)}
+              style={{
+                alignItems: "flex-start",
+                backgroundColor: consentGiven ? PRIMARY_LIGHT : SURFACE,
+                borderColor: consentGiven ? PRIMARY_BORDER : BORDER,
+                borderRadius: 14,
+                borderWidth: 1,
+                flexDirection: "row",
+                gap: 12,
+                padding: 14,
+              }}
+            >
+              <View
+                style={{
+                  alignItems: "center",
+                  backgroundColor: consentGiven ? PRIMARY : SURFACE,
+                  borderColor: consentGiven ? PRIMARY : BORDER,
+                  borderRadius: 7,
+                  borderWidth: 1.5,
+                  height: 22,
+                  justifyContent: "center",
+                  marginTop: 1,
+                  width: 22,
+                }}
+              >
+                <Text style={{ color: "#fff", fontSize: 14, fontWeight: "900" }}>
+                  {consentGiven ? "✓" : ""}
+                </Text>
+              </View>
+              <Text style={{ color: TEXT_SECONDARY, flex: 1, fontSize: 12, lineHeight: 18 }}>
+                I agree to TukTukGo collecting and storing my name, phone number,
+                vehicle, and licence details to provide ride services, in line with the{" "}
+                <Text
+                  style={{ color: PRIMARY_DARK, fontWeight: "900" }}
+                  onPress={() => Linking.openURL(PRIVACY_POLICY_URL)}
+                >
+                  Privacy Policy
+                </Text>
+                .
+              </Text>
+            </TouchableOpacity>
             <View style={{ flexDirection: "row", gap: 12 }}>
               <TouchableOpacity
                 onPress={() => setStep(2)}
@@ -658,10 +706,10 @@ function RegistrationScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => registerDriver.mutate()}
-                disabled={registerDriver.isPending}
+                disabled={registerDriver.isPending || !consentGiven}
                 style={{
                   flex: 2,
-                  backgroundColor: PRIMARY,
+                  backgroundColor: consentGiven ? PRIMARY : "#BFD1D3",
                   borderRadius: 14,
                   paddingVertical: 17,
                   alignItems: "center",
@@ -670,6 +718,7 @@ function RegistrationScreen() {
                   shadowOpacity: 0.3,
                   shadowRadius: 12,
                   elevation: 6,
+                  opacity: registerDriver.isPending ? 0.7 : 1,
                 }}
                 activeOpacity={0.85}
               >

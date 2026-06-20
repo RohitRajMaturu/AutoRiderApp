@@ -20,11 +20,27 @@ export async function POST(request) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { vehicle_number, auto_photo_url, license_url } =
+    const {
+      vehicle_number,
+      auto_photo_url,
+      license_url,
+      dataConsentGiven,
+      dataConsentAt,
+      dataConsentVersion,
+    } =
       await request.json();
     const vehicleNumber = readString(vehicle_number).toUpperCase();
     const autoPhotoUrl = readString(auto_photo_url) || null;
     const licenseUrl = readString(license_url);
+    const consentAt = readString(dataConsentAt) || new Date().toISOString();
+    const consentVersion = readString(dataConsentVersion) || "v1";
+
+    if (dataConsentGiven !== true) {
+      return Response.json(
+        { error: "Data consent is required to create an account." },
+        { status: 400 },
+      );
+    }
 
     if (!vehicleNumber || vehicleNumber.length > 32 || !licenseUrl) {
       return Response.json(
@@ -43,13 +59,36 @@ export async function POST(request) {
     }
 
     const rows = await sql`
-      INSERT INTO drivers (user_id, vehicle_number, auto_photo_url, license_url)
-      VALUES (${session.user.id}, ${vehicleNumber}, ${autoPhotoUrl}, ${licenseUrl})
+      INSERT INTO drivers (
+        user_id,
+        vehicle_number,
+        auto_photo_url,
+        license_url,
+        data_consent_given,
+        data_consent_at,
+        data_consent_version
+      )
+      VALUES (
+        ${session.user.id},
+        ${vehicleNumber},
+        ${autoPhotoUrl},
+        ${licenseUrl},
+        true,
+        ${consentAt},
+        ${consentVersion}
+      )
       RETURNING *
     `;
 
-    // Ensure role is set to driver if not already
-    await sql`UPDATE auth_users SET role = 'driver' WHERE id = ${session.user.id}`;
+    await sql`
+      UPDATE auth_users
+      SET role = 'driver',
+          data_consent_given = true,
+          data_consent_at = ${consentAt},
+          data_consent_version = ${consentVersion},
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${session.user.id}
+    `;
 
     return Response.json({ driver: rows[0] });
   } catch (err) {

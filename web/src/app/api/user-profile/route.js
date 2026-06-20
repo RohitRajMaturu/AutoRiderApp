@@ -22,7 +22,7 @@ export async function GET(request) {
     }
 
     const rows = await sql`
-      SELECT id, email, role, phone 
+      SELECT id, email, role, phone, data_consent_given, data_consent_at, data_consent_version
       FROM auth_users 
       WHERE id = ${session.user.id} 
       LIMIT 1
@@ -66,7 +66,7 @@ export async function PUT(request) {
           phone = COALESCE(${nextPhone}, phone),
           updated_at = CURRENT_TIMESTAMP
       WHERE id = ${session.user.id}
-      RETURNING id, email, role, phone
+      RETURNING id, email, role, phone, data_consent_given, data_consent_at, data_consent_version
     `;
 
     return Response.json({ user: rows[0] });

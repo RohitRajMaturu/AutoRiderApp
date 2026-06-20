@@ -65,6 +65,10 @@ function getInitialRole() {
   return params.get("role") === "admin" ? "admin" : "passenger";
 }
 
+function getPrivacyPolicyUrl() {
+  return import.meta.env.VITE_PRIVACY_URL || "/privacy";
+}
+
 function updateAuthUrl(screen, role) {
   if (typeof window === "undefined") return;
   const params = readParams();
@@ -170,6 +174,7 @@ export default function SignInPage() {
   const [role, setRole] = useState(getInitialRole);
   const [enableOtpVerification, setEnableOtpVerification] = useState(false);
   const [configLoaded, setConfigLoaded] = useState(false);
+  const [consentGiven, setConsentGiven] = useState(false);
   const allowSignup = readParams().get("client") === "mobile";
 
   const { signInWithCredentials, signInWithPhoneOtp, signUpWithCredentials } =
@@ -209,6 +214,7 @@ export default function SignInPage() {
     }
     updateAuthUrl(screen, role);
     setError(null);
+    setConsentGiven(false);
   }, [allowSignup, role, screen]);
 
   const requireAuthSuccess = (result, message) => {
@@ -304,6 +310,9 @@ export default function SignInPage() {
         phone: phone.trim(),
         role,
         otp: enableOtpVerification ? otp : "",
+        dataConsentGiven: isAdminSetup ? "false" : String(consentGiven),
+        dataConsentAt: consentGiven ? new Date().toISOString() : "",
+        dataConsentVersion: "v1",
         callbackUrl: !isAdminSetup ? "/onboarding" : getCallbackUrl(),
         redirect: false,
       });
@@ -646,11 +655,39 @@ export default function SignInPage() {
                     </p>
                   </div>
 
+                  {!isAdminSetup ? (
+                    <label className="flex cursor-pointer items-start gap-3 rounded-[16px] border border-[#D8E4E5] bg-[#F7FBFA] p-3.5">
+                      <input
+                        type="checkbox"
+                        checked={consentGiven}
+                        onChange={(event) => setConsentGiven(event.target.checked)}
+                        className="mt-1 h-4 w-4 rounded border-[#BFD1D3] accent-[#43B8B3]"
+                      />
+                      <span className="text-xs font-semibold leading-5 text-slate-500">
+                        I agree to TukTukGo collecting and storing my{" "}
+                        {role === "driver"
+                          ? "name, phone number, vehicle, and licence details"
+                          : "name and phone number"}{" "}
+                        to provide ride services, in line with the{" "}
+                        <a
+                          href={getPrivacyPolicyUrl()}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="font-extrabold text-[#43B8B3] hover:underline"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          Privacy Policy
+                        </a>
+                        .
+                      </span>
+                    </label>
+                  ) : null}
+
                   <AuthError error={error} />
 
                   <motion.button
                     type="submit"
-                    disabled={loading || !phone.trim()}
+                    disabled={loading || !phone.trim() || (!isAdminSetup && !consentGiven)}
                     className="group flex h-12 w-full items-center justify-center rounded-2xl bg-[#43B8B3] text-base font-extrabold text-white shadow-[0_14px_26px_rgba(67,184,179,0.24)] transition hover:bg-[#339E9A] disabled:opacity-60"
                     whileTap={{ scale: 0.985 }}
                   >

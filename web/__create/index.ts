@@ -362,11 +362,14 @@ if (process.env.AUTH_SECRET) {
             phone: { label: 'Phone', type: 'text' },
             role: { label: 'Role', type: 'text' },
             otp: { label: 'OTP', type: 'text', required: false },
+            dataConsentGiven: { label: 'Data Consent', type: 'text', required: false },
+            dataConsentAt: { label: 'Data Consent At', type: 'text', required: false },
+            dataConsentVersion: { label: 'Data Consent Version', type: 'text', required: false },
             name: { label: 'Name', type: 'text' },
             image: { label: 'Image', type: 'text', required: false },
           },
           authorize: async (credentials) => {
-            const { email, password, phone, role, otp, name, image } = credentials;
+            const { email, password, phone, role, otp, name, image, dataConsentGiven, dataConsentAt, dataConsentVersion } = credentials;
             console.log('[auth] credentials-signup attempt', { email, phone, role, otpEnabled: isOtpVerificationEnabled() });
             if (!email || !password) {
               console.error('[auth] credentials-signup missing email/password');
@@ -400,6 +403,18 @@ if (process.env.AUTH_SECRET) {
               console.error('[auth] credentials-signup invalid role/phone', { nextRole, normalizedPhone });
               return null;
             }
+            if (nextRole !== 'admin' && dataConsentGiven !== 'true') {
+              console.error('[auth] credentials-signup data consent required', { nextRole, normalizedPhone });
+              return null;
+            }
+            const consentAt =
+              typeof dataConsentAt === 'string' && dataConsentAt.length > 0
+                ? dataConsentAt
+                : new Date().toISOString();
+            const consentVersion =
+              typeof dataConsentVersion === 'string' && dataConsentVersion.length > 0
+                ? dataConsentVersion
+                : 'v1';
 
             // logic to verify if user exists
             const user = await adapter.getUserByEmail(normalizedEmail);
@@ -419,8 +434,17 @@ if (process.env.AUTH_SECRET) {
             if (!existing) {
               const created = await pool.query(
                 `
-                  INSERT INTO auth_users (email, phone, role, name, image)
-                  VALUES ($1, $2, $3, $4, $5)
+                  INSERT INTO auth_users (
+                    email,
+                    phone,
+                    role,
+                    name,
+                    image,
+                    data_consent_given,
+                    data_consent_at,
+                    data_consent_version
+                  )
+                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                   RETURNING id, name, email, phone, role, "emailVerified", image
                 `,
                 [
@@ -429,6 +453,9 @@ if (process.env.AUTH_SECRET) {
                   nextRole,
                   typeof name === 'string' && name.length > 0 ? name : null,
                   typeof image === 'string' && image.length > 0 ? image : null,
+                  nextRole === 'admin' ? false : true,
+                  nextRole === 'admin' ? null : consentAt,
+                  nextRole === 'admin' ? null : consentVersion,
                 ]
               );
               const newUser = created.rows[0];
@@ -471,11 +498,14 @@ if (process.env.AUTH_SECRET) {
                 SET email = $2,
                     phone = $3,
                     role = $4,
+                    data_consent_given = CASE WHEN $5::boolean THEN true ELSE data_consent_given END,
+                    data_consent_at = CASE WHEN $5::boolean THEN COALESCE($6::timestamptz, CURRENT_TIMESTAMP) ELSE data_consent_at END,
+                    data_consent_version = CASE WHEN $5::boolean THEN COALESCE($7, 'v1') ELSE data_consent_version END,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = $1
                 RETURNING id, name, email, phone, role, "emailVerified", image
               `,
-              [existing.id, normalizedEmail, normalizedPhone, nextRole]
+              [existing.id, normalizedEmail, normalizedPhone, nextRole, nextRole !== 'admin', consentAt, consentVersion]
             );
             console.log('[auth] credentials-signup updated user', { userId: updated.rows[0].id, role: updated.rows[0].role });
             return updated.rows[0];
