@@ -130,12 +130,13 @@ The driver KYC foundation is implemented with a vendor-swappable architecture:
 - Runtime vendor switch lives in `web/src/lib/kyc/config.js`.
 - Dispatcher lives in `web/src/lib/kyc/verifyDriver.js`.
 - HyperVerge-specific adapter shell lives in `web/src/lib/kyc/adapters/hyperverge.js`.
+- HyperVerge `/readKYC`, face-match, DL lookup, and RC lookup calls are wired with configurable endpoint URLs.
 - Driver KYC submission API is available at `POST /api/drivers/kyc-submit`.
 - Mobile driver KYC flow is available at `mobile/src/app/(driver)/kyc-submit.jsx`.
 - Driver dashboard blocks online mode until `kyc_status = 'approved'`.
 - Admin KYC review queue is available at `/admin-kyc`.
 - Admin API for KYC review is available at `GET/PATCH /api/admin/kyc`.
-- `web/.env.example` includes `HYPERVERGE_APP_ID` and `HYPERVERGE_APP_KEY` placeholders.
+- `web/.env.example` includes `HYPERVERGE_APP_ID`, `HYPERVERGE_APP_KEY`, and endpoint URL placeholders.
 
 KYC data handling rules:
 
@@ -146,14 +147,10 @@ KYC data handling rules:
 
 ## Pending Driver KYC Work
 
-The KYC system is structurally complete, but live HyperVerge verification needs vendor-provided integration details:
+The KYC system is structurally complete, but live HyperVerge verification still needs credentials and sandbox validation:
 
 - Add real `HYPERVERGE_APP_ID` and `HYPERVERGE_APP_KEY` values to the deployed web environment.
-- Confirm whether HyperVerge `/readKYC` accepts hosted image URLs directly or requires raw image bytes.
-- Confirm face-match endpoint path and response shape.
-- Confirm DL active-status lookup endpoint path and response shape.
-- Confirm RC active-status lookup endpoint path and response shape.
-- Map real HyperVerge OCR, tampering, status, and confidence fields inside `web/src/lib/kyc/adapters/hyperverge.js`.
+- Set the deployed HyperVerge endpoint URLs if they differ from the shared defaults in `web/.env.example`.
 - Run sandbox KYC submissions end-to-end once credentials and confirmed endpoints are available.
 - Verify that full Aadhaar never appears in logs, DB rows, or vendor raw results after sandbox testing.
 
