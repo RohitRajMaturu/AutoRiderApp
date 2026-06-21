@@ -7,3 +7,9 @@ export const VENDOR_ENV_KEYS = {
     appKey: "HYPERVERGE_APP_KEY",
   },
 };
+
+export function isKycVendorConfigured(vendor = KYC_VENDOR) {
+  const keys = VENDOR_ENV_KEYS[vendor];
+  if (!keys) return false;
+  return Object.values(keys).every((key) => Boolean(process.env[key]));
+}

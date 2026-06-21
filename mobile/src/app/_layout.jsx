@@ -1,7 +1,7 @@
 import { useAuth } from "@/utils/auth/useAuth";
 import { AuthModal } from "@/utils/auth/useAuthModal";
 import { ThemeProvider } from "@/theme/ThemeContext";
-import { Stack } from "expo-router";
+import { Stack, useRootNavigationState, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { ActivityIndicator, Linking, Modal, Text, TouchableOpacity, View } from "react-native";
@@ -152,7 +152,10 @@ function ConsentGate() {
 }
 
 export default function RootLayout() {
-  const { initiate, isReady } = useAuth();
+  const { initiate, isReady, auth } = useAuth();
+  const router = useRouter();
+  const segments = useSegments();
+  const rootNavigationState = useRootNavigationState();
 
   useEffect(() => {
     initiate();
@@ -163,6 +166,21 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [isReady]);
+
+  useEffect(() => {
+    if (!rootNavigationState?.key || !isReady) {
+      return;
+    }
+
+    const inProtectedGroup =
+      segments[0] === "(passenger)" ||
+      segments[0] === "(driver)" ||
+      segments[0] === "(admin)";
+
+    if (!auth && inProtectedGroup) {
+      router.replace("/");
+    }
+  }, [auth, isReady, rootNavigationState?.key, router, segments]);
 
   return (
     <QueryClientProvider client={queryClient}>

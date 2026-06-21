@@ -1,8 +1,10 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   Alert,
   Image,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -22,10 +24,10 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  Clock3,
   FileText,
   Image as ImageIcon,
 } from "lucide-react-native";
-import { AutoMotionScene } from "@/components/motion";
 import TukTukGoLoader from "@/components/TukTukGoLoader";
 import { ICON } from "@/theme/iconScale";
 import { useAuth } from "@/utils/auth/useAuth";
@@ -42,6 +44,8 @@ const TEXT_MUTED = "#647678";
 const SUCCESS = "#16A34A";
 
 const STEPS = ["Details", "Docs", "Aadhaar", "Selfie", "Review"];
+const KYC_DRAFT_VERSION = 1;
+const KYC_DRAFT_PREFIX = "driver-kyc-draft";
 const CURRENT_YEAR = new Date().getFullYear();
 const MONTHS = [
   "January",
@@ -110,6 +114,13 @@ function formatDisplayDate(parts) {
   return `${pad2(parts.day)}/${pad2(parts.month)}/${parts.year}`;
 }
 
+function formatManualDateInput(value) {
+  const digits = String(value || "").replace(/\D/g, "").slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+}
+
 function createMonthCells({ month, year }) {
   const firstDay = new Date(year, month - 1, 1).getDay();
   const totalDays = daysInMonth(month, year);
@@ -121,6 +132,36 @@ function createMonthCells({ month, year }) {
 
 function readDriverName(driver, auth) {
   return driver?.full_name || auth?.user?.name || auth?.user?.email || "";
+}
+
+function readAssetMimeType(asset) {
+  if (asset?.mimeType) return asset.mimeType;
+  const extension = String(asset?.uri || "").split(".").pop()?.toLowerCase();
+  if (extension === "png") return "image/png";
+  if (extension === "webp") return "image/webp";
+  return "image/jpeg";
+}
+
+async function uploadImageAsset({ asset, field, scope }) {
+  if (!asset?.base64) {
+    throw new Error("Could not read the selected image");
+  }
+
+  const mimeType = readAssetMimeType(asset);
+  const response = await fetch("/api/upload", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      scope,
+      filename: asset.fileName || `${field}-${Date.now()}.jpg`,
+      base64: `data:${mimeType};base64,${asset.base64}`,
+    }),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok || !body.url) {
+    throw new Error(body.error || "Upload failed");
+  }
+  return body;
 }
 
 export default function DriverKycSubmit() {
@@ -146,6 +187,7 @@ export default function DriverKycSubmit() {
 
   const authUserKey =
     auth?.user?.id || auth?.user?.email || auth?.user?.phone || "anonymous";
+  const draftKey = `${KYC_DRAFT_PREFIX}:${authUserKey}`;
 
   const { data, isLoading } = useQuery({
     queryKey: ["driverMe", authUserKey],
@@ -181,6 +223,107 @@ export default function DriverKycSubmit() {
     return digits.length >= 4 ? `•••• ${digits.slice(-4)}` : "";
   }, [aadhaarNumber]);
 
+  const draft = useMemo(
+    () => ({
+      version: KYC_DRAFT_VERSION,
+      step,
+      driverName,
+      dob,
+      dlNumber,
+      dlExpiry,
+      rcNumber,
+      dlPhotoUrl,
+      dlPreview,
+      rcPhotoUrl,
+      rcPreview,
+      selfieUrl,
+      selfiePreview,
+      aadhaarNumber,
+    }),
+    [
+      aadhaarNumber,
+      dlExpiry,
+      dlNumber,
+      dlPhotoUrl,
+      dlPreview,
+      dob,
+      driverName,
+      rcNumber,
+      rcPhotoUrl,
+      rcPreview,
+      selfiePreview,
+      selfieUrl,
+      step,
+    ],
+  );
+
+  useEffect(() => {
+    let active = true;
+    if (!auth || authUserKey === "anonymous") return () => {};
+
+    AsyncStorage.getItem(draftKey)
+      .then((value) => {
+        if (!active || !value) return;
+        const saved = JSON.parse(value);
+        if (saved?.version !== KYC_DRAFT_VERSION) return;
+        setStep((current) => Math.max(current, Number(saved.step) || 0));
+        setDriverName((current) => current || saved.driverName || "");
+        setDob((current) => current || saved.dob || "");
+        setDlNumber((current) => current || saved.dlNumber || "");
+        setDlExpiry((current) => current || saved.dlExpiry || "");
+        setRcNumber((current) => current || saved.rcNumber || "");
+        setDlPhotoUrl((current) => current || saved.dlPhotoUrl || "");
+        setDlPreview((current) => current || saved.dlPreview || "");
+        setRcPhotoUrl((current) => current || saved.rcPhotoUrl || "");
+        setRcPreview((current) => current || saved.rcPreview || "");
+        setSelfieUrl((current) => current || saved.selfieUrl || "");
+        setSelfiePreview((current) => current || saved.selfiePreview || "");
+        setAadhaarNumber((current) => current || saved.aadhaarNumber || "");
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, [auth, authUserKey, draftKey]);
+
+  useEffect(() => {
+    if (!auth || authUserKey === "anonymous") return () => {};
+    const hasDraft =
+      driverName ||
+      dob ||
+      dlNumber ||
+      dlExpiry ||
+      rcNumber ||
+      dlPhotoUrl ||
+      rcPhotoUrl ||
+      selfieUrl ||
+      aadhaarNumber ||
+      step > 0;
+    if (!hasDraft) return () => {};
+
+    const timeout = setTimeout(() => {
+      AsyncStorage.setItem(draftKey, JSON.stringify(draft)).catch(() => {});
+    }, 350);
+
+    return () => clearTimeout(timeout);
+  }, [
+    aadhaarNumber,
+    auth,
+    authUserKey,
+    dlExpiry,
+    dlNumber,
+    dlPhotoUrl,
+    dob,
+    draft,
+    draftKey,
+    driverName,
+    rcNumber,
+    rcPhotoUrl,
+    selfieUrl,
+    step,
+  ]);
+
   const uploadSelectedImage = async (field, source) => {
     setUploadingField(field);
     try {
@@ -197,30 +340,21 @@ export default function DriverKycSubmit() {
         source === "camera"
           ? await ImagePicker.launchCameraAsync({
               mediaTypes: ImagePicker.MediaTypeOptions.Images,
-              allowsEditing: true,
+              allowsEditing: Platform.OS === "android",
               quality: 0.8,
+              base64: true,
             })
           : await ImagePicker.launchImageLibraryAsync({
               mediaTypes: ImagePicker.MediaTypeOptions.Images,
-              allowsEditing: true,
+              allowsEditing: Platform.OS === "android",
               quality: 0.8,
+              base64: true,
             });
 
       const asset = result.assets?.[0];
       if (result.canceled || !asset?.uri) return;
 
-      const form = new FormData();
-      form.append("scope", "kyc");
-      form.append("file", {
-        uri: asset.uri,
-        name: `${field}.jpg`,
-        type: asset.mimeType || "image/jpeg",
-      });
-      const response = await fetch("/api/upload", { method: "POST", body: form });
-      const body = await response.json().catch(() => ({}));
-      if (!response.ok || !body.url) {
-        throw new Error(body.error || "Upload failed");
-      }
+      const body = await uploadImageAsset({ asset, field, scope: "kyc" });
 
       if (field === "dl") {
         setDlPhotoUrl(body.path || body.url);
@@ -261,6 +395,7 @@ export default function DriverKycSubmit() {
       return body;
     },
     onSuccess: (body) => {
+      AsyncStorage.removeItem(draftKey).catch(() => {});
       setSubmitResult(body);
       queryClient.invalidateQueries({ queryKey: ["driverMe", authUserKey] });
       if (body.verification_status === "APPROVED") {
@@ -296,18 +431,48 @@ export default function DriverKycSubmit() {
     const rejected = submitResult.verification_status === "REJECTED";
     return (
       <View style={{ flex: 1, backgroundColor: BG, padding: 24, justifyContent: "center" }}>
-        <AutoMotionScene
-          type={approved ? "completed" : "progress"}
-          label={
-            approved
-              ? "You're verified! Redirecting to your dashboard."
-              : rejected
-                ? "KYC needs another look."
-                : "Your documents are under review."
-          }
-          size={220}
-        />
-        <Text style={{ marginTop: 18, textAlign: "center", color: TEXT_SECONDARY, lineHeight: 20 }}>
+        <View style={{ alignItems: "center" }}>
+          <View
+            style={{
+              alignItems: "center",
+              backgroundColor: approved ? "#ECFDF5" : rejected ? "#FEF2F2" : PRIMARY_LIGHT,
+              borderColor: approved ? "#BBF7D0" : rejected ? "#FECACA" : PRIMARY_BORDER,
+              borderRadius: 32,
+              borderWidth: 1,
+              height: 168,
+              justifyContent: "center",
+              width: 168,
+            }}
+          >
+            <View
+              style={{
+                alignItems: "center",
+                backgroundColor: SURFACE,
+                borderRadius: 28,
+                elevation: 5,
+                height: 96,
+                justifyContent: "center",
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 8 },
+                shadowOpacity: 0.12,
+                shadowRadius: 16,
+                width: 96,
+              }}
+            >
+              {approved ? (
+                <CheckCircle2 size={52} color={SUCCESS} />
+              ) : rejected ? (
+                <FileText size={52} color="#DC2626" />
+              ) : (
+                <Clock3 size={52} color={PRIMARY} />
+              )}
+            </View>
+          </View>
+          <Text style={{ color: TEXT, fontSize: 22, fontWeight: "900", marginTop: 22, textAlign: "center" }}>
+            {approved ? "You're verified" : rejected ? "KYC needs another look" : "Documents under review"}
+          </Text>
+        </View>
+        <Text style={{ marginTop: 12, textAlign: "center", color: TEXT_SECONDARY, lineHeight: 20 }}>
           {approved
             ? "You can go online once your dashboard opens."
             : rejected
@@ -478,7 +643,6 @@ function DatePickerField({ label, value, onChange, minYear, maxYear, fallbackYea
     return Math.max(minYear, selectedYear - (selectedYear % 12));
   });
 
-  const displayValue = value || "dd/mm/yyyy";
   const monthCells = useMemo(() => createMonthCells(draft), [draft]);
   const yearRange = useMemo(
     () =>
@@ -523,9 +687,7 @@ function DatePickerField({ label, value, onChange, minYear, maxYear, fallbackYea
   return (
     <View>
       <Text style={{ color: TEXT_MUTED, fontSize: 11, fontWeight: "800", marginBottom: 6, textTransform: "uppercase" }}>{label}</Text>
-      <TouchableOpacity
-        activeOpacity={0.86}
-        onPress={openPicker}
+      <View
         style={{
           alignItems: "center",
           borderColor: BORDER,
@@ -538,11 +700,25 @@ function DatePickerField({ label, value, onChange, minYear, maxYear, fallbackYea
         }}
       >
         <CalendarDays size={ICON.md} color={PRIMARY} />
-        <Text style={{ color: value ? TEXT : TEXT_MUTED, flex: 1, fontSize: 15, fontWeight: "800" }}>
-          {displayValue}
-        </Text>
-        <Text style={{ color: TEXT_MUTED, fontSize: 12, fontWeight: "800" }}>Pick</Text>
-      </TouchableOpacity>
+        <TextInput
+          value={value}
+          onChangeText={(text) => onChange(formatManualDateInput(text))}
+          keyboardType="number-pad"
+          placeholder="dd/mm/yyyy"
+          placeholderTextColor={TEXT_MUTED}
+          maxLength={10}
+          style={{
+            color: value ? TEXT : TEXT_MUTED,
+            flex: 1,
+            fontSize: 15,
+            fontWeight: "800",
+            padding: 0,
+          }}
+        />
+        <TouchableOpacity activeOpacity={0.86} onPress={openPicker}>
+          <Text style={{ color: TEXT_MUTED, fontSize: 12, fontWeight: "800" }}>Pick</Text>
+        </TouchableOpacity>
+      </View>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <Pressable

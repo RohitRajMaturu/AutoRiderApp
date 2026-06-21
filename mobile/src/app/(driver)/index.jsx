@@ -30,12 +30,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
+import { Audio } from "expo-av";
 import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedView";
 import TukTukGoLoader from "@/components/TukTukGoLoader";
 import { useAuth } from "@/utils/auth/useAuth";
 import { ICON } from "@/theme/iconScale";
 
 const TUKTUKGO_ICON = require("../../../assets/images/icon.png");
+const RIDE_REQUEST_CHIME = require("../../../assets/sounds/ride-request.wav");
 const PRIMARY = "#43B8B3";
 const PRIMARY_DARK = "#339E9A";
 const PRIMARY_LIGHT = "#E7F6F4";
@@ -73,6 +75,22 @@ function formatCancellationReason(reason) {
 function formatCurrency(value) {
   const amount = Number(value);
   return `Rs. ${Math.round(Number.isFinite(amount) ? amount : 0).toLocaleString("en-IN")}`;
+}
+
+async function playRideRequestChime() {
+  try {
+    const { sound } = await Audio.Sound.createAsync(RIDE_REQUEST_CHIME, {
+      shouldPlay: true,
+      volume: 0.7,
+    });
+    sound.setOnPlaybackStatusUpdate((status) => {
+      if (status.didJustFinish) {
+        sound.unloadAsync();
+      }
+    });
+  } catch {
+    // Sound should never block ride polling.
+  }
 }
 
 // ─── Registration Form ────────────────────────────────────────────────────────
@@ -134,15 +152,13 @@ function RegistrationScreen() {
       const result = isCamera
         ? await ImagePicker.launchCameraAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            aspect: [4, 3],
+            allowsEditing: Platform.OS === "android",
             quality: 0.72,
             base64: true,
           })
         : await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            aspect: [4, 3],
+            allowsEditing: Platform.OS === "android",
             quality: 0.72,
             base64: true,
           });
@@ -1034,7 +1050,8 @@ function KycGateScreen({ status, reason }) {
   );
 }
 
-function ActiveRideCard({ ride, onComplete, isCompleting }) {
+function ActiveRideCard({ ride, onStart, onComplete, isStarting, isCompleting }) {
+  const hasStarted = Boolean(ride.started_at);
   return (
     <View
       style={{
@@ -1091,7 +1108,7 @@ function ActiveRideCard({ ride, onComplete, isCompleting }) {
             }}
           >
             <Text style={{ fontSize: 11, fontWeight: "700", color: "#fff" }}>
-              LIVE
+              {hasStarted ? "ON TRIP" : "PICKUP"}
             </Text>
           </View>
         </View>
@@ -1140,9 +1157,9 @@ function ActiveRideCard({ ride, onComplete, isCompleting }) {
           <TouchableOpacity
             onPress={() =>
               openGoogleMaps(
-                ride.pickup_lat,
-                ride.pickup_lng,
-                ride.pickup_address,
+                hasStarted ? ride.dest_lat : ride.pickup_lat,
+                hasStarted ? ride.dest_lng : ride.pickup_lng,
+                hasStarted ? ride.dest_address : ride.pickup_address,
               )
             }
             style={{
@@ -1160,7 +1177,7 @@ function ActiveRideCard({ ride, onComplete, isCompleting }) {
           >
             <Navigation size={ICON.sm} color={PRIMARY} />
             <Text style={{ fontSize: 13, fontWeight: "700", color: PRIMARY }}>
-              Navigate to Pickup
+              {hasStarted ? "Navigate to Drop-off" : "Navigate to Pickup"}
             </Text>
           </TouchableOpacity>
           <View
@@ -1229,23 +1246,36 @@ function ActiveRideCard({ ride, onComplete, isCompleting }) {
           )}
           <TouchableOpacity
             onPress={() => {
-              Alert.alert("Complete Ride?", "Mark this ride as completed?", [
+              if (!hasStarted) {
+                Alert.alert("Start Ride?", "Start this ride after the passenger boards?", [
+                  { text: "Cancel", style: "cancel" },
+                  { text: "Start Ride", onPress: () => onStart(ride.id) },
+                ]);
+                return;
+              }
+              Alert.alert("Complete Ride?", "Mark this ride as completed after drop-off?", [
                 { text: "Cancel", style: "cancel" },
                 { text: "Complete", onPress: () => onComplete(ride.id) },
               ]);
             }}
-            disabled={isCompleting}
+            disabled={isStarting || isCompleting}
             style={{
               flex: 2,
-              backgroundColor: PRIMARY,
+              backgroundColor: hasStarted ? PRIMARY : "#F3B51B",
               borderRadius: 12,
               paddingVertical: 14,
               alignItems: "center",
             }}
             activeOpacity={0.85}
           >
-            <Text style={{ color: "#fff", fontSize: 14, fontWeight: "700" }}>
-              {isCompleting ? "Completing..." : "✓ Complete Ride / పూర్తి / पूरा करें"}
+            <Text style={{ color: hasStarted ? "#fff" : DARK, fontSize: 14, fontWeight: "800" }}>
+              {!hasStarted
+                ? isStarting
+                  ? "Starting..."
+                  : "Start Ride"
+                : isCompleting
+                  ? "Completing..."
+                  : "Complete Ride"}
             </Text>
           </TouchableOpacity>
         </View>
@@ -1259,6 +1289,7 @@ export default function DriverHome() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const notifiedCancelledRideIds = useRef(new Set());
+  const notifiedRideRequestIds = useRef(new Set());
   const onlineToggleAnim = useRef(new Animated.Value(0)).current;
   const { auth } = useAuth();
   const authUserKey =
@@ -1330,6 +1361,20 @@ export default function DriverHome() {
       "Ride Cancelled",
       formatCancellationReason(cancelledRide.cancellation_reason),
     );
+  }, [ridesData?.rides]);
+
+  useEffect(() => {
+    const requestedRides = (ridesData?.rides || []).filter(
+      (ride) => ride.status === "requested" && !ride.driver_id,
+    );
+    const newRide = requestedRides.find(
+      (ride) => !notifiedRideRequestIds.current.has(ride.id),
+    );
+
+    requestedRides.forEach((ride) => notifiedRideRequestIds.current.add(ride.id));
+    if (newRide) {
+      playRideRequestChime();
+    }
   }, [ridesData?.rides]);
 
   const toggleStatus = useMutation({
@@ -1414,12 +1459,36 @@ export default function DriverHome() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "complete" }),
       });
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        throw new Error(error.error || "Failed to complete ride");
+      }
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["driverRides", authUserKey] });
       Alert.alert("✅ Ride Completed!", "Great work! Keep earning!");
     },
+  });
+
+  const startRide = useMutation({
+    mutationFn: async (rideId) => {
+      const res = await fetch(`/api/rides/${rideId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "start" }),
+      });
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        throw new Error(error.error || "Failed to start ride");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["driverRides", authUserKey] });
+      Alert.alert("Ride Started", "Navigate to the drop-off location.");
+    },
+    onError: (err) => Alert.alert("Start Failed", err.message),
   });
 
   if (driverLoading) {
@@ -1725,7 +1794,9 @@ export default function DriverHome() {
         {activeRide && (
           <ActiveRideCard
             ride={activeRide}
+            onStart={(id) => startRide.mutate(id)}
             onComplete={(id) => completeRide.mutate(id)}
+            isStarting={startRide.isPending}
             isCompleting={completeRide.isPending}
           />
         )}

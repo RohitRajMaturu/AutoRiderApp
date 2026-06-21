@@ -93,7 +93,6 @@ export async function selectZoneDrivers(zoneId, pickupLat, pickupLng, scopedSql 
       AND d.is_online = true
       AND d.is_approved = true
       AND d.subscription_expiry > CURRENT_TIMESTAMP
-      AND d.last_heartbeat_at >= CURRENT_TIMESTAMP - make_interval(secs => ${getDriverHeartbeatTimeoutSeconds()})
       AND d.location IS NOT NULL
       AND ST_DWithin(d.location, ST_SetSRID(ST_MakePoint(${pickupLng}, ${pickupLat}), 4326)::geography, ${radiusMeters}) -- PATCHED:
     ORDER BY d.online_since ASC NULLS LAST, d.updated_at ASC

@@ -1,26 +1,16 @@
-import { Tabs, useRootNavigationState, useRouter } from "expo-router";
+import { Tabs } from "expo-router";
 import { Home, Wallet, User } from "lucide-react-native";
 import { ICON } from "@/theme/iconScale";
 import { useAuth } from "@/utils/auth/useAuth";
 import useAppStore from "@/store/useAppStore";
-import { useEffect } from "react";
 
 export default function DriverLayout() {
   const { auth, isReady } = useAuth();
   const testMode = useAppStore((state) => state.testMode);
-  const router = useRouter();
-  const rootNavigationState = useRootNavigationState();
 
-  const shouldLeaveProtectedArea = isReady && !auth && !testMode;
-  const canNavigate = !!rootNavigationState?.key;
+  const isProtected = isReady && !auth && !testMode;
 
-  useEffect(() => {
-    if (shouldLeaveProtectedArea && canNavigate) {
-      router.replace("/");
-    }
-  }, [canNavigate, router, shouldLeaveProtectedArea]);
-
-  if (shouldLeaveProtectedArea) {
+  if (isProtected) {
     return null;
   }
 

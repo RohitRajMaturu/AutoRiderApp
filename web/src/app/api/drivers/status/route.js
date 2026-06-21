@@ -126,6 +126,12 @@ export async function PATCH(request) {
               last_heartbeat_at = CURRENT_TIMESTAMP,
               last_lat = COALESCE(${nextLat}, last_lat),
               last_lng = COALESCE(${nextLng}, last_lng),
+              location = CASE
+                WHEN COALESCE(${nextLat}, last_lat) IS NOT NULL
+                 AND COALESCE(${nextLng}, last_lng) IS NOT NULL
+                THEN ST_SetSRID(ST_MakePoint(COALESCE(${nextLng}, last_lng), COALESCE(${nextLat}, last_lat)), 4326)::geography
+                ELSE NULL
+              END,
               updated_at = CURRENT_TIMESTAMP
           WHERE user_id = ${session.user.id}
           RETURNING *
@@ -141,6 +147,12 @@ export async function PATCH(request) {
               last_heartbeat_at = CURRENT_TIMESTAMP,
               last_lat = COALESCE(${nextLat}, last_lat),
               last_lng = COALESCE(${nextLng}, last_lng),
+              location = CASE
+                WHEN COALESCE(${nextLat}, last_lat) IS NOT NULL
+                 AND COALESCE(${nextLng}, last_lng) IS NOT NULL
+                THEN ST_SetSRID(ST_MakePoint(COALESCE(${nextLng}, last_lng), COALESCE(${nextLat}, last_lat)), 4326)::geography
+                ELSE NULL
+              END,
               updated_at = CURRENT_TIMESTAMP
           WHERE user_id = ${session.user.id}
           RETURNING *

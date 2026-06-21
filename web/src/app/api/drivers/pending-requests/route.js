@@ -9,13 +9,19 @@ export async function GET(request) {
     }
 
     const driverRows = await sql`
-      SELECT id
-      FROM drivers
+      UPDATE drivers
+      SET last_heartbeat_at = CURRENT_TIMESTAMP,
+          location = CASE
+            WHEN last_lat IS NOT NULL AND last_lng IS NOT NULL
+            THEN ST_SetSRID(ST_MakePoint(last_lng, last_lat), 4326)::geography
+            ELSE location
+          END,
+          updated_at = CURRENT_TIMESTAMP
       WHERE user_id = ${session.user.id}
         AND is_online = true
         AND is_approved = true
         AND subscription_expiry > CURRENT_TIMESTAMP
-      LIMIT 1
+      RETURNING id
     `;
     const driverId = driverRows[0]?.id;
     if (!driverId) {

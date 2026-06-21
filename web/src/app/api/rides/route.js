@@ -6,9 +6,9 @@ import {
   readBoundedString,
 } from "@/app/api/utils/validation";
 import {
-  createBackgroundTask,
   dispatchRideRequest,
   findZoneForPoint,
+  getDriverRideRadiusMeters,
   getPassengerPostCancelCooldownSeconds,
   getPassengerSpamCooldownSeconds,
 } from "@/app/api/utils/dispatch";
@@ -161,9 +161,9 @@ export async function POST(request) {
       RETURNING *
     `;
 
-    createBackgroundTask(() => dispatchRideRequest(rows[0]));
+    const dispatchedDrivers = await dispatchRideRequest(rows[0]);
 
-    return Response.json({ ride: rows[0], zone }, { status: 202 });
+    return Response.json({ ride: rows[0], zone, dispatchedDrivers }, { status: 202 });
   } catch (err) {
     console.error("POST /api/rides error:", err);
     return Response.json({ error: "Internal Server Error" }, { status: 500 });
@@ -185,11 +185,54 @@ export async function GET(request) {
     let rides;
     if (role === "driver") {
       const driverRows =
-        await sql`SELECT id, zone_id FROM drivers WHERE user_id = ${session.user.id} LIMIT 1`;
+        await sql`
+          UPDATE drivers
+          SET last_heartbeat_at = CASE
+                WHEN is_online = true THEN CURRENT_TIMESTAMP
+                ELSE last_heartbeat_at
+              END,
+              location = CASE
+                WHEN last_lat IS NOT NULL AND last_lng IS NOT NULL
+                THEN ST_SetSRID(ST_MakePoint(last_lng, last_lat), 4326)::geography
+                ELSE location
+              END,
+              updated_at = CASE
+                WHEN is_online = true THEN CURRENT_TIMESTAMP
+                ELSE updated_at
+              END
+          WHERE user_id = ${session.user.id}
+          RETURNING id, zone_id
+        `;
       const driver = driverRows[0];
       if (!driver) {
         return Response.json({ rides: [] });
       }
+
+      await sql`
+        INSERT INTO ride_driver_notifications (ride_id, driver_id, channel, status, payload)
+        SELECT
+          r.id,
+          ${driver.id},
+          'websocket',
+          'pending',
+          jsonb_build_object('type', 'ride_request', 'ride_id', r.id)
+        FROM rides r
+        JOIN drivers d ON d.id = ${driver.id}
+        WHERE r.status = 'requested'
+          AND r.driver_id IS NULL
+          AND r.zone_id = d.zone_id
+          AND d.is_online = true
+          AND d.is_approved = true
+          AND d.subscription_expiry > CURRENT_TIMESTAMP
+          AND d.location IS NOT NULL
+          AND ST_DWithin(
+            d.location,
+            ST_SetSRID(ST_MakePoint(r.pickup_lng, r.pickup_lat), 4326)::geography,
+            ${getDriverRideRadiusMeters()}
+          )
+        ON CONFLICT (ride_id, driver_id, channel) DO NOTHING
+      `;
+
       rides = await sql`
         SELECT
           r.*,

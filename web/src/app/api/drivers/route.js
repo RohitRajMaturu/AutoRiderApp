@@ -118,3 +118,37 @@ export async function GET(request) {
     return Response.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
+
+export async function PATCH(request) {
+  try {
+    const session = await auth(request);
+    if (!session || !session.user?.id) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { auto_photo_url } = await request.json();
+    const autoPhotoUrl = readString(auto_photo_url);
+    if (!autoPhotoUrl || autoPhotoUrl.length > 2048) {
+      return Response.json({ error: "Auto photo URL is required" }, { status: 400 });
+    }
+
+    const rows = await sql`
+      UPDATE drivers
+      SET auto_photo_url = ${autoPhotoUrl},
+          updated_at = CURRENT_TIMESTAMP
+      WHERE user_id = ${session.user.id}
+      RETURNING *
+    `;
+
+    if (rows.length === 0) {
+      return Response.json({ error: "Driver profile not found" }, { status: 404 });
+    }
+
+    return Response.json({
+      driver: resolveDriverUploadUrls(rows[0], getOrigin(request)),
+    });
+  } catch (err) {
+    console.error("PATCH /api/drivers error:", err);
+    return Response.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}

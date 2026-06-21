@@ -240,6 +240,12 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
       <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
         <WebView
           sharedCookiesEnabled
+          automaticallyAdjustContentInsets={false}
+          contentInsetAdjustmentBehavior="never"
+          keyboardDisplayRequiresUserAction={false}
+          keyboardShouldPersistTaps="handled"
+          scrollEnabled
+          nestedScrollEnabled
           source={{
             uri: currentURI,
           }}

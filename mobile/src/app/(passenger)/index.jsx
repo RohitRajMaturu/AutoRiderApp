@@ -180,7 +180,7 @@ export default function PassengerHome() {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const pulseRef = useRef(null);
   const cancelSheetRef = useRef(null);
-  const cancelSnapPoints = useMemo(() => ["48%", "72%"], []);
+  const cancelSnapPoints = useMemo(() => ["62%", "86%"], []);
   const renderCancelBackdrop = useCallback(
     (props) => (
       <BottomSheetBackdrop
@@ -1597,7 +1597,7 @@ export default function PassengerHome() {
         backgroundStyle={{ backgroundColor: SURFACE }}
         handleIndicatorStyle={{ backgroundColor: BORDER, width: 42 }}
       >
-        <BottomSheetView style={{ paddingHorizontal: 18, paddingBottom: 24 }}>
+        <BottomSheetView style={{ paddingHorizontal: 18, paddingBottom: insets.bottom + 36 }}>
           <Text
             style={{
               fontSize: 17,

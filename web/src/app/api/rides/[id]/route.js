@@ -148,12 +148,40 @@ export async function PATCH(request, { params }) {
         SET status = 'completed',
             completed_at = CURRENT_TIMESTAMP,
             updated_at = CURRENT_TIMESTAMP
-        WHERE id = ${id} AND driver_id = ${driverId} AND status = 'accepted'
+        WHERE id = ${id}
+          AND driver_id = ${driverId}
+          AND status = 'accepted'
+          AND started_at IS NOT NULL
         RETURNING *
       `;
       if (result.length === 0) {
         return Response.json(
-          { error: "Ride cannot be completed because it is not assigned to this driver or is no longer active" },
+          { error: "Ride must be started before it can be completed" },
+          { status: 409 },
+        );
+      }
+      return Response.json({ ride: result[0] });
+    }
+
+    if (action === "start") {
+      if (!driverId) {
+        return Response.json(
+          { error: "Only the assigned driver can start a ride" },
+          { status: 403 },
+        );
+      }
+      const result = await sql`
+        UPDATE rides
+        SET started_at = COALESCE(started_at, CURRENT_TIMESTAMP),
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ${id}
+          AND driver_id = ${driverId}
+          AND status = 'accepted'
+        RETURNING *
+      `;
+      if (result.length === 0) {
+        return Response.json(
+          { error: "Ride cannot be started because it is not assigned to this driver or is no longer active" },
           { status: 409 },
         );
       }

@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, Linking, Modal, Pressable } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, Linking, Modal, Pressable, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/utils/auth/useAuth";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
+import * as ImagePicker from "expo-image-picker";
 import {
   LogOut,
   Phone,
@@ -13,6 +14,8 @@ import {
   HelpCircle,
   Calendar,
   FlaskConical,
+  Camera,
+  UserRound,
 } from "lucide-react-native";
 import { StatusBar } from "expo-status-bar";
 import useAppStore from "@/store/useAppStore";
@@ -33,6 +36,36 @@ const SUCCESS_LIGHT = "#DCFCE7";
 const DARK = "#17272B";
 const SUPPORT_WHATSAPP_URL = `https://wa.me/${process.env.EXPO_PUBLIC_SUPPORT_PHONE ?? "919999999999"}`;
 const DRIVER_GUIDELINES_URL = process.env.EXPO_PUBLIC_GUIDELINES_URL ?? "#";
+
+function readAssetMimeType(asset) {
+  if (asset?.mimeType) return asset.mimeType;
+  const extension = String(asset?.uri || "").split(".").pop()?.toLowerCase();
+  if (extension === "png") return "image/png";
+  if (extension === "webp") return "image/webp";
+  return "image/jpeg";
+}
+
+async function uploadImageAsset({ asset, field, scope }) {
+  if (!asset?.base64) {
+    throw new Error("Could not read the selected image");
+  }
+
+  const mimeType = readAssetMimeType(asset);
+  const response = await fetch("/api/upload", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      scope,
+      filename: asset.fileName || `${field}-${Date.now()}.jpg`,
+      base64: `data:${mimeType};base64,${asset.base64}`,
+    }),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok || !body.url) {
+    throw new Error(body.error || "Upload failed");
+  }
+  return body;
+}
 
 function MenuItem({
   icon: Icon,
@@ -193,8 +226,9 @@ export default function DriverProfile() {
   const queryClient = useQueryClient();
   const { testMode, disableTestMode } = useAppStore();
   const [phone, setPhone] = useState("");
-  const [isProfileOpen, setIsProfileOpen] = useState(true);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [showSignOutSheet, setShowSignOutSheet] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(null);
   const authUserKey =
     auth?.user?.id || auth?.user?.email || auth?.user?.phone || "anonymous";
 
@@ -245,6 +279,64 @@ export default function DriverProfile() {
     },
     onError: (err) => Alert.alert("Save Failed", err.message),
   });
+
+  const updateDriverPhoto = useMutation({
+    mutationFn: async (autoPhotoUrl) => {
+      const res = await fetch("/api/drivers", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ auto_photo_url: autoPhotoUrl }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || "Failed to save auto photo");
+      return body;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["driverMe", authUserKey] }),
+    onError: (err) => Alert.alert("Upload Failed", err.message),
+  });
+
+  const uploadProfileImage = async (kind) => {
+    setUploadingImage(kind);
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert("Permission required", "Allow photo access to choose this image.");
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+        base64: true,
+      });
+      const asset = result.assets?.[0];
+      if (result.canceled || !asset?.uri) return;
+
+      const body = await uploadImageAsset({
+        asset,
+        field: kind,
+        scope: kind === "driver" ? "driver-profile" : "driver-auto",
+      });
+      const savedUrl = body.path || body.url;
+      if (kind === "driver") {
+        const res = await fetch("/api/user-profile", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: savedUrl }),
+        });
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(payload.error || "Failed to save driver image");
+        queryClient.invalidateQueries({ queryKey: ["userProfile", authUserKey] });
+      } else {
+        updateDriverPhoto.mutate(savedUrl);
+      }
+    } catch (err) {
+      Alert.alert("Upload Failed", err.message || "Could not upload image");
+    } finally {
+      setUploadingImage(null);
+    }
+  };
 
   const expiry = driver?.subscription_expiry
     ? new Date(driver.subscription_expiry)
@@ -350,9 +442,17 @@ export default function DriverProfile() {
               shadowOpacity: 0.4,
               shadowRadius: 16,
               elevation: 12,
+              overflow: "hidden",
             }}
           >
-            <Text style={{ fontSize: 36, fontWeight: "800", color: "#fff" }}>
+            {!testMode && user?.image ? (
+              <Image
+                source={{ uri: user.image }}
+                style={{ bottom: 0, left: 0, position: "absolute", right: 0, top: 0 }}
+                resizeMode="cover"
+              />
+            ) : null}
+            <Text style={{ fontSize: 36, fontWeight: "800", color: "#fff", opacity: !testMode && user?.image ? 0 : 1 }}>
               {testMode
                 ? "🛺"
                 : auth?.user?.email
@@ -379,7 +479,7 @@ export default function DriverProfile() {
           >
             <Car size={ICON.xs} color={PRIMARY} />
             <Text style={{ fontSize: 12, fontWeight: "700", color: "#fff" }}>
-              {testMode ? "Test Vehicle" : driver?.vehicle_number || "Driver"}
+              {testMode ? "Test Vehicle" : driver?.vehicle_number || "Registration pending"}
             </Text>
           </View>
 
@@ -411,6 +511,95 @@ export default function DriverProfile() {
             </Text>
           </View>
         </View>
+
+        {!testMode ? (
+          <View style={{ margin: 16, marginBottom: 0 }}>
+            <View
+              style={{
+                backgroundColor: SURFACE,
+                borderColor: BORDER,
+                borderRadius: 16,
+                borderWidth: 1,
+                padding: 16,
+                gap: 14,
+              }}
+            >
+              <Text style={{ color: TEXT_MUTED, fontSize: 11, fontWeight: "800", letterSpacing: 0.8, textTransform: "uppercase" }}>
+                Driver media
+              </Text>
+              <View style={{ flexDirection: "row", gap: 12 }}>
+                <View style={{ flex: 1 }}>
+                  <View
+                    style={{
+                      alignItems: "center",
+                      backgroundColor: "#F5F5F4",
+                      borderColor: BORDER,
+                      borderRadius: 14,
+                      borderWidth: 1,
+                      height: 112,
+                      justifyContent: "center",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {user?.image ? (
+                      <Image source={{ uri: user.image }} style={{ height: "100%", width: "100%" }} resizeMode="cover" />
+                    ) : (
+                      <UserRound size={ICON.xl} color={TEXT_MUTED} />
+                    )}
+                  </View>
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    disabled={uploadingImage === "driver"}
+                    onPress={() => uploadProfileImage("driver")}
+                    style={{ alignItems: "center", backgroundColor: PRIMARY_LIGHT, borderRadius: 12, flexDirection: "row", gap: 7, justifyContent: "center", marginTop: 8, paddingVertical: 11 }}
+                  >
+                    <Camera size={ICON.sm} color={PRIMARY} />
+                    <Text style={{ color: PRIMARY, fontSize: 12, fontWeight: "900" }}>
+                      {uploadingImage === "driver" ? "Uploading..." : "Driver photo"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View
+                    style={{
+                      alignItems: "center",
+                      backgroundColor: "#F5F5F4",
+                      borderColor: BORDER,
+                      borderRadius: 14,
+                      borderWidth: 1,
+                      height: 112,
+                      justifyContent: "center",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {driver?.auto_photo_url ? (
+                      <Image source={{ uri: driver.auto_photo_url }} style={{ height: "100%", width: "100%" }} resizeMode="cover" />
+                    ) : (
+                      <Car size={ICON.xl} color={TEXT_MUTED} />
+                    )}
+                  </View>
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    disabled={uploadingImage === "auto" || updateDriverPhoto.isPending}
+                    onPress={() => uploadProfileImage("auto")}
+                    style={{ alignItems: "center", backgroundColor: PRIMARY_LIGHT, borderRadius: 12, flexDirection: "row", gap: 7, justifyContent: "center", marginTop: 8, paddingVertical: 11 }}
+                  >
+                    <Camera size={ICON.sm} color={PRIMARY} />
+                    <Text style={{ color: PRIMARY, fontSize: 12, fontWeight: "900" }}>
+                      {uploadingImage === "auto" || updateDriverPhoto.isPending ? "Uploading..." : "Auto photo"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+              <View style={{ backgroundColor: "#F7FBFA", borderColor: BORDER, borderRadius: 12, borderWidth: 1, padding: 12 }}>
+                <Text style={{ color: TEXT_MUTED, fontSize: 11, fontWeight: "800", textTransform: "uppercase" }}>Registration plate</Text>
+                <Text style={{ color: TEXT, fontSize: 17, fontWeight: "900", marginTop: 3 }}>
+                  {driver?.vehicle_number || "Not registered"}
+                </Text>
+              </View>
+            </View>
+          </View>
+        ) : null}
 
         {/* Account settings */}
         <View style={{ margin: 16, marginBottom: 0 }}>
@@ -742,7 +931,9 @@ export default function DriverProfile() {
             setShowSignOutSheet(false);
             try {
               await signOut();
+              setTimeout(() => router.replace("/"), 0);
             } catch {
+              setTimeout(() => router.replace("/"), 0);
               Alert.alert("Sign out", "You have been returned to the start screen.");
             }
           }}

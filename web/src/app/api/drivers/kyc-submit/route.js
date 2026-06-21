@@ -13,6 +13,24 @@ function aadhaarLast4(value) {
   return digits.length >= 4 ? digits.slice(-4) : "";
 }
 
+function toDateValue(value) {
+  const raw = readString(value);
+  if (!raw) return null;
+
+  const displayMatch = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (displayMatch) {
+    return `${displayMatch[3]}-${displayMatch[2]}-${displayMatch[1]}`;
+  }
+
+  const hypervergeMatch = raw.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  if (hypervergeMatch) {
+    return `${hypervergeMatch[3]}-${hypervergeMatch[2]}-${hypervergeMatch[1]}`;
+  }
+
+  const isoMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return isoMatch ? raw : null;
+}
+
 function kycStatusFor(verificationStatus) {
   if (verificationStatus === "APPROVED") return "approved";
   if (verificationStatus === "REJECTED") return "rejected";
@@ -43,8 +61,9 @@ export async function POST(request) {
     const body = await request.json();
     const driverName = readString(body.driverName);
     const dob = readString(body.dob);
+    const dobDate = toDateValue(dob);
     const dlNumber = readString(body.dlNumber).toUpperCase();
-    const dlExpiry = readString(body.dlExpiry) || null;
+    const dlExpiry = toDateValue(body.dlExpiry);
     const rcNumber = readString(body.rcNumber).toUpperCase();
     const dlPhotoUrl = readString(body.dlPhotoUrl);
     const rcPhotoUrl = readString(body.rcPhotoUrl);
@@ -54,7 +73,7 @@ export async function POST(request) {
 
     if (
       !driverName ||
-      !dob ||
+      !dobDate ||
       !dlNumber ||
       !rcNumber ||
       !dlPhotoUrl ||
@@ -102,7 +121,7 @@ export async function POST(request) {
             dl_expiry = ${dlExpiry},
             rc_number = ${rcNumber},
             aadhaar_number_masked = ${aadhaarMasked},
-            dob = ${dob},
+            dob = ${dobDate},
             license_url = ${dlPhotoUrl},
             rc_photo_url = ${rcPhotoUrl},
             selfie_url = ${selfieUrl},

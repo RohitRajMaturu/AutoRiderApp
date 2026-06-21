@@ -31,14 +31,17 @@ describe("driver zone ride filtering", () => {
     mocks.sql.mockResolvedValueOnce([{ role: "driver" }]);
     mocks.sql.mockResolvedValueOnce([{ id: "driver-1", zone_id: "zone-1" }]);
     mocks.sql.mockResolvedValueOnce([]);
+    mocks.sql.mockResolvedValueOnce([]);
     const { GET } = await import("@/app/api/rides/route.js");
 
     const response = await GET(new Request("http://localhost/api/rides"));
     const body = await response.json();
-    const rideQueryValues = mocks.sql.mock.calls[2].slice(1);
+    const notificationQueryValues = mocks.sql.mock.calls[2].slice(1);
+    const rideQueryValues = mocks.sql.mock.calls[3].slice(1);
 
     expect(response.status).toBe(200);
     expect(body).toEqual({ rides: [] });
+    expect(notificationQueryValues).toContain("driver-1");
     expect(rideQueryValues).toContain("driver-1");
     expect(rideQueryValues).toContain("zone-1");
   });
