@@ -1,18 +1,30 @@
-import { Redirect, Tabs } from "expo-router";
+import { Tabs, useRootNavigationState, useRouter } from "expo-router";
 import { BarChart3, FileText, Map, Users, Route } from "lucide-react-native";
 import { useTheme } from "@/theme/ThemeContext";
 import { ICON } from "@/theme/iconScale";
 import { useAuth } from "@/utils/auth/useAuth";
 import useAppStore from "@/store/useAppStore";
+import { useEffect } from "react";
 
 export default function AdminLayout() {
   const theme = useTheme();
   const active = theme.accent;
   const { auth, isReady } = useAuth();
   const testMode = useAppStore((state) => state.testMode);
+  const router = useRouter();
+  const rootNavigationState = useRootNavigationState();
 
-  if (isReady && !auth && !testMode) {
-    return <Redirect href="/" />;
+  const shouldLeaveProtectedArea = isReady && !auth && !testMode;
+  const canNavigate = !!rootNavigationState?.key;
+
+  useEffect(() => {
+    if (shouldLeaveProtectedArea && canNavigate) {
+      router.replace("/");
+    }
+  }, [canNavigate, router, shouldLeaveProtectedArea]);
+
+  if (shouldLeaveProtectedArea) {
+    return null;
   }
 
   return (

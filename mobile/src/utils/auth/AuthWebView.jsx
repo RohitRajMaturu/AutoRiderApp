@@ -8,6 +8,19 @@ import TukTukGoLoader from '@/components/TukTukGoLoader';
 
 const callbackUrl = '/api/auth/token';
 const onboardingUrl = '/onboarding';
+const MOBILE_SIGNUP_ROLES = new Set(['passenger', 'driver']);
+
+function normalizeAuthParams(mode, params = {}) {
+  if (mode !== 'signup') {
+    return params || {};
+  }
+
+  const role = MOBILE_SIGNUP_ROLES.has(params?.role) ? params.role : 'passenger';
+  return {
+    ...(params || {}),
+    role,
+  };
+}
 
 function buildAuthPath(mode, params = {}, callback = callbackUrl) {
   const query = new URLSearchParams({ callbackUrl: callback, client: 'mobile' });
@@ -33,11 +46,12 @@ function buildFreshAuthPath(mode, params = {}, callback = callbackUrl) {
  */
 export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
   const insets = useSafeAreaInsets();
-  const isAdminSignup = mode === 'signup' && params?.role === 'admin';
-  const authCallback = mode === 'signup' && !isAdminSignup ? onboardingUrl : callbackUrl;
+  const mobileParams = useMemo(() => normalizeAuthParams(mode, params), [mode, params]);
+  const isMobileSignup = mode === 'signup';
+  const authCallback = isMobileSignup ? onboardingUrl : callbackUrl;
   const authParams = useMemo(
-    () => (mode === 'signup' && !isAdminSignup ? { ...params, finalCallbackUrl: callbackUrl } : params),
-    [mode, params, isAdminSignup],
+    () => (isMobileSignup ? { ...mobileParams, finalCallbackUrl: callbackUrl } : mobileParams),
+    [isMobileSignup, mobileParams],
   );
   const [currentURI, setURI] = useState(`${baseURL}${buildFreshAuthPath(mode, authParams, authCallback)}`);
   const [isPageReady, setIsPageReady] = useState(false);
@@ -172,10 +186,10 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
             title="TukTukGo authentication"
             src={`${proxyURL}${buildFreshAuthPath(
               mode,
-              mode === 'signup' && params?.role !== 'admin'
-                ? { ...params, finalCallbackUrl: '/api/auth/expo-web-success' }
-                : params,
-              mode === 'signup' && params?.role !== 'admin' ? onboardingUrl : '/api/auth/expo-web-success',
+              isMobileSignup
+                ? { ...mobileParams, finalCallbackUrl: '/api/auth/expo-web-success' }
+                : mobileParams,
+              isMobileSignup ? onboardingUrl : '/api/auth/expo-web-success',
             )}`}
             style={{ width: '100%', height: '100%', border: 'none' }}
             onLoad={handlePageLoaded}

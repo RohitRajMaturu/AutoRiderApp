@@ -15,6 +15,7 @@ import {
 import { StatusBar } from "expo-status-bar";
 import useAppStore from "@/store/useAppStore";
 import { ICON } from "@/theme/iconScale";
+import TukTukGoLoader from "@/components/TukTukGoLoader";
 
 const PRIMARY = "#43B8B3";
 const PRIMARY_LIGHT = "#E7F6F4";
@@ -45,6 +46,26 @@ function PassengerBadge() {
       <Text style={{ color: PRIMARY, fontSize: 18, fontWeight: "700" }}>
         🛺
       </Text>
+    </View>
+  );
+}
+
+function ProfileFetchNotice({ visible }) {
+  if (!visible) return null;
+
+  return (
+    <View
+      style={{
+        alignItems: "center",
+        borderColor: PRIMARY_BORDER,
+        borderRadius: 14,
+        borderWidth: 1,
+        marginTop: 16,
+        paddingVertical: 10,
+        width: "100%",
+      }}
+    >
+      <TukTukGoLoader label="Loading profile..." size={32} textColor={TEXT_SECONDARY} />
     </View>
   );
 }
@@ -192,7 +213,7 @@ export default function PassengerProfile() {
   const authUserKey =
     auth?.user?.id || auth?.user?.email || auth?.user?.phone || "anonymous";
 
-  const { data: profile } = useQuery({
+  const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: ["userProfile", authUserKey],
     queryFn: async () => {
       const res = await fetch("/api/user-profile");
@@ -202,7 +223,7 @@ export default function PassengerProfile() {
     enabled: !!auth,
     staleTime: 0,
   });
-  const { data: ridesData } = useQuery({
+  const { data: ridesData, isLoading: ridesLoading } = useQuery({
     queryKey: ["passengerRides", authUserKey],
     queryFn: async () => {
       const res = await fetch("/api/rides");
@@ -338,6 +359,7 @@ export default function PassengerProfile() {
             {testMode ? "Guest Passenger" : auth?.user?.email || "—"}
           </Text>
           <PassengerBadge />
+          <ProfileFetchNotice visible={!testMode && (profileLoading || ridesLoading)} />
           <View
             style={{
               display: "none",

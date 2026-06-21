@@ -4,6 +4,11 @@ import { useAuthModal, useAuthStore, authKey, secureStoreOptions } from './store
 import useAppStore from '@/store/useAppStore';
 import queryClient from '@/utils/queryClient';
 
+const MOBILE_SIGNUP_ROLES = new Set(['passenger', 'driver']);
+
+function getMobileSignupRole(role) {
+  return MOBILE_SIGNUP_ROLES.has(role) ? role : 'passenger';
+}
 
 /**
  * This hook provides authentication functionality.
@@ -48,21 +53,28 @@ export const useAuth = () => {
     open({ mode: 'signin', params: options?.params });
   }, [open]);
   const signUp = useCallback((options) => {
-    open({ mode: 'signup', params: options?.params });
+    const params = options?.params || {};
+    open({
+      mode: 'signup',
+      params: {
+        ...params,
+        role: getMobileSignupRole(params.role),
+      },
+    });
   }, [open]);
 
   const signOut = useCallback(async () => {
     close();
+
+    await queryClient.cancelQueries();
+
     setAuth(null);
-    queryClient.clear();
 
     await Promise.allSettled([
-      queryClient.cancelQueries(),
       Promise.resolve(resetSessionState()),
       Promise.resolve(disableTestMode()),
       SecureStore.deleteItemAsync(authKey, secureStoreOptions),
     ]);
-    queryClient.clear();
   }, [close, disableTestMode, resetSessionState, setAuth]);
 
   return {

@@ -6,54 +6,33 @@ import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { ActivityIndicator, Linking, Modal, Text, TouchableOpacity, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import {
-  QueryClientProvider,
-  useIsFetching,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { QueryClientProvider, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import queryClient from "@/utils/queryClient";
 import { Toaster } from "sonner-native";
 SplashScreen.preventAutoHideAsync();
 
-const PRIVACY_POLICY_URL = process.env.EXPO_PUBLIC_PRIVACY_URL ?? "#";
 const PRIMARY = "#43B8B3";
+const PRIVACY_POLICY_URL = process.env.EXPO_PUBLIC_PRIVACY_URL ?? "#";
 
-function GlobalFetchIndicator() {
-  const fetchingCount = useIsFetching();
-
-  if (!fetchingCount) {
-    return null;
-  }
-
+function AuthBootOverlay() {
   return (
     <View
       pointerEvents="none"
       style={{
         alignItems: "center",
-        backgroundColor: "#FFFFFFF2",
-        borderColor: "#D7E2E4",
-        borderRadius: 999,
-        borderWidth: 1,
-        elevation: 8,
-        flexDirection: "row",
-        gap: 8,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
+        backgroundColor: "#EAF0F1",
+        bottom: 0,
+        justifyContent: "center",
+        left: 0,
         position: "absolute",
-        right: 16,
-        shadowColor: "#17272B",
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.12,
-        shadowRadius: 16,
-        top: 16,
-        zIndex: 50,
+        right: 0,
+        top: 0,
+        zIndex: 100,
       }}
     >
-      <ActivityIndicator color={PRIMARY} size="small" />
-      <Text style={{ color: "#17272B", fontSize: 12, fontWeight: "900" }}>
-        Updating
+      <ActivityIndicator color={PRIMARY} size="large" />
+      <Text style={{ color: "#586C70", fontSize: 13, fontWeight: "800", marginTop: 12 }}>
+        Loading TukTukGo...
       </Text>
     </View>
   );
@@ -61,9 +40,13 @@ function GlobalFetchIndicator() {
 
 function ConsentGate() {
   const { auth } = useAuth();
+  const consentQueryKey = [
+    "userProfile",
+    auth?.user?.id || auth?.user?.email || auth?.user?.phone || "anonymous",
+  ];
   const queryClient = useQueryClient();
   const { data } = useQuery({
-    queryKey: ["userProfile", auth?.user?.id || auth?.user?.email || auth?.user?.phone || "anonymous"],
+    queryKey: consentQueryKey,
     queryFn: async () => {
       const res = await fetch("/api/user-profile");
       if (!res.ok) throw new Error("Failed to load profile");
@@ -71,12 +54,9 @@ function ConsentGate() {
     },
     enabled: !!auth,
     staleTime: 0,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
-  const user = data?.user;
-  const needsConsent =
-    !!auth &&
-    (user?.role === "passenger" || user?.role === "driver") &&
-    user?.data_consent_given === false;
 
   const acceptConsent = useMutation({
     mutationFn: async () => {
@@ -94,9 +74,16 @@ function ConsentGate() {
       return body;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["userProfile"] });
+      queryClient.invalidateQueries({ queryKey: consentQueryKey });
     },
   });
+
+  if (!auth) return null;
+
+  const user = data?.user;
+  const needsConsent =
+    (user?.role === "passenger" || user?.role === "driver") &&
+    user?.data_consent_given === false;
 
   return (
     <Modal visible={needsConsent} transparent animationType="fade">
@@ -147,7 +134,7 @@ function ConsentGate() {
             onPress={() => acceptConsent.mutate()}
             style={{
               alignItems: "center",
-              backgroundColor: "#43B8B3",
+              backgroundColor: PRIMARY,
               borderRadius: 14,
               marginTop: 18,
               opacity: acceptConsent.isPending ? 0.7 : 1,
@@ -177,10 +164,6 @@ export default function RootLayout() {
     }
   }, [isReady]);
 
-  if (!isReady) {
-    return null;
-  }
-
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
@@ -193,8 +176,8 @@ export default function RootLayout() {
           </Stack>
           <AuthModal />
           <ConsentGate />
-          <GlobalFetchIndicator />
           <Toaster />
+          {!isReady ? <AuthBootOverlay /> : null}
         </GestureHandlerRootView>
       </ThemeProvider>
     </QueryClientProvider>

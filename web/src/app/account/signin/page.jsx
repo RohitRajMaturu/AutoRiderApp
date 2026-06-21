@@ -217,10 +217,12 @@ export default function SignInPage() {
     setConsentGiven(false);
   }, [allowSignup, role, screen]);
 
-  const requireAuthSuccess = (result, message) => {
-    if (!result || result.error || !result.url) {
-      throw new Error(message);
+  const requireAuthSuccess = (result, fallbackMessage) => {
+    if (!result) throw new Error(fallbackMessage);
+    if (result.error) {
+      throw new Error(result.error === "CredentialsSignin" ? fallbackMessage : result.error);
     }
+    if (!result.url) throw new Error(fallbackMessage);
     return result;
   };
 
@@ -296,12 +298,6 @@ export default function SignInPage() {
     setLoading(true);
     setError(null);
 
-    if (!isAdminSetup) {
-      localStorage.setItem("pending_role", role);
-      localStorage.setItem("pending_phone", phone);
-      localStorage.setItem("pending_final_callback", getCallbackUrl());
-    }
-
     try {
       await verifySignupOtp();
       const result = await signUpWithCredentials({
@@ -323,6 +319,12 @@ export default function SignInPage() {
           ? "Admin registration failed. Check ADMIN_SETUP_PHONES and try again."
           : "Registration failed. Check the phone number and OTP.",
       );
+
+      if (!isAdminSetup) {
+        localStorage.setItem("pending_role", role);
+        localStorage.setItem("pending_phone", phone);
+        localStorage.setItem("pending_final_callback", getCallbackUrl());
+      }
 
       window.location.href = result.url;
     } catch (err) {

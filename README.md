@@ -85,7 +85,8 @@ MAINTENANCE_INTERVAL_SECONDS=30
 EXPO_PUBLIC_SUPPORT_PHONE=91XXXXXXXXXX
 EXPO_PUBLIC_GUIDELINES_URL=https://your-guidelines-url
 EXPO_PUBLIC_PRIVACY_URL=https://your-privacy-url
-NEXT_PUBLIC_APP_DOWNLOAD_URL=https://your-app-store-link
+VITE_ANDROID_APP_URL=https://play.google.com/store/apps/details?id=your.app.id
+VITE_IOS_APP_URL=https://apps.apple.com/app/your-app-id
 FAST2SMS_API_KEY=your_fast2sms_api_key
 CORS_ORIGINS=https://your-domain.com,https://your-other-domain.com
 RATE_LIMIT_MAX_REQUESTS=120
@@ -115,6 +116,10 @@ existing boundary.
 The mobile app does not call Ola Maps directly. Expo screens call backend routes under `/api/locations/*` and `/api/routes/estimate`, keeping the provider key out of the client bundle.
 
 Mobile auth stores `{ jwt, user }` in SecureStore under the stable key `auto-ride-auth`. `/api/auth/token` returns this shape after WebView sign-in, and mobile API calls send the JWT as a bearer token.
+
+Mobile passenger/driver signup intentionally uses the shared web auth page inside `AuthWebView` with `client=mobile`. This keeps OTP, consent capture, duplicate-account handling, and onboarding cleanup in one place. Mobile signup is constrained to passenger and driver roles; admin access remains sign-in/admin-setup only.
+
+The public web landing page reads `VITE_ANDROID_APP_URL` and `VITE_IOS_APP_URL` for store buttons. If either value is blank, that button renders as a non-clickable coming-soon state instead of a placeholder link.
 
 Mobile role screens are guarded after logout. If a user signs out and then uses the device back button, passenger, driver, and admin route groups redirect back to the welcome/login screen instead of showing the previous logged-in role UI.
 

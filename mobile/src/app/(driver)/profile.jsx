@@ -17,6 +17,7 @@ import {
 import { StatusBar } from "expo-status-bar";
 import useAppStore from "@/store/useAppStore";
 import { ICON } from "@/theme/iconScale";
+import TukTukGoLoader from "@/components/TukTukGoLoader";
 
 const PRIMARY = "#43B8B3";
 const PRIMARY_LIGHT = "#E7F6F4";
@@ -77,6 +78,27 @@ function MenuItem({
       </View>
       <ChevronRight size={ICON.sm} color={TEXT_MUTED} />
     </TouchableOpacity>
+  );
+}
+
+function ProfileFetchNotice({ visible }) {
+  if (!visible) return null;
+
+  return (
+    <View
+      style={{
+        alignItems: "center",
+        backgroundColor: "#FFFFFF12",
+        borderColor: "#FFFFFF24",
+        borderRadius: 14,
+        borderWidth: 1,
+        marginTop: 16,
+        paddingVertical: 10,
+        width: "100%",
+      }}
+    >
+      <TukTukGoLoader label="Loading profile..." size={32} textColor="#FFFFFFCC" />
+    </View>
   );
 }
 
@@ -176,7 +198,7 @@ export default function DriverProfile() {
   const authUserKey =
     auth?.user?.id || auth?.user?.email || auth?.user?.phone || "anonymous";
 
-  const { data: profile } = useQuery({
+  const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: ["userProfile", authUserKey],
     queryFn: async () => {
       const res = await fetch("/api/user-profile");
@@ -187,7 +209,7 @@ export default function DriverProfile() {
     staleTime: 0,
   });
 
-  const { data: driverData } = useQuery({
+  const { data: driverData, isLoading: driverProfileLoading } = useQuery({
     queryKey: ["driverMe", authUserKey],
     queryFn: async () => {
       const res = await fetch("/api/drivers");
@@ -342,6 +364,7 @@ export default function DriverProfile() {
           <Text style={{ fontSize: 20, fontWeight: "700", color: "#fff" }}>
             {testMode ? "Guest Driver" : auth?.user?.email || "Driver"}
           </Text>
+          <ProfileFetchNotice visible={!testMode && (profileLoading || driverProfileLoading)} />
           <View
             style={{
               marginTop: 8,

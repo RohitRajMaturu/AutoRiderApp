@@ -45,8 +45,14 @@ export default function AdminShell({
   }, [collapsed]);
 
   useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
+    let mounted = true;
+    const timer = setInterval(() => {
+      if (mounted) setNow(Date.now());
+    }, 1000);
+    return () => {
+      mounted = false;
+      clearInterval(timer);
+    };
   }, []);
 
   const sidebarWidth = collapsed ? 64 : 220;
@@ -130,15 +136,15 @@ export default function AdminShell({
               </div>
             ) : null}
           </div>
-          <Link
-            to="/account/logout?role=admin"
+          <a
+            href="/account/logout?role=admin"
             className="flex h-9 items-center justify-center gap-2 rounded-lg text-xs font-semibold"
             style={{ color: "var(--ar-t2)" }}
             title={collapsed ? "Sign out" : undefined}
           >
             <LogOut size={ICON.md} />
             {!collapsed ? <span>Sign out</span> : null}
-          </Link>
+          </a>
         </div>
       </aside>
 

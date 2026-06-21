@@ -204,7 +204,7 @@ export default function PassengerHome() {
   };
 
   // ── Fetch active ride (only poll, never block UI on refetch) ──
-  const { data: activeRide } = useQuery({
+  const { data: activeRide, isLoading: activeRideLoading } = useQuery({
     queryKey: ["activeRide"],
     queryFn: async () => {
       const res = await fetch("/api/rides");
@@ -740,7 +740,26 @@ export default function PassengerHome() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
-        {displayRide ? (
+        {activeRideLoading && !displayRide ? (
+          <View style={{ margin: 16 }}>
+            <View
+              style={{
+                alignItems: "center",
+                backgroundColor: SURFACE,
+                borderColor: BORDER,
+                borderRadius: 18,
+                borderWidth: 1,
+                paddingVertical: 18,
+              }}
+            >
+              <TukTukGoLoader
+                label="Checking active rides..."
+                size={32}
+                textColor={TEXT_SECONDARY}
+              />
+            </View>
+          </View>
+        ) : displayRide ? (
           /* ── Active Ride Card ── */
           <View style={{ margin: 16 }}>
             <View

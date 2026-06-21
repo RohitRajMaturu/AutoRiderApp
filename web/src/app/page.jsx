@@ -9,22 +9,22 @@ import {
   WalletCards,
 } from "lucide-react";
 
-const IOS_APP_URL = "#ios-app";
-const ANDROID_APP_URL = "#android-app";
+const IOS_APP_URL = import.meta.env.VITE_IOS_APP_URL || "";
+const ANDROID_APP_URL = import.meta.env.VITE_ANDROID_APP_URL || "";
 
 const actions = [
   {
     title: "Passengers",
     copy: "Book an auto, track arrival, and keep every trip in one place.",
-    href: ANDROID_APP_URL,
-    cta: "Download mobile app",
+    href: ANDROID_APP_URL || null,
+    cta: ANDROID_APP_URL ? "Download mobile app" : "Mobile app coming soon",
     Icon: UserRound,
   },
   {
     title: "Drivers",
     copy: "Register, finish KYC, and start accepting rides after approval.",
-    href: ANDROID_APP_URL,
-    cta: "Get driver app",
+    href: ANDROID_APP_URL || null,
+    cta: ANDROID_APP_URL ? "Get driver app" : "Driver app coming soon",
     Icon: Gauge,
   },
   {
@@ -49,6 +49,36 @@ const flow = [
   ["Track and complete", "Passengers and admins can follow the trip lifecycle clearly."],
 ];
 
+function StoreCta({ href, children, variant = "primary" }) {
+  const baseClass =
+    "inline-flex items-center gap-2 rounded-lg px-5 py-4 text-sm font-black transition";
+  const primaryClass =
+    "bg-[#F3B51B] text-[#17272B] shadow-xl shadow-black/20 hover:bg-[#FFD15C]";
+  const secondaryClass =
+    "border border-white/24 bg-white/12 text-white backdrop-blur hover:bg-white/18";
+  const disabledClass =
+    variant === "primary"
+      ? "bg-[#F3B51B]/62 text-[#17272B]/72"
+      : "border border-white/18 bg-white/8 text-white/68";
+  const className = `${baseClass} ${
+    href ? (variant === "primary" ? primaryClass : secondaryClass) : disabledClass
+  }`;
+
+  if (!href) {
+    return (
+      <span className={className} aria-disabled="true">
+        {children}
+      </span>
+    );
+  }
+
+  return (
+    <a href={href} className={className}>
+      {children}
+    </a>
+  );
+}
+
 export default function LandingPage() {
   return (
     <main className="min-h-screen bg-[#F6FAFA] text-[#17272B]">
@@ -68,10 +98,11 @@ export default function LandingPage() {
           </a>
           <div className="flex items-center gap-2">
             <a
-              href={ANDROID_APP_URL}
+              href={ANDROID_APP_URL || undefined}
+              aria-disabled={!ANDROID_APP_URL}
               className="hidden h-10 items-center rounded-lg px-4 text-sm font-black text-white/88 transition hover:bg-white/10 sm:inline-flex"
             >
-              Download App
+              {ANDROID_APP_URL ? "Download App" : "App Coming Soon"}
             </a>
             <a
               href="/admin-login"
@@ -97,19 +128,13 @@ export default function LandingPage() {
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3">
-              <a
-                href={ANDROID_APP_URL}
-                className="inline-flex items-center gap-2 rounded-lg bg-[#F3B51B] px-5 py-4 text-sm font-black text-[#17272B] shadow-xl shadow-black/20 transition hover:bg-[#FFD15C]"
-              >
-                Download Android App
+              <StoreCta href={ANDROID_APP_URL}>
+                {ANDROID_APP_URL ? "Download Android App" : "Android App Coming Soon"}
                 <ArrowRight size={18} />
-              </a>
-              <a
-                href={IOS_APP_URL}
-                className="inline-flex items-center gap-2 rounded-lg border border-white/24 bg-white/12 px-5 py-4 text-sm font-black text-white backdrop-blur transition hover:bg-white/18"
-              >
-                Download iOS App
-              </a>
+              </StoreCta>
+              <StoreCta href={IOS_APP_URL} variant="secondary">
+                {IOS_APP_URL ? "Download iOS App" : "iOS App Coming Soon"}
+              </StoreCta>
             </div>
           </div>
         </div>
@@ -128,23 +153,35 @@ export default function LandingPage() {
 
       <section className="mx-auto max-w-7xl px-5 pb-20 sm:px-8">
         <div className="grid gap-4 lg:grid-cols-3">
-          {actions.map(({ title, copy, href, cta, Icon }) => (
-            <a
+          {actions.map(({ title, copy, href, cta, Icon }) => {
+            const ActionWrapper = href ? "a" : "div";
+            return (
+            <ActionWrapper
               key={title}
-              href={href}
-              className="group rounded-xl border border-[#D8E4E5] bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-[#43B8B3] hover:shadow-xl hover:shadow-[#43B8B3]/10"
+              href={href || undefined}
+              aria-disabled={!href}
+              className={`group rounded-xl border border-[#D8E4E5] bg-white p-5 shadow-sm transition ${
+                href
+                  ? "hover:-translate-y-0.5 hover:border-[#43B8B3] hover:shadow-xl hover:shadow-[#43B8B3]/10"
+                  : "cursor-default"
+              }`}
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[#E7F6F4] text-[#238B86]">
                   <Icon size={24} />
                 </div>
-                <ArrowRight className="mt-2 text-[#BFD1D3] transition group-hover:translate-x-1 group-hover:text-[#43B8B3]" size={20} />
+                <ArrowRight
+                  className={`mt-2 text-[#BFD1D3] transition ${
+                    href ? "group-hover:translate-x-1 group-hover:text-[#43B8B3]" : ""
+                  }`}
+                  size={20}
+                />
               </div>
               <h2 className="mt-5 text-xl font-black">{title}</h2>
               <p className="mt-2 min-h-[52px] text-sm font-semibold leading-6 text-[#586C70]">{copy}</p>
               <div className="mt-5 text-sm font-black text-[#238B86]">{cta}</div>
-            </a>
-          ))}
+            </ActionWrapper>
+          )})}
         </div>
       </section>
 
