@@ -57,19 +57,28 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
   const [isPageReady, setIsPageReady] = useState(false);
   const [authError, setAuthError] = useState(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const { auth, setAuth, isReady } = useAuthStore();
-  const { close } = useAuthModal();
+  const { auth, setAuth, isReady, isSigningOut } = useAuthStore();
+  const { close, isOpen } = useAuthModal();
   const isAuthenticated = isReady ? !!auth : null;
   const iframeRef = useRef(null);
   useEffect(() => {
+    if (isSigningOut) {
+      return;
+    }
     if (Platform.OS === 'web') {
       return;
     }
     if (isAuthenticated) {
       close();
     }
-  }, [isAuthenticated, close]);
+  }, [isAuthenticated, close, isSigningOut]);
   useEffect(() => {
+    if (isSigningOut) {
+      return;
+    }
+    if (!isOpen) {
+      return;
+    }
     if (isAuthenticated) {
       return;
     }
@@ -78,9 +87,12 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
     fadeAnim.setValue(0);
     const nextUri = `${baseURL}${buildFreshAuthPath(mode, authParams, authCallback)}`;
     setURI(nextUri);
-  }, [mode, authParams, authCallback, baseURL, isAuthenticated, fadeAnim]);
+  }, [mode, authParams, authCallback, baseURL, isAuthenticated, fadeAnim, isOpen, isSigningOut]);
 
   useEffect(() => {
+    if (isSigningOut) {
+      return;
+    }
     if (isPageReady || isAuthenticated) {
       return;
     }
@@ -90,7 +102,7 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
       fadeAnim.setValue(1);
     }, 8000);
     return () => clearTimeout(timer);
-  }, [isPageReady, isAuthenticated, currentURI, fadeAnim]);
+  }, [isPageReady, isAuthenticated, currentURI, fadeAnim, isSigningOut]);
 
   const handlePageLoaded = () => {
     setIsPageReady(true);

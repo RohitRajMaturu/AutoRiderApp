@@ -29,7 +29,7 @@ import { useAuthStore, useAuthModal } from './store';
  */
 export const AuthModal = () => {
   const { isOpen, mode, params } = useAuthModal();
-  const { auth } = useAuthStore();
+  const { auth, isSigningOut } = useAuthStore();
 
   const proxyURL = process.env.EXPO_PUBLIC_PROXY_BASE_URL;
   const baseURL = process.env.EXPO_PUBLIC_BASE_URL;
@@ -37,9 +37,11 @@ export const AuthModal = () => {
     return null;
   }
 
+  const shouldShow = isOpen && !auth && !isSigningOut;
+
   return (
     <Modal
-      visible={isOpen && !auth}
+      visible={shouldShow}
       transparent={true}
       animationType="slide"
     >
@@ -55,12 +57,14 @@ export const AuthModal = () => {
           padding: 0,
         }}
       >
-        <AuthWebView
-          mode={mode}
-          params={params}
-          proxyURL={proxyURL}
-          baseURL={baseURL}
-        />
+        {shouldShow ? (
+          <AuthWebView
+            mode={mode}
+            params={params}
+            proxyURL={proxyURL}
+            baseURL={baseURL}
+          />
+        ) : null}
       </View>
     </Modal>
   );

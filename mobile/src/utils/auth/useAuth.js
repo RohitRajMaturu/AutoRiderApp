@@ -17,7 +17,7 @@ function getMobileSignupRole(role) {
  * directly.
  */
 export const useAuth = () => {
-  const { isReady, auth, setAuth } = useAuthStore();
+  const { isReady, auth, setAuth, isSigningOut, setSigningOut } = useAuthStore();
   const { close, open } = useAuthModal();
   const disableTestMode = useAppStore((state) => state.disableTestMode);
   const resetSessionState = useAppStore((state) => state.resetSessionState);
@@ -64,22 +64,28 @@ export const useAuth = () => {
   }, [open]);
 
   const signOut = useCallback(async () => {
-    close();
+    setSigningOut(true);
+    try {
+      close();
 
-    await queryClient.cancelQueries();
+      await queryClient.cancelQueries();
 
-    setAuth(null);
+      setAuth(null);
 
-    await Promise.allSettled([
-      Promise.resolve(resetSessionState()),
-      Promise.resolve(disableTestMode()),
-      SecureStore.deleteItemAsync(authKey, secureStoreOptions),
-    ]);
-  }, [close, disableTestMode, resetSessionState, setAuth]);
+      await Promise.allSettled([
+        Promise.resolve(resetSessionState()),
+        Promise.resolve(disableTestMode()),
+        SecureStore.deleteItemAsync(authKey, secureStoreOptions),
+      ]);
+    } finally {
+      setTimeout(() => setSigningOut(false), 500);
+    }
+  }, [close, disableTestMode, resetSessionState, setAuth, setSigningOut]);
 
   return {
     isReady,
     isAuthenticated: isReady ? !!auth : null,
+    isSigningOut,
     signIn,
     signOut,
     signUp,

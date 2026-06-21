@@ -32,6 +32,7 @@ export const secureStoreOptions = {
 export const useAuthStore = create((set) => ({
   isReady: false,
   auth: null,
+  isSigningOut: false,
   setAuth: (auth) => {
     queryClient.clear();
     if (auth) {
@@ -50,6 +51,7 @@ export const useAuthStore = create((set) => ({
     }
     set({ auth });
   },
+  setSigningOut: (isSigningOut) => set({ isSigningOut }),
 }));
 
 /**
