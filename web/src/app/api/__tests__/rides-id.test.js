@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   auth: vi.fn(),
   sql: vi.fn(),
+  sendPushToUsers: vi.fn(),
 }));
 
 vi.mock("@/auth", () => ({
@@ -13,11 +14,16 @@ vi.mock("@/app/api/utils/sql", () => ({
   default: mocks.sql,
 }));
 
+vi.mock("@/app/api/utils/push-notifications", () => ({
+  sendPushToUsers: mocks.sendPushToUsers,
+}));
+
 describe("ride detail route", () => {
   beforeEach(() => {
     vi.resetModules();
     mocks.auth.mockReset();
     mocks.sql.mockReset();
+    mocks.sendPushToUsers.mockReset();
     mocks.sql.transaction = vi.fn((callback) => callback(mocks.sql));
   });
 

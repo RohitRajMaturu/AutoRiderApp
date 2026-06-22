@@ -113,7 +113,10 @@ export async function dispatchRideRequest(ride, scopedSql = sql) {
     return 0;
   }
 
-  const payload = JSON.stringify({ type: "ride_request", ride_id: ride.id });
+  const payload = JSON.stringify({
+    type: ride.status === "negotiating" ? "fare_negotiation" : "ride_request",
+    ride_id: ride.id,
+  });
   const values = [];
   const placeholders = drivers.map((driver, index) => {
     const offset = index * 5;

@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   auth: vi.fn(),
   sql: vi.fn(),
   getRouteEstimate: vi.fn(),
+  sendPushToUsers: vi.fn(),
 }));
 
 vi.mock("@/auth", () => ({
@@ -18,12 +19,17 @@ vi.mock("@/app/api/utils/locations", () => ({
   getRouteEstimate: mocks.getRouteEstimate,
 }));
 
+vi.mock("@/app/api/utils/push-notifications", () => ({
+  sendPushToUsers: mocks.sendPushToUsers,
+}));
+
 describe("driver zone ride filtering", () => {
   beforeEach(() => {
     vi.resetModules();
     mocks.auth.mockReset();
     mocks.sql.mockReset();
     mocks.getRouteEstimate.mockReset();
+    mocks.sendPushToUsers.mockReset();
   });
 
   it("uses the driver's zone and dispatch record for requested ride discovery", async () => {

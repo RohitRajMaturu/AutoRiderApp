@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import {
   getAcceptedRideTimeoutMinutes,
 } from "@/app/api/utils/dispatch";
+import { sendPushToUsers } from "@/app/api/utils/push-notifications";
 
 function readCancellationReason(value, fallback) {
   if (typeof value !== "string") return fallback;
@@ -133,6 +134,11 @@ export async function PATCH(request, { params }) {
           { status: 409 }, // PATCHED:
         );
       }
+      await sendPushToUsers([result[0].passenger_id], {
+        title: "Driver accepted your ride",
+        body: "Your driver is heading to the pickup location.",
+        data: { type: "ride_accepted", rideId: result[0].id },
+      });
       return Response.json({ ride: result[0] });
     }
 
@@ -160,6 +166,11 @@ export async function PATCH(request, { params }) {
           { status: 409 },
         );
       }
+      await sendPushToUsers([result[0].passenger_id], {
+        title: "Ride completed",
+        body: "Your trip has been marked complete.",
+        data: { type: "ride_completed", rideId: result[0].id },
+      });
       return Response.json({ ride: result[0] });
     }
 
@@ -185,6 +196,11 @@ export async function PATCH(request, { params }) {
           { status: 409 },
         );
       }
+      await sendPushToUsers([result[0].passenger_id], {
+        title: "Ride started",
+        body: "Your trip has started.",
+        data: { type: "ride_started", rideId: result[0].id },
+      });
       return Response.json({ ride: result[0] });
     }
 
@@ -203,7 +219,7 @@ export async function PATCH(request, { params }) {
               updated_at = CURRENT_TIMESTAMP
           WHERE id = ${id}
           AND (passenger_id = ${session.user.id} OR driver_id = ${driverId})
-          AND status IN ('requested', 'accepted')
+          AND status IN ('requested', 'negotiating', 'accepted')
           RETURNING *
         `;
         if (rows.length > 0) {
@@ -224,6 +240,24 @@ export async function PATCH(request, { params }) {
           { status: 409 },
         );
       }
+      const cancelledRide = result[0];
+      const notifyUserIds = [];
+      if (driverId && cancelledRide.passenger_id) {
+        notifyUserIds.push(cancelledRide.passenger_id);
+      } else if (cancelledRide.driver_id) {
+        const driverUserRows = await sql`
+          SELECT user_id
+          FROM drivers
+          WHERE id = ${cancelledRide.driver_id}
+          LIMIT 1
+        `;
+        if (driverUserRows[0]?.user_id) notifyUserIds.push(driverUserRows[0].user_id);
+      }
+      await sendPushToUsers(notifyUserIds, {
+        title: "Ride cancelled",
+        body: "This ride has been cancelled.",
+        data: { type: "ride_cancelled", rideId: cancelledRide.id },
+      });
       return Response.json({ ride: result[0] });
     }
 
@@ -250,7 +284,12 @@ export async function GET(request, { params }) {
         d.last_lat as driver_last_lat,
         d.last_lng as driver_last_lng,
         du.phone as driver_phone,
-        pu.phone as passenger_phone
+        pu.phone as passenger_phone,
+        COALESCE((
+          SELECT json_agg(o ORDER BY o.responded_at DESC)
+          FROM ride_fare_offers o
+          WHERE o.ride_id = r.id
+        ), '[]'::json) as fare_offers
       FROM rides r
       LEFT JOIN drivers d ON r.driver_id = d.id
       LEFT JOIN auth_users du ON d.user_id = du.id

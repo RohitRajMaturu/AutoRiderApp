@@ -9,6 +9,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { QueryClientProvider, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import queryClient from "@/utils/queryClient";
 import { Toaster } from "sonner-native";
+import { registerPushToken } from "@/utils/pushNotifications";
 SplashScreen.preventAutoHideAsync();
 
 const PRIMARY = "#43B8B3";
@@ -181,6 +182,11 @@ export default function RootLayout() {
       router.replace("/");
     }
   }, [auth, isReady, rootNavigationState?.key, router, segments]);
+
+  useEffect(() => {
+    if (!auth) return;
+    registerPushToken().catch(() => {});
+  }, [auth?.user?.id]);
 
   return (
     <QueryClientProvider client={queryClient}>

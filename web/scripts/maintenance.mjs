@@ -45,6 +45,12 @@ function readAcceptedRideTimeoutMinutes() {
   return minutes;
 }
 
+function readRetentionDays(name, fallback, { min = 1, max = 3650 } = {}) {
+  const days = Number(process.env[name] || fallback);
+  if (!Number.isFinite(days) || days < min || days > max) return fallback;
+  return days;
+}
+
 async function runMaintenance(pool) {
   const client = await pool.connect(); // PATCHED:
   let locked = false; // PATCHED:
@@ -59,6 +65,14 @@ async function runMaintenance(pool) {
 
     const heartbeatTimeoutSeconds = readHeartbeatTimeoutSeconds();
     const acceptedRideTimeoutMinutes = readAcceptedRideTimeoutMinutes();
+    const operationalEventRetentionDays = readRetentionDays(
+      "OPERATIONAL_EVENT_RETENTION_DAYS",
+      90,
+    );
+    const inactivePushTokenRetentionDays = readRetentionDays(
+      "INACTIVE_PUSH_TOKEN_RETENTION_DAYS",
+      180,
+    );
 
     await client.query( // PATCHED:
       `
@@ -99,6 +113,23 @@ async function runMaintenance(pool) {
         WHERE expires_at <= CURRENT_TIMESTAMP
            OR consumed_at IS NOT NULL
       `,
+    );
+
+    await client.query(
+      `
+        DELETE FROM operational_events
+        WHERE created_at < CURRENT_TIMESTAMP - make_interval(days => $1)
+      `,
+      [operationalEventRetentionDays],
+    );
+
+    await client.query(
+      `
+        DELETE FROM user_push_tokens
+        WHERE is_active = false
+           OR last_seen_at < CURRENT_TIMESTAMP - make_interval(days => $1)
+      `,
+      [inactivePushTokenRetentionDays],
     );
   } finally { // PATCHED:
     if (locked) { // PATCHED:

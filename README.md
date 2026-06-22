@@ -18,11 +18,19 @@ A lightweight auto-rickshaw ride connection platform for India.
 ## Getting Started
 
 ### 1. Database Setup
-Create the required Postgres tables from the checked-in migration:
+Create the required Postgres tables from the checked-in migrations:
 
 ```powershell
 cd web
 npm run db:migrate
+```
+
+For a fresh database, a consolidated schema bundle is also generated at
+`web/db/autoride_full_schema.sql`. Regenerate it after adding migrations:
+
+```powershell
+cd web
+npm run db:schema:bundle
 ```
 
 If you are using another machine or a different database, set `DATABASE_URL` in `web/.env` first, then run the same command. You can also pass a custom URL to the PowerShell helper if you prefer `psql`:
@@ -154,6 +162,22 @@ Ride discovery is polling-based by design for the Secunderabad pilot:
 - Passengers poll `/api/rides` every 6 seconds while watching an active ride.
 - `npm run maintenance` runs the independent cleanup worker every 30 seconds by default, marking expired drivers offline, cancelling ghost accepted rides, and deleting expired auth/OTP/realtime-token rows.
 
+Fare negotiation is the exception to the polling-only model. Negotiated ride
+requests use Pusher private ride channels for counter offers, lock-out events,
+and expiry notifications, with the database transaction remaining the source of
+truth.
+
+Configure these values for negotiation realtime:
+
+```env
+PUSHER_APP_ID=
+PUSHER_KEY=
+PUSHER_SECRET=
+PUSHER_CLUSTER=ap2
+EXPO_PUBLIC_PUSHER_KEY=
+EXPO_PUBLIC_PUSHER_CLUSTER=ap2
+```
+
 ## Completed Backend Location Work
 
 - Server-side Ola Maps autocomplete through `GET /api/locations/autocomplete`.
@@ -166,6 +190,69 @@ Ride discovery is polling-based by design for the Secunderabad pilot:
 - Configurable local fallback data for development when Ola Maps is unavailable or `OLAMAPS_API_KEY` is not configured.
 - Mobile Admin Zones supports map-based rectangle creation, polygon drawing,
   existing-zone editing, and GeoJSON import fallback for service boundaries.
+
+## Completed Fare Negotiation Work
+
+- Migration `014_fare_negotiation.sql` adds negotiated ride state, fare range,
+  final fare, negotiation expiry, and `ride_fare_offers`.
+- Ride state machine now supports `requested -> negotiating -> accepted` and
+  negotiation expiry fallback to `requested`.
+- `POST /api/rides` supports `negotiation_mode: "negotiated"` with `fare_min`
+  and `fare_max`.
+- Pusher private-channel authorization is available at `POST /api/pusher/auth`.
+- Server publishes Pusher events through signed REST calls, avoiding a long-lived
+  WebSocket server.
+- Driver responses are available at `POST /api/rides/:id/fare-offer`.
+- Passenger counter approval is available at `POST /api/rides/:id/approve-counter`.
+- Passenger-triggered expiry fallback is available at
+  `POST /api/rides/:id/expire-negotiation`.
+- Passenger mobile UI can request negotiated rides, view a countdown, receive
+  counter offers, approve counters, and fall back via safety polling.
+- Driver mobile UI can accept, counter, or decline negotiated requests and
+  receives lock-out updates.
+- Accepted driver ride cards now prioritize Start/Complete and Cancel actions;
+  calling is icon-only and raw phone text is not displayed.
+
+Pending negotiation/privacy follow-up:
+
+- Replace direct `tel:` calls with a toll-free/proxy calling service so passenger
+  and driver phone numbers do not need to be exposed to clients.
+- Add live-device validation for Pusher event delivery once production Pusher
+  credentials are configured.
+
+## Notifications, Observability, And Privacy
+
+Implemented foundation:
+
+- Migration `015_notifications_observability_privacy.sql` adds
+  `user_push_tokens`, `operational_events`, and `privacy_retention_policies`.
+- Authenticated devices can register Expo push tokens through
+  `POST /api/notifications/push-token`.
+- Mobile attempts push-token registration after sign-in on physical iOS/Android
+  devices.
+- Maintenance deletes old `operational_events` and stale/inactive push tokens
+  according to retention env settings.
+- `OPERATIONAL_EVENT_RETENTION_DAYS` defaults to `90`.
+- `INACTIVE_PUSH_TOKEN_RETENTION_DAYS` defaults to `180`.
+
+Production approach:
+
+- Operational events are for diagnostics and lifecycle visibility. Do not store
+  secrets, full phone numbers, full Aadhaar, tokens, or precise long-lived
+  location trails in event metadata.
+- Admin/security actions belong in `admin_audit_log`; keep that retention longer
+  than diagnostics.
+- Privacy retention is enforced by maintenance jobs, not manual cleanup.
+- Add metrics/log shipping later from `operational_events` or app logs to the
+  chosen production observability stack.
+- Proxy calling remains pending; until then, call actions should avoid visible
+  raw phone-number text.
+
+Real-device E2E checklist:
+
+- Run [docs/REAL_DEVICE_E2E_CHECKLIST.md](docs/REAL_DEVICE_E2E_CHECKLIST.md)
+  before launch and after ride lifecycle or auth changes.
+- Track launch blockers in [docs/PENDING_TASKS.md](docs/PENDING_TASKS.md).
 
 ## Completed Driver KYC Work
 
@@ -271,6 +358,8 @@ flowchart LR
   WebLanding[Web landing/admin UI] --> Api
   Api --> Postgres[(PostgreSQL)]
   Api --> Ola[Ola Maps REST]
+  Api --> Pusher[Pusher Channels REST]
+  Pusher --> Mobile
   Api --> Maintenance[Maintenance worker]
   Mobile --> Motion[React Native motion components]
   Motion --> MotionAssets[auto-motion JSON assets]
@@ -312,12 +401,18 @@ Code-complete items that still need environment or field validation:
 
 - Complete real-device E2E testing for passenger, driver, and admin flows.
 - Complete HyperVerge live verification once credentials and private endpoint docs are available.
+- Configure Pusher Channels in region `ap2` and verify negotiated ride events on
+  real devices.
 - Verify polling-based ride discovery on the deployed VPS.
 - Verify the maintenance worker marks expired drivers offline and cancels timed-out accepted rides.
+- Verify mobile push-token registration on physical devices.
 
 Deferred product decisions:
 
-- Add push notifications only when the pilot needs out-of-app ride alerts.
+- Push-token registration and basic Expo ride-lifecycle sending are implemented.
+  Real-device delivery validation is still required before relying on it.
+- Add toll-free/proxy calling so raw passenger and driver phone numbers are never
+  exposed to mobile clients.
 
 ## Project Structure
 - `/mobile/src`: Expo application code.

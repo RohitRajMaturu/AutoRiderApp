@@ -25,12 +25,15 @@ import {
   Clock3,
   Car,
   Star,
+  IndianRupee,
 } from "lucide-react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
 import * as Location from "expo-location";
 import TukTukGoLoader from "@/components/TukTukGoLoader";
 import { ICON } from "@/theme/iconScale";
+import { useAuth } from "@/utils/auth/useAuth";
+import { createRidePusher } from "@/utils/pusher";
 
 const TUKTUKGO_ICON = require("../../../assets/images/icon.png");
 const PRIMARY = "#43B8B3";
@@ -110,6 +113,7 @@ function buildMapRegion(points) {
 function StatusBadge({ status }) {
   const configs = {
     requested: { bg: "#FEF3C7", text: "#B88700", label: "Finding Driver" },
+    negotiating: { bg: "#E0F2FE", text: "#0369A1", label: "Negotiating" },
     accepted: { bg: SUCCESS_LIGHT, text: SUCCESS, label: "Accepted" },
     completed: { bg: "#DBEAFE", text: "#2563EB", label: "Completed" },
     cancelled: { bg: "#FEE2E2", text: "#DC2626", label: "Cancelled" },
@@ -145,15 +149,20 @@ function buildTripStatusMessage(ride) {
     `Pickup: ${ride.pickup_address}`,
     `Destination: ${ride.dest_address}`,
     ride.vehicle_number ? `Vehicle: ${ride.vehicle_number}` : null,
-    ride.driver_phone ? `Driver phone: ${ride.driver_phone}` : null,
   ]
     .filter(Boolean)
     .join("\n");
 }
 
+function formatCurrency(value) {
+  const amount = Number(value);
+  return `Rs. ${Math.round(Number.isFinite(amount) ? amount : 0).toLocaleString("en-IN")}`;
+}
+
 export default function PassengerHome() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
+  const { auth } = useAuth();
   const [pickup, setPickup] = useState("");
   const [destination, setDestination] = useState("");
   const [pickupCoords, setPickupCoords] = useState(null);
@@ -174,6 +183,11 @@ export default function PassengerHome() {
     CANCEL_REASONS[0].value,
   );
   const [otherCancelReason, setOtherCancelReason] = useState("");
+  const [negotiationMode, setNegotiationMode] = useState("fixed");
+  const [fareMin, setFareMin] = useState("");
+  const [fareMax, setFareMax] = useState("");
+  const [incomingOffers, setIncomingOffers] = useState([]);
+  const [negotiationRemaining, setNegotiationRemaining] = useState(0);
   const [dismissedRatingRideIds, setDismissedRatingRideIds] = useState(
     () => new Set(),
   );
@@ -214,12 +228,14 @@ export default function PassengerHome() {
         data.rides?.find(
           (r) =>
             r.status === "requested" ||
+            r.status === "negotiating" ||
             r.status === "accepted" ||
             (r.status === "completed" && !r.driver_rating),
         ) || null;
       return ride;
     },
-    refetchInterval: 6000,
+    refetchInterval: (query) =>
+      query.state.data?.status === "negotiating" ? 10000 : 6000,
     // Don't re-show loading state on background refetches
     staleTime: 4000,
     retry: false,
@@ -363,7 +379,7 @@ export default function PassengerHome() {
 
   // ── Pulse animation — driven by ride status, NOT queryFn ──
   useEffect(() => {
-    if (activeRide?.status === "requested") {
+    if (activeRide?.status === "requested" || activeRide?.status === "negotiating") {
       if (pulseRef.current) return; // already running
       pulseRef.current = Animated.loop(
         Animated.sequence([
@@ -388,6 +404,90 @@ export default function PassengerHome() {
       pulseAnim.setValue(1);
     }
   }, [activeRide?.status, pulseAnim]);
+
+  useEffect(() => {
+    setIncomingOffers([]);
+  }, [activeRide?.id]);
+
+  useEffect(() => {
+    if (!activeRide || activeRide.status !== "negotiating") return;
+
+    const pusher = createRidePusher(auth);
+    if (!pusher) return;
+
+    const channelName = `private-ride-${activeRide.id}`;
+    const channel = pusher.subscribe(channelName);
+
+    channel.bind("counter-offer", (data) => {
+      setIncomingOffers((prev) => {
+        if (prev.some((offer) => offer.driver_id === data.driverId || offer.driverId === data.driverId)) {
+          return prev;
+        }
+        return [
+          {
+            id: `${data.driverId}-${data.respondedAt || Date.now()}`,
+            driver_id: data.driverId,
+            offer_type: "counter",
+            offered_fare: data.offeredFare,
+            responded_at: data.respondedAt,
+          },
+          ...prev,
+        ];
+      });
+    });
+
+    const refreshRide = () => {
+      queryClient.invalidateQueries({ queryKey: ["activeRide"] });
+      queryClient.invalidateQueries({ queryKey: ["passengerRides"] });
+    };
+
+    channel.bind("ride-locked", refreshRide);
+    channel.bind("negotiation-expired", refreshRide);
+    channel.bind("pusher:subscription_error", refreshRide);
+
+    return () => {
+      channel.unbind_all();
+      pusher.unsubscribe(channelName);
+      pusher.disconnect();
+    };
+  }, [activeRide?.id, activeRide?.status, auth?.jwt, queryClient]);
+
+  const expireNegotiation = useMutation({
+    mutationFn: async (rideId) => {
+      const res = await fetch(`/api/rides/${rideId}/expire-negotiation`, {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        throw new Error(error.error || "Failed to expire negotiation");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["activeRide"] });
+      queryClient.invalidateQueries({ queryKey: ["passengerRides"] });
+    },
+  });
+
+  useEffect(() => {
+    if (!activeRide || activeRide.status !== "negotiating") {
+      setNegotiationRemaining(0);
+      return;
+    }
+
+    const expiresAt = new Date(activeRide.negotiation_expires_at).getTime();
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+      setNegotiationRemaining(remaining);
+      if (remaining === 0 && !expireNegotiation.isPending) {
+        expireNegotiation.mutate(activeRide.id);
+      }
+    };
+
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [activeRide?.id, activeRide?.status, activeRide?.negotiation_expires_at, expireNegotiation.isPending]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -414,6 +514,9 @@ export default function PassengerHome() {
           dest_lng: destinationCoords.lng,
           pickup_place_id: pickupPlaceId,
           dest_place_id: destinationPlaceId,
+          negotiation_mode: negotiationMode,
+          fare_min: negotiationMode === "negotiated" ? Number(fareMin) : undefined,
+          fare_max: negotiationMode === "negotiated" ? Number(fareMax) : undefined,
         }),
       });
       if (!res.ok) {
@@ -441,6 +544,9 @@ export default function PassengerHome() {
       setDestination("");
       setDestinationCoords(null);
       setDestinationPlaceId(null);
+      setNegotiationMode("fixed");
+      setFareMin("");
+      setFareMax("");
       setFocusedField(null);
     },
     onError: (err) => Alert.alert("Request Failed", err.message),
@@ -503,7 +609,32 @@ export default function PassengerHome() {
     destination.trim().length > 0 &&
     !!pickupCoords &&
     !!destinationCoords &&
+    (negotiationMode === "fixed" ||
+      (Number.isInteger(Number(fareMin)) &&
+        Number.isInteger(Number(fareMax)) &&
+        Number(fareMin) > 0 &&
+        Number(fareMax) >= Number(fareMin))) &&
     !requestRide.isPending;
+
+  const approveCounter = useMutation({
+    mutationFn: async ({ rideId, driverId }) => {
+      const res = await fetch(`/api/rides/${rideId}/approve-counter`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ driverId }),
+      });
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        throw new Error(error.error || "Failed to approve counter offer");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["activeRide"] });
+      queryClient.invalidateQueries({ queryKey: ["passengerRides"] });
+    },
+    onError: (err) => Alert.alert("Offer Failed", err.message),
+  });
 
   const submitCancelRide = (rideId) => {
     const reason =
@@ -568,6 +699,15 @@ export default function PassengerHome() {
     activeDestinationCoords,
     activeDriverCoords,
   ]);
+  const fareOffers = Array.isArray(activeRide?.fare_offers)
+    ? activeRide.fare_offers
+    : [];
+  const counterOffers = [...incomingOffers, ...fareOffers]
+    .filter((offer) => offer.offer_type === "counter")
+    .filter(
+      (offer, index, offers) =>
+        offers.findIndex((item) => item.driver_id === offer.driver_id) === index,
+    );
 
   const updatePickupFromMap = async ({ latitude, longitude }) => {
     setPickupCoords({ lat: latitude, lng: longitude });
@@ -817,6 +957,8 @@ export default function PassengerHome() {
                   >
                     {activeRide.status === "requested"
                       ? "Searching for drivers..."
+                      : activeRide.status === "negotiating"
+                        ? `Negotiating fare - ${negotiationRemaining}s`
                       : activeRide.status === "completed"
                         ? "Ride completed"
                         : "Driver is on the way!"}
@@ -978,6 +1120,82 @@ export default function PassengerHome() {
                   </View>
                 </View>
 
+                {activeRide.status === "negotiating" && (
+                  <View
+                    style={{
+                      marginTop: 16,
+                      backgroundColor: "#F0F9FF",
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: "#BAE6FD",
+                      padding: 14,
+                    }}
+                  >
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                      <IndianRupee size={ICON.md} color="#0369A1" />
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 14, fontWeight: "800", color: TEXT }}>
+                          Fare range {formatCurrency(activeRide.fare_min)} - {formatCurrency(activeRide.fare_max)}
+                        </Text>
+                        <Text style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 2 }}>
+                          Waiting for nearby drivers to accept or counter.
+                        </Text>
+                      </View>
+                      <Text style={{ fontSize: 18, fontWeight: "900", color: "#0369A1" }}>
+                        {negotiationRemaining}s
+                      </Text>
+                    </View>
+
+                    {counterOffers.length > 0 && (
+                      <View style={{ marginTop: 12, gap: 10 }}>
+                        {counterOffers.map((offer) => (
+                          <View
+                            key={offer.id || offer.driver_id}
+                            style={{
+                              borderRadius: 10,
+                              borderWidth: 1,
+                              borderColor: "#BAE6FD",
+                              backgroundColor: SURFACE,
+                              padding: 12,
+                              flexDirection: "row",
+                              alignItems: "center",
+                              gap: 10,
+                            }}
+                          >
+                            <View style={{ flex: 1 }}>
+                              <Text style={{ fontSize: 13, fontWeight: "800", color: TEXT }}>
+                                Driver countered {formatCurrency(offer.offered_fare)}
+                              </Text>
+                              <Text style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 2 }}>
+                                Approving locks this driver for your ride.
+                              </Text>
+                            </View>
+                            <TouchableOpacity
+                              onPress={() =>
+                                approveCounter.mutate({
+                                  rideId: activeRide.id,
+                                  driverId: offer.driver_id,
+                                })
+                              }
+                              disabled={approveCounter.isPending}
+                              style={{
+                                borderRadius: 10,
+                                backgroundColor: approveCounter.isPending ? "#BFD1D3" : PRIMARY,
+                                paddingHorizontal: 14,
+                                paddingVertical: 10,
+                              }}
+                            >
+                              <Text style={{ color: "#fff", fontSize: 12, fontWeight: "800" }}>
+                                Accept
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                )}
+
                 {/* Driver info when accepted */}
                 {activeRide.status === "accepted" &&
                   activeRide.vehicle_number && (
@@ -1032,7 +1250,7 @@ export default function PassengerHome() {
                             {activeRide.vehicle_number}
                           </Text>
                           <Text style={{ fontSize: 12, color: TEXT_SECONDARY }}>
-                            {activeRide.driver_phone || "Your driver"}
+                            {activeRide.driver_phone ? "Call driver from the app" : "Your driver"}
                           </Text>
                         </View>
                       </View>
@@ -1453,6 +1671,103 @@ export default function PassengerHome() {
                 </MapView>
               </View>
             )}
+
+            <View
+              style={{
+                marginTop: 14,
+                backgroundColor: SURFACE,
+                borderRadius: 14,
+                borderWidth: 1,
+                borderColor: BORDER,
+                padding: 14,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: "800",
+                  color: TEXT_MUTED,
+                  textTransform: "uppercase",
+                  marginBottom: 10,
+                }}
+              >
+                Fare mode
+              </Text>
+              <View style={{ flexDirection: "row", gap: 10 }}>
+                {[
+                  { value: "fixed", label: "Fixed" },
+                  { value: "negotiated", label: "Negotiate" },
+                ].map((item) => {
+                  const selected = negotiationMode === item.value;
+                  return (
+                    <TouchableOpacity
+                      key={item.value}
+                      onPress={() => setNegotiationMode(item.value)}
+                      style={{
+                        flex: 1,
+                        borderRadius: 10,
+                        borderWidth: 1,
+                        borderColor: selected ? PRIMARY_BORDER : BORDER,
+                        backgroundColor: selected ? PRIMARY_LIGHT : "#F5F5F4",
+                        paddingVertical: 11,
+                        alignItems: "center",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontWeight: "800",
+                          color: selected ? PRIMARY : TEXT_SECONDARY,
+                        }}
+                      >
+                        {item.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {negotiationMode === "negotiated" && (
+                <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
+                  <TextInput
+                    value={fareMin}
+                    onChangeText={(value) => setFareMin(value.replace(/[^\d]/g, ""))}
+                    placeholder="Min fare"
+                    placeholderTextColor={TEXT_MUTED}
+                    keyboardType="number-pad"
+                    style={{
+                      flex: 1,
+                      borderRadius: 10,
+                      borderWidth: 1,
+                      borderColor: BORDER,
+                      backgroundColor: "#F5F5F4",
+                      paddingHorizontal: 12,
+                      paddingVertical: 12,
+                      color: TEXT,
+                      fontWeight: "700",
+                    }}
+                  />
+                  <TextInput
+                    value={fareMax}
+                    onChangeText={(value) => setFareMax(value.replace(/[^\d]/g, ""))}
+                    placeholder="Max fare"
+                    placeholderTextColor={TEXT_MUTED}
+                    keyboardType="number-pad"
+                    style={{
+                      flex: 1,
+                      borderRadius: 10,
+                      borderWidth: 1,
+                      borderColor: BORDER,
+                      backgroundColor: "#F5F5F4",
+                      paddingHorizontal: 12,
+                      paddingVertical: 12,
+                      color: TEXT,
+                      fontWeight: "700",
+                    }}
+                  />
+                </View>
+              )}
+            </View>
 
             {/* Request button */}
             <TouchableOpacity

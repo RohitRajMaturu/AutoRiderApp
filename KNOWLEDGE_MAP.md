@@ -53,6 +53,8 @@ flowchart LR
   Web[Web landing and admin UI] --> Api
   Api --> Db[(PostgreSQL)]
   Api --> Ola[Ola Maps REST]
+  Api --> Pusher[Pusher Channels REST]
+  Pusher --> Mobile
   Api --> Worker[Maintenance worker]
   Mobile --> Motion[React Native motion components]
   Motion --> Json[auto-motion JSON assets]
@@ -77,6 +79,7 @@ cd web; npm run typecheck
 cd web; npm run test:api
 cd web; npm run db:check
 cd web; npm run db:migrate
+cd web; npm run db:schema:bundle
 cd web; npm run maintenance
 cd mobile; npm run animations:build
 ```
@@ -95,6 +98,12 @@ Backend-only secrets and controls:
 - `MAINTENANCE_INTERVAL_SECONDS`: scheduled cleanup cadence, default `30`.
 - `RATE_LIMIT_MAX_REQUESTS`: API requests per method/path/IP window, default `120`; set `0` to disable locally.
 - `RATE_LIMIT_WINDOW_MS`: rate-limit window, default `60000`.
+- `PUSHER_APP_ID`, `PUSHER_KEY`, `PUSHER_SECRET`, `PUSHER_CLUSTER`: Pusher
+  Channels settings for negotiated-fare realtime. Use `ap2` for India latency.
+- `EXPO_PUBLIC_PUSHER_KEY`, `EXPO_PUBLIC_PUSHER_CLUSTER`: mobile Pusher
+  subscription settings for negotiated rides.
+- `OPERATIONAL_EVENT_RETENTION_DAYS`: retention for diagnostic events, default `90`.
+- `INACTIVE_PUSH_TOKEN_RETENTION_DAYS`: retention for stale push tokens, default `180`.
 - `HYPERVERGE_APP_ID`: HyperVerge app id for driver KYC.
 - `HYPERVERGE_APP_KEY`: HyperVerge app key for driver KYC.
 - `HYPERVERGE_READ_KYC_URL`: HyperVerge OCR/readKYC endpoint.
@@ -110,6 +119,8 @@ Backend-only secrets and controls:
 Current schema tooling:
 - Migrations live in `web/db/migrations`.
 - Apply migrations with `cd web; npm run db:migrate`.
+- Generate a fresh-database single-file schema with
+  `cd web; npm run db:schema:bundle`; output is `web/db/autoride_full_schema.sql`.
 - Verify tables with `cd web; npm run db:check`.
 - Optional `psql` helper: `web/scripts/apply-schema.ps1`.
 
@@ -121,6 +132,10 @@ Main tables:
 - `drivers`
 - `driver_kyc_checks`
 - `rides`
+- `ride_fare_offers`
+- `user_push_tokens`
+- `operational_events`
+- `privacy_retention_policies`
 
 The domain schema includes driver approval/online state, subscription expiry, KYC status fields, vendor-tagged KYC audit checks, last known driver coordinates, passenger/driver ride ownership, status timestamps, provider place IDs, route distance/duration/fare metadata, and route polyline/provider fields.
 
@@ -147,6 +162,9 @@ Auth and API behavior:
 - Mobile fetch helpers attach the stored JWT as a bearer token for backend API calls.
 - Passenger, driver, and admin role route groups redirect unauthenticated users back to `/` so device back navigation after logout cannot expose a stale role screen.
 - Test mode persists with `@autoconnect_test_mode` and `@autoconnect_test_role`; it is useful for demos but can hide real auth/backend failures.
+- Physical iOS/Android devices attempt Expo push-token registration after sign-in
+  through `POST /api/notifications/push-token`. Backend ride lifecycle routes
+  send basic Expo push notifications when active tokens exist.
 
 Passenger location behavior:
 - Current location and reverse-geocode calls have timeouts so pickup detection does not hang indefinitely.
@@ -181,11 +199,16 @@ Server controls:
 - API rate limiting is enabled for `/api/*`.
 - Security headers are added globally: content-type sniffing protection, referrer policy, frame policy, and a restricted permissions policy.
 - Scheduled maintenance runs through `web/scripts/maintenance.mjs` / `npm run maintenance`, independent of request volume.
-- The maintenance worker marks expired drivers offline, auto-cancels timed-out accepted rides, and deletes expired auth, verification, OTP, and retired realtime token rows.
+- The maintenance worker marks expired drivers offline, auto-cancels timed-out accepted rides, deletes expired auth, verification, OTP, and retired realtime token rows, and removes old operational events plus stale/inactive push tokens.
 
 Major API groups:
 - `POST/GET /api/rides`
 - `GET/PATCH /api/rides/:id`
+- `POST /api/rides/:id/fare-offer`
+- `POST /api/rides/:id/approve-counter`
+- `POST /api/rides/:id/expire-negotiation`
+- `POST /api/pusher/auth`
+- `POST/DELETE /api/notifications/push-token`
 - `POST/GET /api/drivers`
 - `POST /api/drivers/kyc-submit`
 - `PATCH /api/drivers/status`
@@ -210,6 +233,9 @@ Passenger ride request:
 3. `POST /api/rides` validates addresses and coordinates, prevents duplicate active rides, stores optional place IDs, and stores route estimate metadata.
 4. Passenger polls `/api/rides` for active status every 6 seconds.
 5. Passenger cancels through `PATCH /api/rides/:id` with `{ action: "cancel" }`.
+6. Negotiated requests use `status = 'negotiating'`, a 45-second expiry window,
+   Pusher private ride-channel events for counters/locks/expiry, and a 10-second
+   safety poll fallback.
 
 Driver ride handling:
 1. Driver creates an account from the mobile welcome screen.
@@ -221,6 +247,10 @@ Driver ride handling:
 7. Driver coordinates are stored from device location when available.
 8. Driver ride feed polls `/api/rides` every 5 seconds and returns assigned rides plus dispatched unassigned requests for the driver's active service zone.
 9. Driver accepts through `{ action: "accept" }` and completes through `{ action: "complete" }`.
+10. For negotiated rides, the driver responds through
+    `/api/rides/:id/fare-offer` with `accept`, `counter`, or `decline`.
+11. Accepted driver ride cards expose Start/Complete and Cancel as primary
+    actions; calling is icon-only until proxy calling is implemented.
 
 Admin:
 1. Admin dashboard calls `/api/admin/stats` and `/api/admin/drivers`.
@@ -270,7 +300,11 @@ Current coverage:
 Latest verified checks:
 - `cd mobile; npm run lint`
 - `cd web; npm run typecheck`
-- `cd web; npm run db:migrate` applied `011_driver_kyc.sql`
+- `cd web; npm run test:api`
+- `cd mobile; npx expo export --platform web`
+- `cd web; npm run db:migrate` applied through `014_fare_negotiation.sql`
+- Fare negotiation race tests cover losing driver accept, stale counter
+  approval, and expiry fallback.
 
 Run with:
 
@@ -282,14 +316,25 @@ npm run test:api
 ## Remaining Work
 
 External launch gates:
+- Use `docs/PENDING_TASKS.md` as the canonical categorized pending list.
 - Add real HyperVerge credentials, set confirmed private face-match/DL/RC endpoint URLs, run sandbox KYC submissions, and confirm full Aadhaar is never stored or logged.
-- Run the real-device E2E checklist for passenger, driver, admin, KYC, polling ride discovery, and maintenance cleanup on the deployed VPS.
+- Add real Pusher Channels credentials, region `ap2`, and verify negotiated
+  ride events on passenger/driver devices.
+- Run `docs/REAL_DEVICE_E2E_CHECKLIST.md` for passenger, driver, admin, KYC,
+  negotiation, fixed-fare rides, push-token registration, polling ride discovery,
+  and maintenance cleanup on the deployed VPS.
+- Verify mobile push-token registration on physical devices with production app
+  credentials.
 - Configure production R2/S3-compatible storage credentials and verify private KYC uploads plus signed read URLs against HyperVerge.
 
 Deferred product decisions:
 - Add payment-backed driver subscription renewal with verified webhooks.
-- Add Expo push notifications for ride requested, accepted, cancelled, and completed when the pilot needs out-of-app alerts.
-- Add observability, structured audit logging, privacy policy, and location retention rules.
+- Verify Expo push notification delivery on physical devices and tune payloads
+  before relying on push as an operational channel.
+- Add toll-free/proxy calling so raw passenger and driver phone numbers are not
+  exposed to mobile clients.
+- Add external log/metric shipping, dashboarding, alerting, and formal privacy
+  policy/legal review.
 - Continue expanding lower-risk validation and tests as new provider/admin/payment routes are added.
 
 ## Implementation Hotspots
@@ -317,9 +362,9 @@ When adding payments:
 - Keep `/api/drivers/status` as the final online eligibility gate.
 
 When adding notifications:
-- Add a device push-token table keyed by user/device.
-- Mobile should register and refresh Expo push tokens.
-- Backend should send notifications from ride lifecycle events.
+- Push-token storage, mobile registration, and basic ride lifecycle sending already exist.
+- Keep notification payloads privacy-safe; avoid raw phone numbers and precise
+  location details unless strictly required.
 
 When changing motion:
 - Prefer palette changes in `mobile/scripts/generate-auto-motion-assets.mjs`, then run `cd mobile; npm run animations:build`.

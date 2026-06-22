@@ -13,6 +13,15 @@ import {
   getPassengerSpamCooldownSeconds,
 } from "@/app/api/utils/dispatch";
 import { auth } from "@/auth";
+import { triggerRideEvent } from "@/lib/pusher/server";
+import { sendPushToUsers } from "@/app/api/utils/push-notifications";
+
+const NEGOTIATION_WINDOW_SECONDS = 45;
+
+function readFare(value) {
+  const fare = Number(value);
+  return Number.isInteger(fare) && fare > 0 ? fare : null;
+}
 
 export async function POST(request) {
   try {
@@ -30,6 +39,9 @@ export async function POST(request) {
       dest_address,
       pickup_place_id,
       dest_place_id,
+      negotiation_mode,
+      fare_min,
+      fare_max,
     } = await request.json();
     const pickupLat = Number(pickup_lat);
     const pickupLng = Number(pickup_lng);
@@ -39,6 +51,9 @@ export async function POST(request) {
     const destAddress = readBoundedString(dest_address, { min: 3, max: 500 });
     const pickupPlaceId = readBoundedString(pickup_place_id, { max: 255 });
     const destPlaceId = readBoundedString(dest_place_id, { max: 255 });
+    const negotiationMode = negotiation_mode === "negotiated" ? "negotiated" : "fixed";
+    const fareMin = readFare(fare_min);
+    const fareMax = readFare(fare_max);
 
     if (
       !isLatitude(pickupLat) ||
@@ -58,7 +73,7 @@ export async function POST(request) {
     const active = await sql`
       SELECT id FROM rides 
       WHERE passenger_id = ${session.user.id} 
-      AND status IN ('requested', 'accepted') 
+      AND status IN ('requested', 'negotiating', 'accepted') 
       LIMIT 1
     `;
     if (active.length > 0) {
@@ -122,6 +137,14 @@ export async function POST(request) {
     }
 
     const estimate = await getRouteEstimate(pickupLat, pickupLng, destLat, destLng);
+    if (negotiationMode === "negotiated") {
+      if (!fareMin || !fareMax || fareMin > fareMax) {
+        return Response.json(
+          { error: "Negotiated rides require a valid minimum and maximum fare" },
+          { status: 400 },
+        );
+      }
+    }
 
     const rows = await sql`
       INSERT INTO rides (
@@ -139,7 +162,12 @@ export async function POST(request) {
         estimated_fare,
         route_polyline,
         route_provider,
-        zone_id
+        zone_id,
+        status,
+        negotiation_mode,
+        fare_min,
+        fare_max,
+        negotiation_expires_at
       )
       VALUES (
         ${session.user.id},
@@ -156,12 +184,40 @@ export async function POST(request) {
         ${estimate.estimatedFare},
         ${estimate.polyline},
         ${estimate.provider},
-        ${zone.id}
+        ${zone.id},
+        ${negotiationMode === "negotiated" ? "negotiating" : "requested"},
+        ${negotiationMode},
+        ${negotiationMode === "negotiated" ? fareMin : null},
+        ${negotiationMode === "negotiated" ? fareMax : null},
+        ${negotiationMode === "negotiated" ? new Date(Date.now() + NEGOTIATION_WINDOW_SECONDS * 1000) : null}
       )
       RETURNING *
     `;
 
     const dispatchedDrivers = await dispatchRideRequest(rows[0]);
+    const driverUserRows = await sql`
+      SELECT d.user_id
+      FROM ride_driver_notifications n
+      JOIN drivers d ON d.id = n.driver_id
+      WHERE n.ride_id = ${rows[0].id}
+        AND n.status = 'pending'
+    `;
+    await sendPushToUsers(
+      driverUserRows.map((row) => row.user_id),
+      {
+        title: rows[0].status === "negotiating" ? "Fare negotiation request" : "New ride request",
+        body: "A nearby passenger is requesting an auto.",
+        data: { type: rows[0].status, rideId: rows[0].id },
+      },
+    );
+    if (rows[0].status === "negotiating") {
+      await triggerRideEvent(rows[0].id, "negotiation-started", {
+        rideId: rows[0].id,
+        fareMin: rows[0].fare_min,
+        fareMax: rows[0].fare_max,
+        expiresAt: rows[0].negotiation_expires_at,
+      });
+    }
 
     return Response.json({ ride: rows[0], zone, dispatchedDrivers }, { status: 202 });
   } catch (err) {
@@ -215,10 +271,15 @@ export async function GET(request) {
           ${driver.id},
           'websocket',
           'pending',
-          jsonb_build_object('type', 'ride_request', 'ride_id', r.id)
+          jsonb_build_object(
+            'type',
+            CASE WHEN r.status = 'negotiating' THEN 'fare_negotiation' ELSE 'ride_request' END,
+            'ride_id',
+            r.id
+          )
         FROM rides r
         JOIN drivers d ON d.id = ${driver.id}
-        WHERE r.status = 'requested'
+        WHERE r.status IN ('requested', 'negotiating')
           AND r.driver_id IS NULL
           AND r.zone_id = d.zone_id
           AND d.is_online = true
@@ -237,14 +298,19 @@ export async function GET(request) {
         SELECT
           r.*,
           u.phone as passenger_phone,
-          z.name as zone_name
+          z.name as zone_name,
+          COALESCE((
+            SELECT json_agg(o ORDER BY o.responded_at DESC)
+            FROM ride_fare_offers o
+            WHERE o.ride_id = r.id
+          ), '[]'::json) as fare_offers
         FROM rides r
         JOIN auth_users u ON r.passenger_id = u.id
         LEFT JOIN geo_zones z ON z.id = r.zone_id
         WHERE
           r.driver_id = ${driver.id}
           OR (
-            r.status = 'requested'
+            r.status IN ('requested', 'negotiating')
             AND r.driver_id IS NULL
             AND r.zone_id = ${driver.zone_id}
             AND EXISTS (
@@ -263,7 +329,12 @@ export async function GET(request) {
           d.auto_photo_url,
           d.last_lat as driver_last_lat,
           d.last_lng as driver_last_lng,
-          u.phone as driver_phone
+          u.phone as driver_phone,
+          COALESCE((
+            SELECT json_agg(o ORDER BY o.responded_at DESC)
+            FROM ride_fare_offers o
+            WHERE o.ride_id = r.id
+          ), '[]'::json) as fare_offers
         FROM rides r
         LEFT JOIN drivers d ON r.driver_id = d.id
         LEFT JOIN auth_users u ON d.user_id = u.id
