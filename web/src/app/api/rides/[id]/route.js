@@ -101,6 +101,7 @@ export async function PATCH(request, { params }) {
           UPDATE rides 
           SET driver_id = ${driverId}, 
               status = 'accepted',
+              final_fare = COALESCE(final_fare, estimated_fare),
               accepted_at = CURRENT_TIMESTAMP,
               expires_at = CURRENT_TIMESTAMP + make_interval(mins => ${getAcceptedRideTimeoutMinutes()}),
               updated_at = CURRENT_TIMESTAMP
@@ -152,6 +153,7 @@ export async function PATCH(request, { params }) {
       const result = await sql`
         UPDATE rides 
         SET status = 'completed',
+            final_fare = COALESCE(final_fare, estimated_fare),
             completed_at = CURRENT_TIMESTAMP,
             updated_at = CURRENT_TIMESTAMP
         WHERE id = ${id}

@@ -159,6 +159,10 @@ function formatCurrency(value) {
   return `Rs. ${Math.round(Number.isFinite(amount) ? amount : 0).toLocaleString("en-IN")}`;
 }
 
+function rideFare(ride) {
+  return ride?.final_fare ?? ride?.estimated_fare ?? 0;
+}
+
 export default function PassengerHome() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
@@ -1298,6 +1302,48 @@ export default function PassengerHome() {
                       Share Trip Status
                     </Text>
                   </TouchableOpacity>
+                )}
+
+                {activeRide.status === "completed" && (
+                  <View
+                    style={{
+                      marginTop: 16,
+                      backgroundColor: "#EFF6FF",
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: "#BFDBFE",
+                      padding: 14,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontWeight: "800",
+                        color: "#2563EB",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      Fare details
+                    </Text>
+                    <View style={{ flexDirection: "row", gap: 16, marginTop: 10 }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 12, color: TEXT_MUTED, fontWeight: "700" }}>
+                          Total fare
+                        </Text>
+                        <Text style={{ fontSize: 22, fontWeight: "900", color: TEXT, marginTop: 2 }}>
+                          {formatCurrency(rideFare(activeRide))}
+                        </Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 12, color: TEXT_MUTED, fontWeight: "700" }}>
+                          Distance
+                        </Text>
+                        <Text style={{ fontSize: 16, fontWeight: "800", color: TEXT, marginTop: 6 }}>
+                          {Number(activeRide.distance_km || 0).toFixed(1)} km
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
                 )}
 
                 {activeRide.status === "completed" && !activeRide.driver_rating && (

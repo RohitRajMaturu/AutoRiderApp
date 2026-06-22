@@ -78,6 +78,10 @@ function formatCurrency(value) {
   return `Rs. ${Math.round(Number.isFinite(amount) ? amount : 0).toLocaleString("en-IN")}`;
 }
 
+function rideFare(ride) {
+  return ride?.final_fare ?? ride?.estimated_fare ?? 0;
+}
+
 async function playRideRequestChime() {
   try {
     const { sound } = await Audio.Sound.createAsync(RIDE_REQUEST_CHIME, {
@@ -1189,7 +1193,7 @@ function ActiveRideCard({
                 letterSpacing: -0.5,
               }}
             >
-              Passenger Waiting 🛺
+              {hasStarted ? "Ride In Progress" : "Passenger Waiting"}
             </Text>
           </View>
           <View style={{ alignItems: "flex-end", gap: 10 }}>
@@ -1399,12 +1403,81 @@ function ActiveRideCard({
 }
 
 // ─── Main Driver Home ─────────────────────────────────────────────────────────
+function CompletedRideSummary({ ride, onDismiss }) {
+  if (!ride) return null;
+
+  return (
+    <View
+      style={{
+        backgroundColor: SURFACE,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: "#BBF7D0",
+        marginBottom: 20,
+        overflow: "hidden",
+      }}
+    >
+      <View
+        style={{
+          backgroundColor: SUCCESS_LIGHT,
+          paddingHorizontal: 16,
+          paddingVertical: 14,
+          borderBottomWidth: 1,
+          borderBottomColor: "#BBF7D0",
+        }}
+      >
+        <Text style={{ fontSize: 15, fontWeight: "900", color: SUCCESS }}>
+          Ride completed
+        </Text>
+      </View>
+      <View style={{ padding: 16, gap: 12 }}>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 12 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 11, fontWeight: "800", color: TEXT_MUTED, textTransform: "uppercase" }}>
+              Fare
+            </Text>
+            <Text style={{ fontSize: 24, fontWeight: "900", color: TEXT, marginTop: 2 }}>
+              {formatCurrency(rideFare(ride))}
+            </Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 11, fontWeight: "800", color: TEXT_MUTED, textTransform: "uppercase" }}>
+              Distance
+            </Text>
+            <Text style={{ fontSize: 16, fontWeight: "800", color: TEXT, marginTop: 5 }}>
+              {Number(ride.distance_km || 0).toFixed(1)} km
+            </Text>
+          </View>
+        </View>
+        <Text style={{ fontSize: 12, color: TEXT_SECONDARY }} numberOfLines={2}>
+          {ride.pickup_address} to {ride.dest_address}
+        </Text>
+        <TouchableOpacity
+          onPress={onDismiss}
+          style={{
+            alignItems: "center",
+            borderRadius: 10,
+            borderWidth: 1,
+            borderColor: BORDER,
+            paddingVertical: 10,
+          }}
+        >
+          <Text style={{ fontSize: 13, fontWeight: "800", color: TEXT_SECONDARY }}>
+            Dismiss
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
 export default function DriverHome() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const notifiedCancelledRideIds = useRef(new Set());
   const notifiedRideRequestIds = useRef(new Set());
   const [lockedRideIds, setLockedRideIds] = useState(() => new Set());
+  const [completedRideSummary, setCompletedRideSummary] = useState(null);
   const onlineToggleAnim = useRef(new Animated.Value(0)).current;
   const { auth } = useAuth();
   const authUserKey =
@@ -1644,9 +1717,10 @@ export default function DriverHome() {
       }
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["driverRides", authUserKey] });
-      Alert.alert("✅ Ride Completed!", "Great work! Keep earning!");
+      setCompletedRideSummary(data.ride);
+      Alert.alert("Ride Completed", `Fare: ${formatCurrency(rideFare(data.ride))}`);
     },
   });
 
@@ -1664,6 +1738,7 @@ export default function DriverHome() {
       return res.json();
     },
     onSuccess: () => {
+      setCompletedRideSummary(null);
       queryClient.invalidateQueries({ queryKey: ["driverRides", authUserKey] });
       Alert.alert("Ride Started", "Navigate to the drop-off location.");
     },
@@ -2004,6 +2079,12 @@ export default function DriverHome() {
             isStarting={startRide.isPending}
             isCompleting={completeRide.isPending}
             isCancelling={cancelRide.isPending}
+          />
+        )}
+        {!activeRide && completedRideSummary && (
+          <CompletedRideSummary
+            ride={completedRideSummary}
+            onDismiss={() => setCompletedRideSummary(null)}
           />
         )}
 
