@@ -1,4 +1,4 @@
-import { Tabs } from "expo-router";
+import { Redirect, Tabs } from "expo-router";
 import { Home, Clock, User } from "lucide-react-native";
 import { ICON } from "@/theme/iconScale";
 import { useAuth } from "@/utils/auth/useAuth";
@@ -11,7 +11,7 @@ export default function PassengerLayout() {
   const isProtected = isReady && !auth && !testMode;
 
   if (isProtected) {
-    return null;
+    return <Redirect href="/" />;
   }
 
   return (

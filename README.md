@@ -10,8 +10,8 @@ A lightweight auto-rickshaw ride connection platform for India.
 - **Maps/Location Provider**: Ola Maps (Krutrim Cloud) via backend-only REST integration
 
 ## Core Features
-- **Passengers**: Request rides, adjust pickup on a native map, see driver details, track ride history.
-- **Drivers**: Create their account, register vehicle/license, complete KYC, toggle online/offline status, accept nearby rides.
+- **Passengers**: Request rides, choose fixed fare or a guided negotiated offer, adjust pickup on a native map, see driver details, share trip status through the OS share sheet, and track ride history.
+- **Drivers**: Create their account, register vehicle/license, complete KYC, toggle online/offline status, accept nearby rides, send fare counters, complete rides, and view paginated completed ride history.
 - **Admin**: Approve/Reject driver applications, manage subscriptions.
 - **Subscription Model**: Drivers need an active subscription to go online.
 
@@ -129,7 +129,7 @@ Mobile passenger/driver signup intentionally uses the shared web auth page insid
 
 The public web landing page reads `VITE_ANDROID_APP_URL` and `VITE_IOS_APP_URL` for store buttons. If either value is blank, that button renders as a non-clickable coming-soon state instead of a placeholder link.
 
-Mobile role screens are guarded after logout. If a user signs out and then uses the device back button, passenger, driver, and admin route groups redirect back to the welcome/login screen instead of showing the previous logged-in role UI.
+Mobile role screens are guarded after logout. If a user signs out and then uses the device back button, passenger, driver, and admin route groups redirect back to the welcome/login screen instead of showing the previous logged-in role UI or a blank protected tab screen.
 
 Backend `/api/*` routes include basic rate limiting and security headers. Set `RATE_LIMIT_MAX_REQUESTS=0` only for local debugging.
 
@@ -206,12 +206,17 @@ EXPO_PUBLIC_PUSHER_CLUSTER=ap2
 - Passenger counter approval is available at `POST /api/rides/:id/approve-counter`.
 - Passenger-triggered expiry fallback is available at
   `POST /api/rides/:id/expire-negotiation`.
-- Passenger mobile UI can request negotiated rides, view a countdown, receive
-  counter offers, approve counters, and fall back via safety polling.
-- Driver mobile UI can accept, counter, or decline negotiated requests and
-  receives lock-out updates.
+- Passenger mobile UI can request negotiated rides through suggested offer chips
+  plus bounded custom offers, view a countdown, receive counter offers, approve
+  counters, and fall back via safety polling.
+- Driver mobile UI can accept, counter, or decline negotiated requests, keeps
+  countered cards visible while waiting for passenger approval, receives lock-out
+  updates, and pages busy request queues locally in batches of 5.
 - Accepted driver ride cards now prioritize Start/Complete and Cancel actions;
   calling is icon-only and raw phone text is not displayed.
+- Passenger UI warns after 60 seconds when no driver has accepted yet. Backend
+  auto-expiry/escalation for no-driver supply still depends on the final product
+  policy for zone demand, online driver count, and dispatch-radius behavior.
 
 Pending negotiation/privacy follow-up:
 
@@ -247,6 +252,9 @@ Production approach:
   chosen production observability stack.
 - Proxy calling remains pending; until then, call actions should avoid visible
   raw phone-number text.
+- Driver earnings use `final_fare` when present, refresh immediately after ride
+  completion, and completed driver rides can be lazy-loaded through paginated
+  history.
 
 Real-device E2E checklist:
 
@@ -361,6 +369,7 @@ flowchart LR
   Api --> Pusher[Pusher Channels REST]
   Pusher --> Mobile
   Api --> Maintenance[Maintenance worker]
+  Api --> DriverHistory[Paginated driver ride history]
   Mobile --> Motion[React Native motion components]
   Motion --> MotionAssets[auto-motion JSON assets]
   Mobile --> DriverKyc[Driver KYC flow]
@@ -406,6 +415,8 @@ Code-complete items that still need environment or field validation:
 - Verify polling-based ride discovery on the deployed VPS.
 - Verify the maintenance worker marks expired drivers offline and cancels timed-out accepted rides.
 - Verify mobile push-token registration on physical devices.
+- Verify logout/back-navigation behavior on real passenger, driver, and admin
+  devices.
 
 Deferred product decisions:
 
@@ -413,6 +424,9 @@ Deferred product decisions:
   Real-device delivery validation is still required before relying on it.
 - Add toll-free/proxy calling so raw passenger and driver phone numbers are never
   exposed to mobile clients.
+- Finalize backend no-driver expiry/escalation policy. The UI now warns after
+  60 seconds, but server-side cancellation/escalation thresholds still need a
+  business decision.
 
 ## Project Structure
 - `/mobile/src`: Expo application code.

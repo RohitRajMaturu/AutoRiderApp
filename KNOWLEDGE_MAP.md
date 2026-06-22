@@ -7,8 +7,8 @@ Use this document as context for Claude, Codex, or another implementation agent.
 TukTukGo is an India-focused auto-rickshaw ride connection platform.
 
 Core actors:
-- Passenger: self-sign up, request rides, choose pickup/drop, adjust pickup on a map, cancel rides, view history.
-- Driver: self-sign up, register vehicle/documents, complete KYC, wait for approval, toggle online, accept nearby rides, complete rides.
+- Passenger: self-sign up, request rides, choose pickup/drop, adjust pickup on a map, request fixed or negotiated fares, cancel rides, share trip status, view history.
+- Driver: self-sign up, register vehicle/documents, complete KYC, wait for approval, toggle online, accept nearby rides, counter negotiated offers, complete rides, and view paginated completed ride history.
 - Admin: review drivers, inspect ride/admin stats, manage subscription eligibility, and review KYC submissions. Admins approve driver applications; they do not need to create driver login accounts.
 
 Primary stack:
@@ -55,6 +55,7 @@ flowchart LR
   Api --> Ola[Ola Maps REST]
   Api --> Pusher[Pusher Channels REST]
   Pusher --> Mobile
+  Api --> DriverHistory[Driver ride history pages]
   Api --> Worker[Maintenance worker]
   Mobile --> Motion[React Native motion components]
   Motion --> Json[auto-motion JSON assets]
@@ -161,6 +162,8 @@ Auth and API behavior:
 - `/api/auth/token` returns `{ jwt, user, auth }`.
 - Mobile fetch helpers attach the stored JWT as a bearer token for backend API calls.
 - Passenger, driver, and admin role route groups redirect unauthenticated users back to `/` so device back navigation after logout cannot expose a stale role screen.
+- The route groups return an explicit `<Redirect href="/" />` when auth is gone,
+  preventing the blank white tab screen that can otherwise appear after logout.
 - Test mode persists with `@autoconnect_test_mode` and `@autoconnect_test_role`; it is useful for demos but can hide real auth/backend failures.
 - Physical iOS/Android devices attempt Expo push-token registration after sign-in
   through `POST /api/notifications/push-token`. Backend ride lifecycle routes
@@ -207,6 +210,8 @@ Major API groups:
 - `POST /api/rides/:id/fare-offer`
 - `POST /api/rides/:id/approve-counter`
 - `POST /api/rides/:id/expire-negotiation`
+- `GET /api/locations/estimate`
+- `GET /api/drivers/rides`
 - `POST /api/pusher/auth`
 - `POST/DELETE /api/notifications/push-token`
 - `POST/GET /api/drivers`
@@ -236,6 +241,12 @@ Passenger ride request:
 6. Negotiated requests use `status = 'negotiating'`, a 45-second expiry window,
    Pusher private ride-channel events for counters/locks/expiry, and a 10-second
    safety poll fallback.
+7. Passenger fare negotiation presents one requested offer through suggested
+   chips and a bounded custom input. The backend still stores min/max guardrails
+   for validation.
+8. If no driver accepts after 60 seconds, the passenger UI warns that the search
+   is taking longer than usual. Backend auto-expiry/escalation is still pending
+   the final supply/demand policy.
 
 Driver ride handling:
 1. Driver creates an account from the mobile welcome screen.
@@ -251,6 +262,10 @@ Driver ride handling:
     `/api/rides/:id/fare-offer` with `accept`, `counter`, or `decline`.
 11. Accepted driver ride cards expose Start/Complete and Cancel as primary
     actions; calling is icon-only until proxy calling is implemented.
+12. Driver request queues show the first 5 available requests and let the driver
+    reveal more in batches, so high-demand zones do not overwhelm the dashboard.
+13. Driver wallet reads `/api/drivers/rides` with lazy pagination for completed
+    ride history and earnings use `COALESCE(final_fare, estimated_fare)`.
 
 Admin:
 1. Admin dashboard calls `/api/admin/stats` and `/api/admin/drivers`.
@@ -284,6 +299,8 @@ Fare metadata:
 - Server formula: `35 + distanceKm * 18`.
 - Currency: `INR`.
 - `/api/routes/estimate` returns `distanceKm`, `durationMins`, `estimatedFare`, `polyline`, `provider`, and `currency`.
+- `/api/locations/estimate` returns route estimate metadata plus the suggested
+  negotiation guardrail range used by the passenger offer chips.
 - `POST /api/rides` stores fare/route metadata for future use.
 - Passenger-facing fare and ETA preview is enabled; surge pricing remains intentionally out of scope.
 
@@ -296,6 +313,9 @@ Current coverage:
 - Ride detail authorization and cancel conflict behavior.
 - Admin driver update validation, admin-only access, and missing-row handling.
 - Driver ride discovery filtering by zone and dispatch notification record.
+- Fare negotiation race cases for losing driver accept, stale passenger counter
+  approval, expiry fallback, and cancelled-before-accept conflicts.
+- Route estimate API and paginated driver ride-history API.
 
 Latest verified checks:
 - `cd mobile; npm run lint`
@@ -305,6 +325,7 @@ Latest verified checks:
 - `cd web; npm run db:migrate` applied through `014_fare_negotiation.sql`
 - Fare negotiation race tests cover losing driver accept, stale counter
   approval, and expiry fallback.
+- API tests currently pass as 18 tests across 7 files.
 
 Run with:
 
@@ -335,6 +356,9 @@ Deferred product decisions:
   exposed to mobile clients.
 - Add external log/metric shipping, dashboarding, alerting, and formal privacy
   policy/legal review.
+- Finalize and implement backend no-driver escalation/expiry policy. Current UI
+  warning appears after 60 seconds, but server-side thresholds should be based
+  on online approved driver count, zone demand, request age, and dispatch radius.
 - Continue expanding lower-risk validation and tests as new provider/admin/payment routes are added.
 
 ## Implementation Hotspots

@@ -77,6 +77,11 @@ decisions.
 - Choose observability provider and alerting policy.
 - Finalize privacy policy, data-retention language, and legal review.
 - Decide when out-of-app push notifications should be enabled for the pilot.
+- Finalize no-driver escalation policy:
+  - how long a passenger can wait before the request expires or escalates
+  - whether high-demand zones should widen dispatch radius
+  - whether fare guidance should suggest a higher quick-accept offer
+  - what passenger copy should be shown when supply is low.
 
 ## In-Repo Status
 
@@ -84,14 +89,27 @@ Completed locally:
 
 - Fare negotiation schema, APIs, Pusher private-channel auth, mobile UI, and
   backend race tests.
+- Passenger fare negotiation now uses a single offer model with suggested fare
+  chips and bounded custom offers. The backend still stores min/max guardrails.
+- Driver negotiation cards show the passenger offer, keep countered rides visible
+  while waiting for passenger approval, and page nearby requests locally in
+  batches of 5.
+- Driver earnings now use final fare, refresh after ride completion, and driver
+  wallet includes lazy paginated completed ride history.
+- Passenger trip-status sharing uses the native OS share sheet so WhatsApp and
+  recent share targets appear naturally.
+- Passenger/driver/admin route groups redirect to the login/welcome screen after
+  logout instead of rendering a blank protected tab screen.
 - Push-token storage, mobile registration, and basic Expo push sending from ride
   lifecycle events.
 - Operational event table and retention cleanup.
 - Consolidated schema generator and `web/db/autoride_full_schema.sql`.
 - Real-device E2E checklist.
 
-Remaining code work after provider choices:
+Remaining code work after provider choices or product decisions:
 
 - Replace direct `tel:` calls with the selected proxy-calling API.
 - Add payment subscription checkout/webhook routes once a provider is selected.
 - Add provider-specific observability transport once a destination is selected.
+- Implement backend no-driver expiry/escalation policy once the business rule is
+  finalized. The passenger UI currently warns after 60 seconds of waiting.

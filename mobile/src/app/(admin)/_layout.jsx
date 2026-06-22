@@ -1,4 +1,4 @@
-import { Tabs } from "expo-router";
+import { Redirect, Tabs } from "expo-router";
 import { BarChart3, FileText, Map, Users, Route } from "lucide-react-native";
 import { useTheme } from "@/theme/ThemeContext";
 import { ICON } from "@/theme/iconScale";
@@ -14,7 +14,7 @@ export default function AdminLayout() {
   const isProtected = isReady && !auth && !testMode;
 
   if (isProtected) {
-    return null;
+    return <Redirect href="/" />;
   }
 
   return (
