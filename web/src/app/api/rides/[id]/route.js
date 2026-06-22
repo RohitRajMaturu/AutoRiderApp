@@ -130,9 +130,40 @@ export async function PATCH(request, { params }) {
       });
 
       if (result.length === 0) {
+        const rideRows = await sql`
+          SELECT status, driver_id, zone_id
+          FROM rides
+          WHERE id = ${id}
+          LIMIT 1
+        `;
+        const ride = rideRows[0];
+        if (!ride) {
+          return Response.json(
+            { error: "Ride is no longer available", code: "RIDE_UNAVAILABLE" },
+            { status: 409 },
+          );
+        }
+        if (ride.status === "cancelled") {
+          return Response.json(
+            { error: "Passenger cancelled this ride", code: "RIDE_CANCELLED" },
+            { status: 409 },
+          );
+        }
+        if (ride.driver_id || ride.status === "accepted") {
+          return Response.json(
+            { error: "Ride was already accepted by another driver", code: "RIDE_ALREADY_ACCEPTED" },
+            { status: 409 },
+          );
+        }
+        if (ride.status !== "requested") {
+          return Response.json(
+            { error: "Ride is no longer available", code: "RIDE_UNAVAILABLE" },
+            { status: 409 },
+          );
+        }
         return Response.json(
-          { error: "subscription_expired" }, // PATCHED:
-          { status: 409 }, // PATCHED:
+          { error: "Ride cannot be accepted right now", code: "RIDE_ACCEPT_UNAVAILABLE" },
+          { status: 409 },
         );
       }
       await sendPushToUsers([result[0].passenger_id], {

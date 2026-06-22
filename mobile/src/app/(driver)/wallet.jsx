@@ -1,7 +1,7 @@
 import React from "react";
-import { View, Text, ScrollView, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import {
   Calendar,
   CheckCircle2,
@@ -97,6 +97,29 @@ export default function DriverWallet() {
     staleTime: 30000,
   });
 
+  const {
+    data: rideHistoryData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading: rideHistoryLoading,
+  } = useInfiniteQuery({
+    queryKey: ["driverRideHistory", authUserKey],
+    queryFn: async ({ pageParam = 0 }) => {
+      const params = new URLSearchParams({
+        offset: String(pageParam),
+        pageSize: "10",
+      });
+      const res = await fetch(`/api/drivers/rides?${params}`);
+      if (!res.ok) throw new Error("Failed to load ride history");
+      return res.json();
+    },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => lastPage.nextOffset,
+    enabled: !!auth,
+    staleTime: 30000,
+  });
+
   if (isLoading) {
     return (
       <View
@@ -120,6 +143,7 @@ export default function DriverWallet() {
   const daysLeft = isActive
     ? Math.ceil((expiry - new Date()) / (1000 * 60 * 60 * 24))
     : 0;
+  const rideHistory = rideHistoryData?.pages.flatMap((page) => page.rides || []) || [];
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
@@ -387,10 +411,24 @@ export default function DriverWallet() {
               }}
             >
               <Text style={{ fontSize: 13, fontWeight: "800", color: TEXT }}>
-                Recent Completed Rides
+                Ride History
+              </Text>
+              <Text style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 2 }}>
+                Loaded in pages of 10
               </Text>
             </View>
-            {(earningsData?.recentRides || []).length === 0 ? (
+            {rideHistoryLoading ? (
+              <Text
+                style={{
+                  padding: 16,
+                  fontSize: 12,
+                  color: TEXT_SECONDARY,
+                  textAlign: "center",
+                }}
+              >
+                Loading ride history...
+              </Text>
+            ) : rideHistory.length === 0 ? (
               <Text
                 style={{
                   padding: 16,
@@ -402,36 +440,57 @@ export default function DriverWallet() {
                 Completed ride earnings will appear here.
               </Text>
             ) : (
-              earningsData.recentRides.map((ride, index, arr) => (
-                <View
-                  key={ride.id}
-                  style={{
-                    padding: 14,
-                    borderBottomWidth: index < arr.length - 1 ? 1 : 0,
-                    borderBottomColor: "#F5F5F4",
-                    flexDirection: "row",
-                    gap: 12,
-                  }}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      numberOfLines={1}
-                      style={{ fontSize: 13, fontWeight: "700", color: TEXT }}
-                    >
-                      {ride.pickup_address}
-                    </Text>
-                    <Text
-                      numberOfLines={1}
-                      style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 2 }}
-                    >
-                      {ride.dest_address}
+              <>
+                {rideHistory.map((ride, index) => (
+                  <View
+                    key={ride.id}
+                    style={{
+                      padding: 14,
+                      borderBottomWidth: index < rideHistory.length - 1 || hasNextPage ? 1 : 0,
+                      borderBottomColor: "#F5F5F4",
+                      flexDirection: "row",
+                      gap: 12,
+                    }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        numberOfLines={1}
+                        style={{ fontSize: 13, fontWeight: "700", color: TEXT }}
+                      >
+                        {ride.pickup_address}
+                      </Text>
+                      <Text
+                        numberOfLines={1}
+                        style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 2 }}
+                      >
+                        {ride.dest_address}
+                      </Text>
+                      <Text style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 3 }}>
+                        {ride.completed_at
+                          ? new Date(ride.completed_at).toLocaleDateString("en-IN")
+                          : "Completed"}
+                      </Text>
+                    </View>
+                    <Text style={{ fontSize: 13, fontWeight: "800", color: PRIMARY }}>
+                      {formatCurrency(ride.fare)}
                     </Text>
                   </View>
-                  <Text style={{ fontSize: 13, fontWeight: "800", color: PRIMARY }}>
-                    {formatCurrency(ride.estimated_fare)}
-                  </Text>
-                </View>
-              ))
+                ))}
+                {hasNextPage && (
+                  <TouchableOpacity
+                    onPress={() => fetchNextPage()}
+                    disabled={isFetchingNextPage}
+                    style={{
+                      alignItems: "center",
+                      padding: 14,
+                    }}
+                  >
+                    <Text style={{ color: PRIMARY, fontSize: 13, fontWeight: "800" }}>
+                      {isFetchingNextPage ? "Loading..." : "Load More Rides"}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </>
             )}
           </View>
         </View>

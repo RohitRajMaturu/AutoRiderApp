@@ -10,6 +10,7 @@ import {
   Image,
   Linking,
   Platform,
+  Share,
 } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import BottomSheet, { BottomSheetBackdrop, BottomSheetView } from "@gorhom/bottom-sheet";
@@ -190,6 +191,8 @@ export default function PassengerHome() {
   const [negotiationMode, setNegotiationMode] = useState("fixed");
   const [fareMin, setFareMin] = useState("");
   const [fareMax, setFareMax] = useState("");
+  const [fareOfferEdited, setFareOfferEdited] = useState(false);
+  const [fareInputError, setFareInputError] = useState("");
   const [incomingOffers, setIncomingOffers] = useState([]);
   const [negotiationRemaining, setNegotiationRemaining] = useState(0);
   const [dismissedRatingRideIds, setDismissedRatingRideIds] = useState(
@@ -245,6 +248,69 @@ export default function PassengerHome() {
     retry: false,
     refetchOnWindowFocus: false,
   });
+
+  const { data: tripEstimate, isFetching: tripEstimateLoading } = useQuery({
+    queryKey: [
+      "tripEstimate",
+      pickupCoords?.lat,
+      pickupCoords?.lng,
+      destinationCoords?.lat,
+      destinationCoords?.lng,
+    ],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        pickup_lat: String(pickupCoords.lat),
+        pickup_lng: String(pickupCoords.lng),
+        dest_lat: String(destinationCoords.lat),
+        dest_lng: String(destinationCoords.lng),
+      });
+      const res = await fetch(`/api/locations/estimate?${params}`);
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        throw new Error(error.error || "Failed to estimate route");
+      }
+      return res.json();
+    },
+    enabled: !!pickupCoords && !!destinationCoords && !activeRide,
+    staleTime: 30000,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+
+  useEffect(() => {
+    setFareOfferEdited(false);
+    setFareInputError("");
+  }, [
+    pickupCoords?.lat,
+    pickupCoords?.lng,
+    destinationCoords?.lat,
+    destinationCoords?.lng,
+  ]);
+
+  useEffect(() => {
+    if (fareOfferEdited) return;
+
+    const minFare = tripEstimate?.fareRange?.minFare;
+    const maxFare = tripEstimate?.fareRange?.maxFare;
+    const estimateFare = tripEstimate?.fareEstimate;
+    if (!Number.isFinite(Number(minFare)) || !Number.isFinite(Number(maxFare))) {
+      return;
+    }
+
+    setFareMin(String(Math.round(Number(minFare))));
+    setFareMax(
+      String(
+        Math.round(
+          Number.isFinite(Number(estimateFare)) ? Number(estimateFare) : Number(maxFare),
+        ),
+      ),
+    );
+  }, [
+    fareOfferEdited,
+    tripEstimate?.fareEstimate,
+    tripEstimate?.fareRange?.minFare,
+    tripEstimate?.fareRange?.maxFare,
+  ]);
 
   useEffect(() => {
     let mounted = true;
@@ -551,6 +617,8 @@ export default function PassengerHome() {
       setNegotiationMode("fixed");
       setFareMin("");
       setFareMax("");
+      setFareOfferEdited(false);
+      setFareInputError("");
       setFocusedField(null);
     },
     onError: (err) => Alert.alert("Request Failed", err.message),
@@ -608,16 +676,81 @@ export default function PassengerHome() {
     onError: (err) => Alert.alert("Rating Failed", err.message),
   });
 
+  const hasTripEstimate = Number.isFinite(Number(tripEstimate?.fareEstimate));
+  const suggestedMinFare = tripEstimate?.fareRange?.minFare;
+  const suggestedMaxFare = tripEstimate?.fareRange?.maxFare;
+  const hasSuggestedFareRange =
+    Number.isFinite(Number(suggestedMinFare)) &&
+    Number.isFinite(Number(suggestedMaxFare));
+  const fareMinNumber = Number(fareMin);
+  const fareMaxNumber = Number(fareMax);
+  const estimateFareNumber = Number(tripEstimate?.fareEstimate);
+  const offerChoices = hasSuggestedFareRange
+    ? [
+        { label: "Lower", value: Number(suggestedMinFare) },
+        {
+          label: "Fair",
+          value: Number.isFinite(estimateFareNumber)
+            ? estimateFareNumber
+            : Number(suggestedMaxFare),
+        },
+        { label: "Quick", value: Number(suggestedMaxFare) },
+      ]
+    : [];
+  const resetFareOfferToSuggestion = () => {
+    if (!hasSuggestedFareRange) return;
+    setFareMin(String(Math.round(Number(suggestedMinFare))));
+    setFareMax(
+      String(
+        Math.round(
+          Number.isFinite(estimateFareNumber)
+            ? estimateFareNumber
+            : Number(suggestedMaxFare),
+        ),
+      ),
+    );
+    setFareOfferEdited(false);
+  };
+
+  const selectFareOffer = (value) => {
+    setFareOfferEdited(true);
+    setFareInputError("");
+    setFareMin(String(Math.round(Number(suggestedMinFare))));
+    setFareMax(String(Math.round(Number(value))));
+  };
+
+  const validateCustomFareOffer = () => {
+    if (!hasSuggestedFareRange) return;
+
+    const min = Number(suggestedMinFare);
+    const max = Number(suggestedMaxFare);
+    const value = Number(fareMax);
+    if (!Number.isInteger(value) || value < min || value > max) {
+      setFareInputError(
+        `Enter an offer between ${formatCurrency(min)} and ${formatCurrency(max)}.`,
+      );
+      resetFareOfferToSuggestion();
+      return;
+    }
+
+    setFareInputError("");
+    setFareMin(String(Math.round(min)));
+    setFareMax(String(Math.round(value)));
+  };
+
   const canRequest =
     pickup.trim().length > 0 &&
     destination.trim().length > 0 &&
     !!pickupCoords &&
     !!destinationCoords &&
     (negotiationMode === "fixed" ||
-      (Number.isInteger(Number(fareMin)) &&
-        Number.isInteger(Number(fareMax)) &&
-        Number(fareMin) > 0 &&
-        Number(fareMax) >= Number(fareMin))) &&
+      (Number.isInteger(fareMinNumber) &&
+        Number.isInteger(fareMaxNumber) &&
+        fareMinNumber > 0 &&
+        fareMaxNumber >= fareMinNumber &&
+        (!hasSuggestedFareRange ||
+          (fareMinNumber >= Number(suggestedMinFare) &&
+            fareMaxNumber <= Number(suggestedMaxFare))))) &&
     !requestRide.isPending;
 
   const approveCounter = useMutation({
@@ -652,21 +785,10 @@ export default function PassengerHome() {
 
   const shareTripStatus = async (ride) => {
     const message = buildTripStatusMessage(ride);
-    const encodedMessage = encodeURIComponent(message);
-    const whatsappUrl = `whatsapp://send?text=${encodedMessage}`;
-    const smsUrl =
-      Platform.OS === "ios"
-        ? `sms:&body=${encodedMessage}`
-        : `sms:?body=${encodedMessage}`;
-
     try {
-      if (await Linking.canOpenURL(whatsappUrl)) {
-        await Linking.openURL(whatsappUrl);
-        return;
-      }
-      await Linking.openURL(smsUrl);
+      await Share.share({ message });
     } catch {
-      Alert.alert("Share Failed", "Could not open WhatsApp or SMS.");
+      Alert.alert("Share Failed", "Could not open sharing options.");
     }
   };
 
@@ -684,6 +806,11 @@ export default function PassengerHome() {
     dismissedRatingRideIds.has(activeRide.id)
       ? null
       : activeRide;
+  const activeRideAgeSeconds = activeRide?.created_at
+    ? Math.floor((Date.now() - new Date(activeRide.created_at).getTime()) / 1000)
+    : 0;
+  const isLongDriverSearch =
+    activeRide?.status === "requested" && activeRideAgeSeconds >= 60;
   const activePickupCoords = activeRide
     ? { lat: Number(activeRide.pickup_lat), lng: Number(activeRide.pickup_lng) }
     : null;
@@ -712,7 +839,6 @@ export default function PassengerHome() {
       (offer, index, offers) =>
         offers.findIndex((item) => item.driver_id === offer.driver_id) === index,
     );
-
   const updatePickupFromMap = async ({ latitude, longitude }) => {
     setPickupCoords({ lat: latitude, lng: longitude });
     setPickupPlaceId(null);
@@ -1054,6 +1180,27 @@ export default function PassengerHome() {
               )}
 
               {/* Route info */}
+              {isLongDriverSearch && (
+                <View
+                  style={{
+                    margin: 16,
+                    marginBottom: 0,
+                    backgroundColor: "#FEF3C7",
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: "#FDE68A",
+                    padding: 12,
+                  }}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: "900", color: "#92400E" }}>
+                    Taking longer than usual
+                  </Text>
+                  <Text style={{ fontSize: 12, color: "#92400E", marginTop: 4, lineHeight: 18 }}>
+                    Nearby drivers may be busy. You can keep waiting or cancel and try again.
+                  </Text>
+                </View>
+              )}
+
               <View style={{ padding: 20 }}>
                 <View style={{ flexDirection: "row", gap: 16 }}>
                   <View style={{ alignItems: "center", paddingTop: 4 }}>
@@ -1139,10 +1286,10 @@ export default function PassengerHome() {
                       <IndianRupee size={ICON.md} color="#0369A1" />
                       <View style={{ flex: 1 }}>
                         <Text style={{ fontSize: 14, fontWeight: "800", color: TEXT }}>
-                          Fare range {formatCurrency(activeRide.fare_min)} - {formatCurrency(activeRide.fare_max)}
+                          Your offer {formatCurrency(activeRide.fare_max)}
                         </Text>
                         <Text style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 2 }}>
-                          Waiting for nearby drivers to accept or counter.
+                          Drivers can accept this fare or send one counter.
                         </Text>
                       </View>
                       <Text style={{ fontSize: 18, fontWeight: "900", color: "#0369A1" }}>
@@ -1773,11 +1920,132 @@ export default function PassengerHome() {
                 })}
               </View>
 
-              {negotiationMode === "negotiated" && (
+              {(tripEstimateLoading || hasTripEstimate) && (
+                <View
+                  style={{
+                    marginTop: 14,
+                    paddingTop: 14,
+                    borderTopWidth: 1,
+                    borderTopColor: BORDER,
+                    gap: 10,
+                  }}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <IndianRupee size={ICON.sm} color={PRIMARY} />
+                    <Text style={{ fontSize: 13, fontWeight: "900", color: TEXT }}>
+                      {tripEstimateLoading
+                        ? "Calculating fare..."
+                        : `Estimated fare ${formatCurrency(tripEstimate.fareEstimate)}`}
+                    </Text>
+                  </View>
+                  {hasTripEstimate && (
+                    <View style={{ flexDirection: "row", gap: 12 }}>
+                      <Text style={{ flex: 1, fontSize: 12, color: TEXT_SECONDARY }}>
+                        {Number(tripEstimate.distanceKm || 0).toFixed(1)} km
+                      </Text>
+                      {hasSuggestedFareRange && (
+                        <Text
+                          style={{
+                            flex: 2,
+                            fontSize: 12,
+                            color: TEXT_SECONDARY,
+                            textAlign: "right",
+                            fontWeight: "700",
+                          }}
+                        >
+                          Offer between {formatCurrency(suggestedMinFare)} - {formatCurrency(suggestedMaxFare)}
+                        </Text>
+                      )}
+                    </View>
+                  )}
+                </View>
+              )}
+
+              {negotiationMode === "negotiated" && hasSuggestedFareRange && (
+                <View style={{ marginTop: 12, gap: 12 }}>
+                  <Text style={{ fontSize: 11, fontWeight: "800", color: TEXT_MUTED, textTransform: "uppercase" }}>
+                    Your offer
+                  </Text>
+                  <View style={{ flexDirection: "row", gap: 8 }}>
+                    {offerChoices.map((choice) => {
+                      const selected = Math.round(fareMaxNumber) === Math.round(choice.value);
+                      return (
+                        <TouchableOpacity
+                          key={`${choice.label}-${choice.value}`}
+                          onPress={() => selectFareOffer(choice.value)}
+                          style={{
+                            flex: 1,
+                            borderRadius: 10,
+                            borderWidth: 1,
+                            borderColor: selected ? PRIMARY_BORDER : BORDER,
+                            backgroundColor: selected ? PRIMARY_LIGHT : "#F5F5F4",
+                            paddingVertical: 10,
+                            paddingHorizontal: 6,
+                            alignItems: "center",
+                          }}
+                        >
+                          <Text style={{ fontSize: 10, fontWeight: "800", color: selected ? PRIMARY : TEXT_MUTED }}>
+                            {choice.label}
+                          </Text>
+                          <Text style={{ fontSize: 14, fontWeight: "900", color: TEXT, marginTop: 2 }}>
+                            {formatCurrency(choice.value)}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                    <Text
+                      style={{
+                        flex: 1,
+                        fontSize: 12,
+                        color: TEXT_SECONDARY,
+                        lineHeight: 18,
+                      }}
+                    >
+                      Drivers see this as your requested fare.
+                    </Text>
+                    <TextInput
+                      value={fareMax}
+                      onChangeText={(value) => {
+                        setFareOfferEdited(true);
+                        setFareInputError("");
+                        setFareMax(value.replace(/[^\d]/g, ""));
+                      }}
+                      onEndEditing={validateCustomFareOffer}
+                      placeholder="Custom"
+                      placeholderTextColor={TEXT_MUTED}
+                      keyboardType="number-pad"
+                      style={{
+                        width: 98,
+                        borderRadius: 10,
+                        borderWidth: 1,
+                        borderColor: BORDER,
+                        backgroundColor: "#F5F5F4",
+                        paddingHorizontal: 10,
+                        paddingVertical: 10,
+                        color: TEXT,
+                        fontWeight: "900",
+                        textAlign: "center",
+                      }}
+                    />
+                  </View>
+                  {!!fareInputError && (
+                    <Text style={{ fontSize: 12, color: "#DC2626", fontWeight: "700" }}>
+                      {fareInputError}
+                    </Text>
+                  )}
+                </View>
+              )}
+
+              {negotiationMode === "negotiated" && !hasSuggestedFareRange && (
                 <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
                   <TextInput
                     value={fareMin}
-                    onChangeText={(value) => setFareMin(value.replace(/[^\d]/g, ""))}
+                    onChangeText={(value) => {
+                      setFareOfferEdited(true);
+                      setFareMin(value.replace(/[^\d]/g, ""));
+                    }}
                     placeholder="Min fare"
                     placeholderTextColor={TEXT_MUTED}
                     keyboardType="number-pad"
@@ -1795,7 +2063,10 @@ export default function PassengerHome() {
                   />
                   <TextInput
                     value={fareMax}
-                    onChangeText={(value) => setFareMax(value.replace(/[^\d]/g, ""))}
+                    onChangeText={(value) => {
+                      setFareOfferEdited(true);
+                      setFareMax(value.replace(/[^\d]/g, ""));
+                    }}
                     placeholder="Max fare"
                     placeholderTextColor={TEXT_MUTED}
                     keyboardType="number-pad"

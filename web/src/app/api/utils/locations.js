@@ -1,6 +1,8 @@
 const OLA_BASE_URL = "https://api.olamaps.io";
 const AUTO_BASE_FARE_INR = 35;
 const AUTO_PER_KM_FARE_INR = 18;
+const NEGOTIATION_MIN_PERCENT = 0.9;
+const NEGOTIATION_MAX_PERCENT = 1.1;
 
 function getApiKey() {
   return process.env.OLAMAPS_API_KEY;
@@ -90,6 +92,25 @@ function round(value, precision = 2) {
 
 function calculateAutoFare(distanceKm) {
   return Math.round(AUTO_BASE_FARE_INR + distanceKm * AUTO_PER_KM_FARE_INR);
+}
+
+function roundFareToNearestFive(value) {
+  return Math.max(5, Math.round(value / 5) * 5);
+}
+
+export function calculateNegotiationFareRange(estimatedFare) {
+  const fare = parseNumber(estimatedFare);
+  if (fare === null || fare <= 0) {
+    return { minFare: null, maxFare: null };
+  }
+
+  const minFare = roundFareToNearestFive(fare * NEGOTIATION_MIN_PERCENT);
+  const maxFare = Math.max(
+    minFare,
+    roundFareToNearestFive(fare * NEGOTIATION_MAX_PERCENT),
+  );
+
+  return { minFare, maxFare };
 }
 
 function normalizePlace(place, provider = "local") {
@@ -403,12 +424,14 @@ export async function reverseGeocodeLocation({ lat, lng }) {
 
 export async function estimateRoute({ pickupLat, pickupLng, destLat, destLng }) {
   const estimate = await getRouteEstimate(pickupLat, pickupLng, destLat, destLng);
+  const fareRange = calculateNegotiationFareRange(estimate.estimatedFare);
 
   return {
     ...estimate,
     distanceMeters: Math.round(estimate.distanceKm * 1000),
     durationSeconds: estimate.durationMins * 60,
     fareEstimate: estimate.estimatedFare,
+    fareRange,
     currency: "INR",
   };
 }

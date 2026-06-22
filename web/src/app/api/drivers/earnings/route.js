@@ -28,15 +28,15 @@ export async function GET(request) {
     const [totals, recentRides] = await Promise.all([
       sql`
         SELECT
-          COALESCE(SUM(estimated_fare) FILTER (WHERE completed_at >= CURRENT_DATE), 0) AS today,
-          COALESCE(SUM(estimated_fare) FILTER (WHERE completed_at >= CURRENT_DATE - INTERVAL '6 days'), 0) AS week,
-          COALESCE(SUM(estimated_fare) FILTER (WHERE completed_at >= CURRENT_DATE - INTERVAL '29 days'), 0) AS month
+          COALESCE(SUM(COALESCE(final_fare, estimated_fare)) FILTER (WHERE completed_at >= CURRENT_DATE), 0) AS today,
+          COALESCE(SUM(COALESCE(final_fare, estimated_fare)) FILTER (WHERE completed_at >= CURRENT_DATE - INTERVAL '6 days'), 0) AS week,
+          COALESCE(SUM(COALESCE(final_fare, estimated_fare)) FILTER (WHERE completed_at >= CURRENT_DATE - INTERVAL '29 days'), 0) AS month
         FROM rides
         WHERE driver_id = ${driverId}
           AND status = 'completed'
       `,
       sql`
-        SELECT id, pickup_address, dest_address, estimated_fare, completed_at
+        SELECT id, pickup_address, dest_address, COALESCE(final_fare, estimated_fare) AS fare, completed_at
         FROM rides
         WHERE driver_id = ${driverId}
           AND status = 'completed'
@@ -51,7 +51,7 @@ export async function GET(request) {
       month: toNumber(totals[0]?.month),
       recentRides: recentRides.map((ride) => ({
         ...ride,
-        estimated_fare: toNumber(ride.estimated_fare),
+        fare: toNumber(ride.fare),
       })),
     });
   } catch (err) {

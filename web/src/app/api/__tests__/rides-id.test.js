@@ -58,6 +58,41 @@ describe("ride detail route", () => {
     expect(response.status).toBe(409);
   });
 
+  it("returns ride cancelled when a driver accepts a request already cancelled by the passenger", async () => {
+    mocks.auth.mockResolvedValue({ user: { id: "driver-user-1" } });
+    mocks.sql.mockResolvedValueOnce([
+      {
+        id: "driver-1",
+        zone_id: "zone-1",
+        is_online: true,
+        is_approved: true,
+        subscription_expiry: new Date(Date.now() + 60000).toISOString(),
+      },
+    ]);
+    mocks.sql.mockResolvedValueOnce([]);
+    mocks.sql.mockResolvedValueOnce([
+      {
+        status: "cancelled",
+        driver_id: null,
+        zone_id: "zone-1",
+      },
+    ]);
+    const { PATCH } = await import("@/app/api/rides/[id]/route.js");
+
+    const response = await PATCH(
+      new Request("http://localhost/api/rides/ride-1", {
+        method: "PATCH",
+        body: JSON.stringify({ action: "accept" }),
+      }),
+      { params: { id: "ride-1" } },
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(body.code).toBe("RIDE_CANCELLED");
+    expect(body.error).toBe("Passenger cancelled this ride");
+  });
+
   it("allows a passenger to rate their completed ride once", async () => {
     mocks.auth.mockResolvedValue({ user: { id: "passenger-1" } });
     mocks.sql.mockResolvedValueOnce([

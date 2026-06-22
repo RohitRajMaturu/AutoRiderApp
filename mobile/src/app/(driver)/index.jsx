@@ -11,6 +11,7 @@ import {
   Platform,
   RefreshControl,
   Image as RNImage,
+  Modal,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -31,8 +32,8 @@ import { StatusBar } from "expo-status-bar";
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
 import { Audio } from "expo-av";
+import { toast } from "sonner-native";
 import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedView";
-import TukTukGoLoader from "@/components/TukTukGoLoader";
 import { useAuth } from "@/utils/auth/useAuth";
 import { ICON } from "@/theme/iconScale";
 import { createRidePusher } from "@/utils/pusher";
@@ -80,6 +81,31 @@ function formatCurrency(value) {
 
 function rideFare(ride) {
   return ride?.final_fare ?? ride?.estimated_fare ?? 0;
+}
+
+async function readApiError(response, fallback) {
+  const error = await response.json().catch(() => ({}));
+  const message = error.error || fallback;
+  const apiError = new Error(message);
+  apiError.code = error.code || message;
+  apiError.status = response.status;
+  throw apiError;
+}
+
+function showDriverNotice(title, description) {
+  toast(title, {
+    description,
+    duration: 3500,
+  });
+}
+
+function isStaleRideError(err) {
+  return [
+    "RIDE_CANCELLED",
+    "RIDE_ALREADY_ACCEPTED",
+    "RIDE_UNAVAILABLE",
+    "RIDE_ACCEPT_UNAVAILABLE",
+  ].includes(err?.code);
 }
 
 async function playRideRequestChime() {
@@ -843,6 +869,7 @@ function PendingScreen() {
 // ─── Ride Request Card ────────────────────────────────────────────────────────
 function RideRequestCard({
   ride,
+  driverId,
   onAccept,
   isAccepting,
   onFareOffer,
@@ -851,225 +878,107 @@ function RideRequestCard({
 }) {
   const [counterFare, setCounterFare] = useState("");
   const isNegotiating = ride.status === "negotiating";
+  const driverOffer = Array.isArray(ride.fare_offers)
+    ? ride.fare_offers.find((offer) => offer.driver_id === driverId)
+    : null;
+  const hasCountered = driverOffer?.offer_type === "counter";
+  const hasDeclined = driverOffer?.offer_type === "decline";
+  const isWaitingForPassenger = isNegotiating && hasCountered;
   const timeAgo = () => {
     const diff = Math.floor((Date.now() - new Date(ride.created_at)) / 1000);
     if (diff < 60) return `${diff}s ago`;
     return `${Math.floor(diff / 60)}m ago`;
   };
+
   return (
-    <View
-      style={{
-        backgroundColor: SURFACE,
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: BORDER,
-        marginBottom: 12,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
-        elevation: 3,
-        overflow: "hidden",
-      }}
-    >
-      <View
-        style={{
-          padding: 14,
-          borderBottomWidth: 1,
-          borderBottomColor: "#F5F5F4",
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
+    <View style={{ backgroundColor: SURFACE, borderRadius: 16, borderWidth: 1, borderColor: BORDER, marginBottom: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3, overflow: "hidden" }}>
+      <View style={{ padding: 14, borderBottomWidth: 1, borderBottomColor: "#F5F5F4", flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <View
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: 4,
-              backgroundColor: isNegotiating ? "#0369A1" : "#22C55E",
-            }}
-          />
+          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: isNegotiating ? "#0369A1" : "#22C55E" }} />
           <Text style={{ fontSize: 12, fontWeight: "700", color: isNegotiating ? "#0369A1" : SUCCESS }}>
-            {isNegotiating ? "Fare Negotiation" : "New Request"}
+            {isWaitingForPassenger ? "Waiting for Passenger" : isNegotiating ? "Fare Negotiation" : "New Request"}
           </Text>
         </View>
         <Text style={{ fontSize: 11, color: TEXT_MUTED }}>{timeAgo()}</Text>
       </View>
+
       <View style={{ padding: 16 }}>
         <View style={{ flexDirection: "row", gap: 14 }}>
           <View style={{ alignItems: "center", paddingTop: 4 }}>
-            <View
-              style={{
-                width: 10,
-                height: 10,
-                borderRadius: 5,
-                backgroundColor: PRIMARY,
-              }}
-            />
-            <View
-              style={{
-                width: 1.5,
-                height: 26,
-                backgroundColor: BORDER,
-                marginVertical: 3,
-              }}
-            />
-            <View
-              style={{
-                width: 10,
-                height: 10,
-                borderRadius: 2,
-                backgroundColor: TEXT,
-              }}
-            />
+            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: PRIMARY }} />
+            <View style={{ width: 1.5, height: 26, backgroundColor: BORDER, marginVertical: 3 }} />
+            <View style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: TEXT }} />
           </View>
           <View style={{ flex: 1, gap: 10 }}>
             <View>
-              <Text
-                style={{
-                  fontSize: 10,
-                  fontWeight: "700",
-                  color: TEXT_MUTED,
-                  textTransform: "uppercase",
-                  letterSpacing: 0.5,
-                  marginBottom: 2,
-                }}
-              >
-                Pickup / పికప్ / पिकअप
-              </Text>
-              <Text
-                style={{ fontSize: 14, fontWeight: "600", color: TEXT }}
-                numberOfLines={1}
-              >
-                {ride.pickup_address}
-              </Text>
+              <Text style={{ fontSize: 10, fontWeight: "700", color: TEXT_MUTED, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 2 }}>Pickup</Text>
+              <Text style={{ fontSize: 14, fontWeight: "600", color: TEXT }} numberOfLines={1}>{ride.pickup_address}</Text>
             </View>
             <View>
-              <Text
-                style={{
-                  fontSize: 10,
-                  fontWeight: "700",
-                  color: TEXT_MUTED,
-                  textTransform: "uppercase",
-                  letterSpacing: 0.5,
-                  marginBottom: 2,
-                }}
-              >
-                Drop
-              </Text>
-              <Text
-                style={{ fontSize: 14, fontWeight: "600", color: TEXT }}
-                numberOfLines={1}
-              >
-                {ride.dest_address}
-              </Text>
+              <Text style={{ fontSize: 10, fontWeight: "700", color: TEXT_MUTED, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 2 }}>Drop</Text>
+              <Text style={{ fontSize: 14, fontWeight: "600", color: TEXT }} numberOfLines={1}>{ride.dest_address}</Text>
             </View>
           </View>
         </View>
+
         {isNegotiating && (
-          <View
-            style={{
-              marginTop: 14,
-              borderRadius: 12,
-              borderWidth: 1,
-              borderColor: "#BAE6FD",
-              backgroundColor: "#F0F9FF",
-              padding: 12,
-            }}
-          >
-            <Text style={{ fontSize: 13, fontWeight: "800", color: TEXT }}>
-              Passenger range {formatCurrency(ride.fare_min)} - {formatCurrency(ride.fare_max)}
-            </Text>
-            <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
-              <TextInput
-                value={counterFare}
-                onChangeText={(value) => setCounterFare(value.replace(/[^\d]/g, ""))}
-                placeholder="Counter fare"
-                placeholderTextColor={TEXT_MUTED}
-                keyboardType="number-pad"
-                editable={!isOffering && !isLocked}
-                style={{
-                  flex: 1,
-                  borderRadius: 10,
-                  borderWidth: 1,
-                  borderColor: BORDER,
-                  backgroundColor: SURFACE,
-                  paddingHorizontal: 12,
-                  color: TEXT,
-                  fontWeight: "700",
-                }}
-              />
-              <TouchableOpacity
-                onPress={() =>
-                  onFareOffer(ride.id, {
-                    offerType: "counter",
-                    offeredFare: Number(counterFare),
-                  })
-                }
-                disabled={isOffering || isLocked || !counterFare}
-                style={{
-                  borderRadius: 10,
-                  backgroundColor: isOffering || isLocked || !counterFare ? "#BFD1D3" : "#0369A1",
-                  paddingHorizontal: 14,
-                  justifyContent: "center",
-                }}
-              >
-                <Text style={{ color: "#fff", fontSize: 12, fontWeight: "800" }}>
-                  Counter
-                </Text>
-              </TouchableOpacity>
-            </View>
+          <View style={{ marginTop: 14, borderRadius: 12, borderWidth: 1, borderColor: "#BAE6FD", backgroundColor: "#F0F9FF", padding: 12 }}>
+            <Text style={{ fontSize: 11, fontWeight: "800", color: "#0369A1", textTransform: "uppercase" }}>Passenger offer</Text>
+            <Text style={{ fontSize: 22, fontWeight: "900", color: TEXT, marginTop: 2 }}>{formatCurrency(ride.fare_max)}</Text>
+            <Text style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 2 }}>Accept this fare or send one higher counter.</Text>
+
+            {isWaitingForPassenger ? (
+              <View style={{ marginTop: 12, borderRadius: 10, borderWidth: 1, borderColor: "#BFDBFE", backgroundColor: SURFACE, padding: 12 }}>
+                <Text style={{ fontSize: 12, fontWeight: "900", color: "#0369A1" }}>Counter sent: {formatCurrency(driverOffer.offered_fare)}</Text>
+                <Text style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 4, lineHeight: 18 }}>Waiting for the passenger to accept. This card will update when they respond.</Text>
+              </View>
+            ) : (
+              <View style={{ gap: 8, marginTop: 12 }}>
+                <TextInput
+                  value={counterFare}
+                  onChangeText={(value) => setCounterFare(value.replace(/[^\d]/g, ""))}
+                  placeholder="Counter fare"
+                  placeholderTextColor={TEXT_MUTED}
+                  keyboardType="number-pad"
+                  editable={!isOffering && !isLocked && !hasDeclined}
+                  style={{ borderRadius: 10, borderWidth: 1, borderColor: BORDER, backgroundColor: SURFACE, paddingHorizontal: 12, paddingVertical: 12, minHeight: 48, color: TEXT, fontWeight: "700", fontSize: 16 }}
+                />
+                <TouchableOpacity
+                  onPress={() => onFareOffer(ride.id, { offerType: "counter", offeredFare: Number(counterFare) })}
+                  disabled={isOffering || isLocked || !counterFare || hasDeclined}
+                  style={{ borderRadius: 10, backgroundColor: isOffering || isLocked || !counterFare || hasDeclined ? "#BFD1D3" : "#0369A1", paddingVertical: 12, alignItems: "center" }}
+                >
+                  <Text style={{ color: "#fff", fontSize: 13, fontWeight: "800" }}>Send Counter</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         )}
 
-        <TouchableOpacity
-          onPress={() =>
-            isNegotiating
-              ? onFareOffer(ride.id, { offerType: "accept" })
-              : onAccept(ride.id)
-          }
-          disabled={isAccepting || isOffering || isLocked}
-          style={{
-            marginTop: 14,
-            backgroundColor: isLocked ? "#BFD1D3" : PRIMARY,
-            borderRadius: 12,
-            paddingVertical: 14,
-            alignItems: "center",
-            shadowColor: PRIMARY,
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.25,
-            shadowRadius: 8,
-            elevation: 4,
-          }}
-          activeOpacity={0.85}
-        >
-          <Text style={{ color: "#fff", fontSize: 15, fontWeight: "700" }}>
-            {isAccepting ? "Accepting..." : "✅ Accept Ride / రైడ్ తీసుకోండి / राइड लें"}
-          </Text>
-        </TouchableOpacity>
-        {isNegotiating && (
+        {!isWaitingForPassenger && !hasDeclined && (
           <TouchableOpacity
-            onPress={() => onFareOffer(ride.id, { offerType: "decline" })}
-            disabled={isOffering || isLocked}
-            style={{
-              marginTop: 10,
-              alignItems: "center",
-              paddingVertical: 10,
-            }}
+            onPress={() => isNegotiating ? onFareOffer(ride.id, { offerType: "accept" }) : onAccept(ride.id)}
+            disabled={isAccepting || isOffering || isLocked}
+            style={{ marginTop: 14, backgroundColor: isLocked ? "#BFD1D3" : PRIMARY, borderRadius: 12, paddingVertical: 14, alignItems: "center", shadowColor: PRIMARY, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 4 }}
+            activeOpacity={0.85}
           >
-            <Text style={{ color: "#DC2626", fontSize: 13, fontWeight: "700" }}>
-              Decline
-            </Text>
+            <Text style={{ color: "#fff", fontSize: 15, fontWeight: "700" }}>{isAccepting ? "Accepting..." : "Accept Ride"}</Text>
           </TouchableOpacity>
+        )}
+
+        {isNegotiating && !isWaitingForPassenger && !hasDeclined && (
+          <TouchableOpacity onPress={() => onFareOffer(ride.id, { offerType: "decline" })} disabled={isOffering || isLocked} style={{ marginTop: 10, alignItems: "center", paddingVertical: 10 }}>
+            <Text style={{ color: "#DC2626", fontSize: 13, fontWeight: "700" }}>Decline</Text>
+          </TouchableOpacity>
+        )}
+
+        {hasDeclined && (
+          <Text style={{ marginTop: 12, color: TEXT_MUTED, fontSize: 12, fontWeight: "700" }}>You declined this request.</Text>
         )}
       </View>
     </View>
   );
 }
-
-// ─── Active Ride Card ─────────────────────────────────────────────────────────
 function KycGateScreen({ status, reason }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -1342,16 +1251,10 @@ function ActiveRideCard({
           <TouchableOpacity
             onPress={() => {
               if (!hasStarted) {
-                Alert.alert("Start Ride?", "Start this ride after the passenger boards?", [
-                  { text: "Cancel", style: "cancel" },
-                  { text: "Start Ride", onPress: () => onStart(ride.id) },
-                ]);
+                onStart(ride.id);
                 return;
               }
-              Alert.alert("Complete Ride?", "Mark this ride as completed after drop-off?", [
-                { text: "Cancel", style: "cancel" },
-                { text: "Complete", onPress: () => onComplete(ride.id) },
-              ]);
+              onComplete(ride.id);
             }}
             disabled={isStarting || isCompleting || isCancelling}
             style={{
@@ -1374,12 +1277,7 @@ function ActiveRideCard({
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() =>
-              Alert.alert("Cancel Ride?", "Cancel this accepted ride?", [
-                { text: "Keep Ride", style: "cancel" },
-                { text: "Cancel Ride", style: "destructive", onPress: () => onCancel(ride.id) },
-              ])
-            }
+            onPress={() => onCancel(ride.id)}
             disabled={isStarting || isCompleting || isCancelling}
             style={{
               flex: 1,
@@ -1471,6 +1369,103 @@ function CompletedRideSummary({ ride, onDismiss }) {
   );
 }
 
+function TopLineLoader({ visible }) {
+  if (!visible) return null;
+
+  return (
+    <View
+      pointerEvents="none"
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        height: 3,
+        backgroundColor: PRIMARY_LIGHT,
+        zIndex: 10,
+      }}
+    >
+      <View
+        style={{
+          width: "42%",
+          height: "100%",
+          backgroundColor: PRIMARY,
+          borderTopRightRadius: 99,
+          borderBottomRightRadius: 99,
+        }}
+      />
+    </View>
+  );
+}
+
+function ConfirmActionModal({ config, onClose }) {
+  if (!config) return null;
+
+  return (
+    <Modal transparent visible animationType="fade" onRequestClose={onClose}>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: "rgba(23, 39, 43, 0.42)",
+          justifyContent: "flex-end",
+        }}
+      >
+        <View
+          style={{
+            backgroundColor: SURFACE,
+            borderTopLeftRadius: 20,
+            borderTopRightRadius: 20,
+            padding: 20,
+            paddingBottom: 28,
+          }}
+        >
+          <Text style={{ fontSize: 18, fontWeight: "900", color: TEXT }}>
+            {config.title}
+          </Text>
+          <Text style={{ fontSize: 13, color: TEXT_SECONDARY, marginTop: 8, lineHeight: 20 }}>
+            {config.message}
+          </Text>
+          <View style={{ flexDirection: "row", gap: 10, marginTop: 18 }}>
+            <TouchableOpacity
+              onPress={onClose}
+              style={{
+                flex: 1,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: BORDER,
+                paddingVertical: 13,
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ color: TEXT_SECONDARY, fontWeight: "800" }}>
+                {config.cancelLabel || "Not Now"}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => {
+                const action = config.onConfirm;
+                onClose();
+                action?.();
+              }}
+              style={{
+                flex: 1,
+                borderRadius: 12,
+                backgroundColor: config.destructive ? "#DC2626" : PRIMARY,
+                paddingVertical: 13,
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ color: "#fff", fontWeight: "900" }}>
+                {config.confirmLabel}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 export default function DriverHome() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
@@ -1478,6 +1473,8 @@ export default function DriverHome() {
   const notifiedRideRequestIds = useRef(new Set());
   const [lockedRideIds, setLockedRideIds] = useState(() => new Set());
   const [completedRideSummary, setCompletedRideSummary] = useState(null);
+  const [visibleRequestCount, setVisibleRequestCount] = useState(5);
+  const [confirmAction, setConfirmAction] = useState(null);
   const onlineToggleAnim = useRef(new Animated.Value(0)).current;
   const { auth } = useAuth();
   const authUserKey =
@@ -1566,6 +1563,17 @@ export default function DriverHome() {
       playRideRequestChime();
     }
   }, [ridesData?.rides]);
+
+  useEffect(() => {
+    const openRideCount = (ridesData?.rides || []).filter(
+      (ride) =>
+        (ride.status === "requested" || ride.status === "negotiating") &&
+        !ride.driver_id,
+    ).length;
+    if (!driverData?.driver?.is_online || openRideCount <= 5) {
+      setVisibleRequestCount(5);
+    }
+  }, [ridesData?.rides, driverData?.driver?.is_online]);
 
   useEffect(() => {
     const negotiatingRides = (ridesData?.rides || []).filter(
@@ -1668,16 +1676,22 @@ export default function DriverHome() {
         body: JSON.stringify({ action: "accept" }),
       });
       if (!res.ok) {
-        const error = await res.json().catch(() => ({}));
-        throw new Error(error.error || "Failed to accept ride");
+        await readApiError(res, "Failed to accept ride");
       }
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["driverRides", authUserKey] });
-      Alert.alert("🎉 Ride Accepted!", "Head to the pickup location now!");
+      showDriverNotice("Ride accepted", "Head to the pickup location now.");
     },
-    onError: (err) => Alert.alert("Accept Failed", err.message),
+    onError: (err) => {
+      queryClient.invalidateQueries({ queryKey: ["driverRides", authUserKey] });
+      if (isStaleRideError(err)) {
+        showDriverNotice("Ride no longer available", err.message);
+        return;
+      }
+      Alert.alert("Accept Failed", err.message);
+    },
   });
 
   const fareOffer = useMutation({
@@ -1688,20 +1702,26 @@ export default function DriverHome() {
         body: JSON.stringify({ offerType, offeredFare }),
       });
       if (!res.ok) {
-        const error = await res.json().catch(() => ({}));
-        throw new Error(error.error || "Failed to submit fare offer");
+        await readApiError(res, "Failed to submit fare offer");
       }
       return res.json();
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["driverRides", authUserKey] });
       if (variables.offerType === "accept") {
-        Alert.alert("Ride Accepted!", "Head to the pickup location now!");
+        showDriverNotice("Ride accepted", "Head to the pickup location now.");
       } else if (variables.offerType === "counter") {
-        Alert.alert("Counter Sent", "The passenger can now approve your fare.");
+        showDriverNotice("Counter sent", "The passenger can now approve your fare.");
       }
     },
-    onError: (err) => Alert.alert("Offer Failed", err.message),
+    onError: (err) => {
+      queryClient.invalidateQueries({ queryKey: ["driverRides", authUserKey] });
+      if (isStaleRideError(err) || err.status === 409) {
+        showDriverNotice("Ride no longer available", err.message);
+        return;
+      }
+      Alert.alert("Offer Failed", err.message);
+    },
   });
 
   const completeRide = useMutation({
@@ -1719,8 +1739,10 @@ export default function DriverHome() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["driverRides", authUserKey] });
+      queryClient.invalidateQueries({ queryKey: ["driverEarnings", authUserKey] });
+      queryClient.invalidateQueries({ queryKey: ["driverRideHistory", authUserKey] });
       setCompletedRideSummary(data.ride);
-      Alert.alert("Ride Completed", `Fare: ${formatCurrency(rideFare(data.ride))}`);
+      showDriverNotice("Ride completed", `Fare: ${formatCurrency(rideFare(data.ride))}`);
     },
   });
 
@@ -1765,21 +1787,16 @@ export default function DriverHome() {
     onError: (err) => Alert.alert("Cancel Failed", err.message),
   });
 
-  if (driverLoading) {
+  if (driverLoading && !driverData) {
     return (
       <View
         style={{
           flex: 1,
-          justifyContent: "center",
-          alignItems: "center",
           backgroundColor: BG,
         }}
       >
-        <TukTukGoLoader
-          label="Loading dashboard..."
-          color={PRIMARY}
-          textColor={TEXT_SECONDARY}
-        />
+        <StatusBar style="dark" />
+        <TopLineLoader visible />
       </View>
     );
   }
@@ -1848,12 +1865,21 @@ export default function DriverHome() {
   const rides = ridesData?.rides || [];
   const activeRide = rides.find((r) => r.status === "accepted");
   const availableRides = rides.filter(
-    (r) =>
-      (r.status === "requested" || r.status === "negotiating") &&
-      !r.driver_id &&
-      (r.status !== "negotiating" ||
-        !(Array.isArray(r.fare_offers) &&
-          r.fare_offers.some((offer) => offer.driver_id === driver.id))),
+    (r) => {
+      const driverOffer = Array.isArray(r.fare_offers)
+        ? r.fare_offers.find((offer) => offer.driver_id === driver.id)
+        : null;
+      return (
+        (r.status === "requested" || r.status === "negotiating") &&
+        !r.driver_id &&
+        driverOffer?.offer_type !== "decline"
+      );
+    },
+  );
+  const visibleAvailableRides = availableRides.slice(0, visibleRequestCount);
+  const hiddenAvailableRideCount = Math.max(
+    availableRides.length - visibleAvailableRides.length,
+    0,
   );
   const expiryDate = driver.subscription_expiry
     ? new Date(driver.subscription_expiry)
@@ -1861,12 +1887,13 @@ export default function DriverHome() {
   const isExpired = !expiryDate || expiryDate < new Date();
   const toggleThumbTranslate = onlineToggleAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, 72],
+    outputRange: [0, 30],
   });
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
       <StatusBar style="dark" />
+      <TopLineLoader visible={driverLoading || isRefetching} />
 
       {/* Header */}
       <View
@@ -1928,7 +1955,7 @@ export default function DriverHome() {
             </Text>
             </View>
           </View>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginLeft: 10 }}>
           <TouchableOpacity
             onPress={() => {
               if (!driver.is_online && isExpired) {
@@ -1947,10 +1974,10 @@ export default function DriverHome() {
           >
             <Animated.View
               style={{
-                width: 112,
-                height: 40,
-                borderRadius: 20,
-                padding: 4,
+                width: 64,
+                height: 34,
+                borderRadius: 17,
+                padding: 3,
                 backgroundColor: driver.is_online ? SUCCESS : "#D8E4E5",
                 borderWidth: 1,
                 borderColor: driver.is_online ? "#BBF7D0" : BORDER,
@@ -1958,29 +1985,19 @@ export default function DriverHome() {
                 justifyContent: "center",
               }}
             >
-              <Text
-                style={{
-                  position: "absolute",
-                  left: driver.is_online ? 12 : 47,
-                  fontSize: 11,
-                  fontWeight: "800",
-                  color: driver.is_online ? "#fff" : TEXT_MUTED,
-                }}
-              >
-                {toggleStatus.isPending
-                  ? "..."
-                  : driver.is_online
-                    ? "Online"
-                    : "Offline"}
-              </Text>
               <Animated.View
                 style={{
-                  width: 40,
-                  height: 32,
-                  borderRadius: 16,
+                  width: 28,
+                  height: 28,
+                  borderRadius: 14,
                   backgroundColor: SURFACE,
                   alignItems: "center",
                   justifyContent: "center",
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.12,
+                  shadowRadius: 4,
+                  elevation: 3,
                   transform: [{ translateX: toggleThumbTranslate }],
                 }}
               >
@@ -2064,7 +2081,7 @@ export default function DriverHome() {
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={isRefetching}
+            refreshing={false}
             onRefresh={refetchRides}
             tintColor={PRIMARY}
           />
@@ -2073,9 +2090,32 @@ export default function DriverHome() {
         {activeRide && (
           <ActiveRideCard
             ride={activeRide}
-            onStart={(id) => startRide.mutate(id)}
-            onComplete={(id) => completeRide.mutate(id)}
-            onCancel={(id) => cancelRide.mutate(id)}
+            onStart={(id) =>
+              setConfirmAction({
+                title: "Start ride?",
+                message: "Start this ride after the passenger boards.",
+                confirmLabel: "Start Ride",
+                onConfirm: () => startRide.mutate(id),
+              })
+            }
+            onComplete={(id) =>
+              setConfirmAction({
+                title: "Complete ride?",
+                message: "Mark this ride as completed after drop-off.",
+                confirmLabel: "Complete",
+                onConfirm: () => completeRide.mutate(id),
+              })
+            }
+            onCancel={(id) =>
+              setConfirmAction({
+                title: "Cancel ride?",
+                message: "Cancel this accepted ride only if you cannot continue.",
+                confirmLabel: "Cancel Ride",
+                cancelLabel: "Keep Ride",
+                destructive: true,
+                onConfirm: () => cancelRide.mutate(id),
+              })
+            }
             isStarting={startRide.isPending}
             isCompleting={completeRide.isPending}
             isCancelling={cancelRide.isPending}
@@ -2238,23 +2278,47 @@ export default function DriverHome() {
                 </Text>
               </View>
             ) : (
-              availableRides.map((ride) => (
-                <RideRequestCard
-                  key={ride.id}
-                  ride={ride}
-                  onAccept={(id) => acceptRide.mutate(id)}
-                  isAccepting={acceptRide.isPending}
-                  onFareOffer={(rideId, offer) =>
-                    fareOffer.mutate({ rideId, ...offer })
-                  }
-                  isOffering={fareOffer.isPending}
-                  isLocked={lockedRideIds.has(ride.id)}
-                />
-              ))
+              <>
+                {visibleAvailableRides.map((ride) => (
+                  <RideRequestCard
+                    key={ride.id}
+                    ride={ride}
+                    driverId={driver.id}
+                    onAccept={(id) => acceptRide.mutate(id)}
+                    isAccepting={acceptRide.isPending}
+                    onFareOffer={(rideId, offer) =>
+                      fareOffer.mutate({ rideId, ...offer })
+                    }
+                    isOffering={fareOffer.isPending}
+                    isLocked={lockedRideIds.has(ride.id)}
+                  />
+                ))}
+                {hiddenAvailableRideCount > 0 && (
+                  <TouchableOpacity
+                    onPress={() => setVisibleRequestCount((count) => count + 5)}
+                    style={{
+                      backgroundColor: SURFACE,
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: BORDER,
+                      paddingVertical: 13,
+                      alignItems: "center",
+                    }}
+                  >
+                    <Text style={{ color: PRIMARY, fontSize: 13, fontWeight: "800" }}>
+                      Show {Math.min(hiddenAvailableRideCount, 5)} More Requests
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </>
             )}
           </>
         )}
       </ScrollView>
+      <ConfirmActionModal
+        config={confirmAction}
+        onClose={() => setConfirmAction(null)}
+      />
     </View>
   );
 }
