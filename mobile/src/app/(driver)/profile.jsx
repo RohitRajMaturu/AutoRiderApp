@@ -931,9 +931,7 @@ export default function DriverProfile() {
             setShowSignOutSheet(false);
             try {
               await signOut();
-              setTimeout(() => router.replace("/"), 0);
             } catch {
-              setTimeout(() => router.replace("/"), 0);
               Alert.alert("Sign out", "You have been returned to the start screen.");
             }
           }}

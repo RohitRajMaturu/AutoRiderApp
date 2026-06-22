@@ -3,7 +3,7 @@ import { Animated, View, Text, TouchableOpacity, RefreshControl } from "react-na
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { FlashList } from "@shopify/flash-list";
-import { Clock, CheckCircle2, XCircle, Car, MapPin, Sparkles } from "lucide-react-native";
+import { Clock, CheckCircle2, XCircle, Car, MapPin, Sparkles, IndianRupee } from "lucide-react-native";
 import { StatusBar } from "expo-status-bar";
 import { SkeletonLoader, StatusBadge } from "@/components/ui";
 import { useTheme } from "@/theme/ThemeContext";
@@ -14,6 +14,17 @@ const FILTERS = [
   { key: "completed", label: "Completed" },
   { key: "cancelled", label: "Cancelled" },
 ];
+const PAGE_SIZE = 8;
+
+function formatCurrency(value) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+  return `Rs. ${Math.round(amount).toLocaleString("en-IN")}`;
+}
+
+function rideFare(ride) {
+  return ride?.final_fare ?? ride?.estimated_fare ?? null;
+}
 
 function formatCancellationReason(reason) {
   if (!reason) return null;
@@ -60,6 +71,8 @@ const RideCard = memo(function RideCard({ ride }) {
   const statusConfig = useMemo(() => createStatusConfig(theme), [theme]);
   const config = statusConfig[ride.status] || statusConfig.requested;
   const { Icon } = config;
+  const fare = formatCurrency(rideFare(ride));
+  const distance = Number(ride.distance_km);
   const date = new Date(ride.created_at);
   const formattedDate = date.toLocaleDateString("en-IN", {
     day: "numeric",
@@ -102,10 +115,11 @@ const RideCard = memo(function RideCard({ ride }) {
           borderBottomWidth: 1,
           flexDirection: "row",
           justifyContent: "space-between",
-          padding: theme.spacing[4],
+          paddingHorizontal: theme.spacing[4],
+          paddingVertical: theme.spacing[3],
         }}
       >
-        <View style={{ alignItems: "center", flexDirection: "row", gap: theme.spacing[3] }}>
+        <View style={{ alignItems: "center", flex: 1, flexDirection: "row", gap: theme.spacing[3], paddingRight: theme.spacing[2] }}>
           <View
             style={{
               alignItems: "center",
@@ -118,11 +132,11 @@ const RideCard = memo(function RideCard({ ride }) {
           >
             <Icon size={ICON.md} color={config.text} />
           </View>
-          <View>
-            <Text style={[theme.typography.caption, { color: theme.text }]}>
-              Ride #{ride.id}
+          <View style={{ flex: 1 }}>
+            <Text style={[theme.typography.caption, { color: theme.text }]} numberOfLines={1}>
+              {ride.status === "completed" ? "Trip completed" : ride.status === "cancelled" ? "Trip cancelled" : "Trip in progress"}
             </Text>
-            <Text style={[theme.typography.micro, { color: theme.textMuted }]}>
+            <Text style={[theme.typography.micro, { color: theme.textMuted, marginTop: 2 }]} numberOfLines={1}>
               {formattedDate} - {formattedTime}
             </Text>
           </View>
@@ -130,42 +144,17 @@ const RideCard = memo(function RideCard({ ride }) {
         <StatusBadge status={ride.status} config={badgeConfig} />
       </View>
 
-      <View style={{ padding: theme.spacing[4] }}>
-        <View style={{ flexDirection: "row", gap: theme.spacing[4] }}>
-          <View style={{ alignItems: "center", paddingTop: theme.spacing[1] }}>
-            <View
-              style={{
-                backgroundColor: theme.primary,
-                borderRadius: theme.radii.pill,
-                height: 8,
-                width: 8,
-              }}
-            />
-            <View
-              style={{
-                backgroundColor: theme.border,
-                height: 22,
-                marginVertical: theme.spacing[1],
-                width: 1.5,
-              }}
-            />
-            <View
-              style={{
-                backgroundColor: theme.text,
-                borderRadius: 2,
-                height: 8,
-                width: 8,
-              }}
-            />
-          </View>
-          <View style={{ flex: 1, gap: theme.spacing[3] }}>
-            <Text style={[theme.typography.caption, { color: theme.text }]} numberOfLines={1}>
-              {ride.pickup_address}
-            </Text>
-            <Text style={[theme.typography.caption, { color: theme.text }]} numberOfLines={1}>
+      <View style={{ padding: theme.spacing[4], gap: theme.spacing[3] }}>
+        <View style={{ gap: theme.spacing[2] }}>
+          <View style={{ flexDirection: "row", gap: theme.spacing[2] }}>
+            <MapPin size={ICON.sm} color={theme.success} />
+            <Text style={[theme.typography.caption, { color: theme.text, flex: 1 }]} numberOfLines={2}>
               {ride.dest_address}
             </Text>
           </View>
+          <Text style={[theme.typography.micro, { color: theme.textMuted, marginLeft: 24 }]} numberOfLines={1}>
+            From {ride.pickup_address}
+          </Text>
         </View>
 
         {ride.vehicle_number ? (
@@ -186,6 +175,33 @@ const RideCard = memo(function RideCard({ ride }) {
             </Text>
           </View>
         ) : null}
+
+        {(fare || Number.isFinite(distance)) && (
+          <View
+            style={{
+              alignItems: "center",
+              borderTopColor: theme.mutedSurface,
+              borderTopWidth: 1,
+              flexDirection: "row",
+              gap: theme.spacing[4],
+              paddingTop: theme.spacing[3],
+            }}
+          >
+            {fare ? (
+              <View style={{ alignItems: "center", flexDirection: "row", gap: theme.spacing[1] }}>
+                <IndianRupee size={ICON.xs} color={theme.primary} />
+                <Text style={[theme.typography.caption, { color: theme.primaryDark }]}>
+                  {fare}
+                </Text>
+              </View>
+            ) : null}
+            {Number.isFinite(distance) ? (
+              <Text style={[theme.typography.caption, { color: theme.textSecondary }]}>
+                {distance.toFixed(1)} km
+              </Text>
+            ) : null}
+          </View>
+        )}
 
         {ride.status === "cancelled" && ride.cancellation_reason ? (
           <View
@@ -518,6 +534,7 @@ export default function PassengerRides() {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const [activeFilter, setActiveFilter] = useState("pending");
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["passengerRides"],
     queryFn: async () => {
@@ -531,10 +548,21 @@ export default function PassengerRides() {
   const rides = useMemo(() => data?.rides || [], [data?.rides]);
   const filteredRides = useMemo(() => {
     if (activeFilter === "pending") {
-      return rides.filter((ride) => ride.status === "requested" || ride.status === "accepted");
+      return rides.filter(
+        (ride) =>
+          ride.status === "requested" ||
+          ride.status === "negotiating" ||
+          ride.status === "accepted",
+      );
     }
     return rides.filter((ride) => ride.status === activeFilter);
   }, [activeFilter, rides]);
+  const visibleRides = filteredRides.slice(0, visibleCount);
+  const hiddenRideCount = Math.max(filteredRides.length - visibleRides.length, 0);
+
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [activeFilter]);
 
   const emptyCopy = {
     pending: {
@@ -579,8 +607,8 @@ export default function PassengerRides() {
         </View>
       ) : (
         <FlashList
-          data={filteredRides}
-          estimatedItemSize={168}
+          data={visibleRides}
+          estimatedItemSize={142}
           keyExtractor={(ride) => String(ride.id)}
           refreshControl={
             <RefreshControl
@@ -595,6 +623,27 @@ export default function PassengerRides() {
               title={emptyCopy.title}
               description={emptyCopy.description}
             />
+          }
+          ListFooterComponent={
+            hiddenRideCount > 0 ? (
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => setVisibleCount((count) => count + PAGE_SIZE)}
+                style={{
+                  alignItems: "center",
+                  backgroundColor: theme.surface,
+                  borderColor: theme.border,
+                  borderRadius: theme.radii.lg,
+                  borderWidth: 1,
+                  marginTop: theme.spacing[1],
+                  paddingVertical: theme.spacing[4],
+                }}
+              >
+                <Text style={[theme.typography.caption, { color: theme.primaryDark }]}>
+                  Show {Math.min(hiddenRideCount, PAGE_SIZE)} More Trips
+                </Text>
+              </TouchableOpacity>
+            ) : null
           }
           renderItem={({ item }) => <RideCard ride={item} />}
           showsVerticalScrollIndicator={false}

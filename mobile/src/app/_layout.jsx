@@ -1,7 +1,7 @@
 import { useAuth } from "@/utils/auth/useAuth";
 import { AuthModal } from "@/utils/auth/useAuthModal";
 import { ThemeProvider } from "@/theme/ThemeContext";
-import { Stack, useRootNavigationState, useRouter, useSegments } from "expo-router";
+import { Stack, usePathname, useRootNavigationState, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { ActivityIndicator, Linking, Modal, Text, TouchableOpacity, View } from "react-native";
@@ -155,7 +155,9 @@ function ConsentGate() {
 export default function RootLayout() {
   const { initiate, isReady, auth } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const segments = useSegments();
+  const firstSegment = segments[0];
   const rootNavigationState = useRootNavigationState();
 
   useEffect(() => {
@@ -174,14 +176,20 @@ export default function RootLayout() {
     }
 
     const inProtectedGroup =
-      segments[0] === "(passenger)" ||
-      segments[0] === "(driver)" ||
-      segments[0] === "(admin)";
+      firstSegment === "(passenger)" ||
+      firstSegment === "(driver)" ||
+      firstSegment === "(admin)" ||
+      pathname.startsWith("/(passenger)") ||
+      pathname.startsWith("/(driver)") ||
+      pathname.startsWith("/(admin)") ||
+      pathname.startsWith("/passenger") ||
+      pathname.startsWith("/driver") ||
+      pathname.startsWith("/admin");
 
     if (!auth && inProtectedGroup) {
       router.replace("/");
     }
-  }, [auth, isReady, rootNavigationState?.key, router, segments]);
+  }, [auth, firstSegment, isReady, pathname, rootNavigationState?.key, router]);
 
   useEffect(() => {
     if (!auth) return;
