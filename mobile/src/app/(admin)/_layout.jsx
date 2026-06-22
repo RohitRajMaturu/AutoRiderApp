@@ -1,4 +1,6 @@
-import { Redirect, Tabs } from "expo-router";
+import { useEffect } from "react";
+import { Tabs, useRootNavigationState, useRouter } from "expo-router";
+import { View } from "react-native";
 import { BarChart3, FileText, Map, Users, Route } from "lucide-react-native";
 import { useTheme } from "@/theme/ThemeContext";
 import { ICON } from "@/theme/iconScale";
@@ -9,12 +11,20 @@ export default function AdminLayout() {
   const theme = useTheme();
   const active = theme.accent;
   const { auth, isReady } = useAuth();
+  const router = useRouter();
+  const rootNavigationState = useRootNavigationState();
   const testMode = useAppStore((state) => state.testMode);
 
   const isProtected = isReady && !auth && !testMode;
 
+  useEffect(() => {
+    if (isProtected && rootNavigationState?.key) {
+      router.replace("/");
+    }
+  }, [isProtected, rootNavigationState?.key, router]);
+
   if (isProtected) {
-    return <Redirect href="/" />;
+    return <View style={{ flex: 1, backgroundColor: theme.background || "#EAF0F1" }} />;
   }
 
   return (
