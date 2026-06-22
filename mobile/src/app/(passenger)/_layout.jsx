@@ -1,19 +1,8 @@
 import { Tabs } from "expo-router";
 import { Home, Clock, User } from "lucide-react-native";
 import { ICON } from "@/theme/iconScale";
-import { useAuth } from "@/utils/auth/useAuth";
-import useAppStore from "@/store/useAppStore";
 
 export default function PassengerLayout() {
-  const { auth, isReady } = useAuth();
-  const testMode = useAppStore((state) => state.testMode);
-
-  const isProtected = isReady && !auth && !testMode;
-
-  if (isProtected) {
-    return null;
-  }
-
   return (
     <Tabs
       screenOptions={{

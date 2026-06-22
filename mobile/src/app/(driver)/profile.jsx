@@ -930,6 +930,7 @@ export default function DriverProfile() {
           onConfirm={async () => {
             setShowSignOutSheet(false);
             try {
+              router.replace("/");
               await signOut();
             } catch {
               Alert.alert("Sign out", "You have been returned to the start screen.");
