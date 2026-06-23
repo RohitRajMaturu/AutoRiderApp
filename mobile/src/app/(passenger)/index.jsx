@@ -19,12 +19,10 @@ import {
   MapPin,
   Navigation,
   Navigation2,
-  ArrowRight,
   X,
   Phone,
   CheckCircle2,
   Clock3,
-  Car,
   Star,
   IndianRupee,
 } from "lucide-react-native";
@@ -33,6 +31,8 @@ import { StatusBar } from "expo-status-bar";
 import * as Location from "expo-location";
 import { toast } from "sonner-native";
 import TukTukGoLoader from "@/components/TukTukGoLoader";
+import AutoRickshawIcon from "@/components/AutoRickshawIcon";
+import { Button } from "@/components/ui";
 import { ICON } from "@/theme/iconScale";
 import { useAuth } from "@/utils/auth/useAuth";
 import { createRidePusher } from "@/utils/pusher";
@@ -163,6 +163,10 @@ function formatCurrency(value) {
 
 function rideFare(ride) {
   return ride?.final_fare ?? ride?.estimated_fare ?? 0;
+}
+
+function driverIdentifierImage(ride) {
+  return ride?.auto_photo_url || ride?.driver_image || null;
 }
 
 export default function PassengerHome() {
@@ -1348,25 +1352,24 @@ export default function PassengerHome() {
                                 Approving locks this driver for your ride.
                               </Text>
                             </View>
-                            <TouchableOpacity
+                            <Button
+                              variant="primary"
+                              size="sm"
                               onPress={() =>
                                 approveCounter.mutate({
                                   rideId: activeRide.id,
                                   driverId: offer.driver_id,
                                 })
                               }
+                              loading={approveCounter.isPending}
                               disabled={approveCounter.isPending}
                               style={{
-                                borderRadius: 10,
-                                backgroundColor: approveCounter.isPending ? "#BFD1D3" : PRIMARY,
-                                paddingHorizontal: 14,
-                                paddingVertical: 10,
+                                minWidth: 86,
                               }}
+                              accessibilityLabel="Accept driver counter offer"
                             >
-                              <Text style={{ color: "#fff", fontSize: 12, fontWeight: "800" }}>
-                                Accept
-                              </Text>
-                            </TouchableOpacity>
+                              Accept
+                            </Button>
                           </View>
                         ))}
                       </View>
@@ -1376,75 +1379,123 @@ export default function PassengerHome() {
 
                 {/* Driver info when accepted */}
                 {activeRide.status === "accepted" &&
-                  activeRide.vehicle_number && (
+                  (activeRide.vehicle_number || activeRide.auto_photo_url || activeRide.driver_image) && (
                     <View
                       style={{
                         marginTop: 16,
-                        backgroundColor: PRIMARY_LIGHT,
-                        borderRadius: 12,
-                        padding: 14,
+                        backgroundColor: SURFACE,
+                        borderRadius: 18,
+                        padding: 16,
                         borderWidth: 1,
                         borderColor: PRIMARY_BORDER,
-                        flexDirection: "row",
-                        alignItems: "center",
-                        justifyContent: "space-between",
+                        shadowColor: "#12343A",
+                        shadowOpacity: 0.08,
+                        shadowRadius: 18,
+                        shadowOffset: { width: 0, height: 8 },
+                        elevation: 3,
                       }}
                     >
                       <View
                         style={{
                           flexDirection: "row",
                           alignItems: "center",
-                          gap: 12,
+                          gap: 14,
                         }}
                       >
                         <View
                           style={{
-                            width: 44,
-                            height: 44,
-                            borderRadius: 22,
-                            backgroundColor: PRIMARY,
+                            width: 72,
+                            height: 72,
+                            borderRadius: 18,
+                            backgroundColor: PRIMARY_LIGHT,
                             justifyContent: "center",
                             alignItems: "center",
                             overflow: "hidden",
+                            borderWidth: 1,
+                            borderColor: PRIMARY_BORDER,
                           }}
                         >
-                          {activeRide.auto_photo_url ? (
+                          {driverIdentifierImage(activeRide) ? (
                             <Image
-                              source={{ uri: activeRide.auto_photo_url }}
-                              style={{ width: 44, height: 44 }}
+                              source={{ uri: driverIdentifierImage(activeRide) }}
+                              style={{ width: "100%", height: "100%" }}
+                              resizeMode="cover"
                             />
                           ) : (
-                            <Car size={ICON.lg} color="#fff" />
+                            <AutoRickshawIcon size={ICON.xxl} color={PRIMARY} />
                           )}
                         </View>
-                        <View>
+                        <View style={{ flex: 1 }}>
                           <Text
                             style={{
-                              fontSize: 13,
-                              fontWeight: "700",
-                              color: TEXT,
+                              fontSize: 12,
+                              fontWeight: "800",
+                              color: SUCCESS,
+                              textTransform: "uppercase",
+                              letterSpacing: 0.6,
                             }}
                           >
-                            {activeRide.vehicle_number}
+                            Your auto is assigned
                           </Text>
-                          <Text style={{ fontSize: 12, color: TEXT_SECONDARY }}>
-                            {activeRide.can_call ? "Call driver from the app" : "Your driver"}
+                          <Text
+                            style={{
+                              fontSize: 18,
+                              fontWeight: "900",
+                              color: TEXT,
+                              marginTop: 4,
+                            }}
+                          >
+                            {activeRide.vehicle_number || "Driver on the way"}
+                          </Text>
+                          <Text style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 4, lineHeight: 17 }}>
+                            Match this photo and plate before boarding.
                           </Text>
                         </View>
+                      </View>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 10,
+                          marginTop: 14,
+                        }}
+                      >
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            gap: 8,
+                            backgroundColor: PRIMARY_LIGHT,
+                            borderRadius: 999,
+                            paddingHorizontal: 12,
+                            paddingVertical: 8,
+                          }}
+                        >
+                          <AutoRickshawIcon size={ICON.sm} color={PRIMARY} />
+                          <Text style={{ color: TEXT, fontSize: 12, fontWeight: "800" }}>
+                            {activeRide.vehicle_number || "Verify auto"}
+                          </Text>
+                        </View>
+                        <Text style={{ flex: 1, color: TEXT_SECONDARY, fontSize: 12, textAlign: "right" }}>
+                          {activeRide.can_call ? "Need help? Call securely." : "Driver details confirmed."}
+                        </Text>
                       </View>
                       {activeRide.can_call && (
                         <TouchableOpacity
                           onPress={() => requestMaskedCall.mutate(activeRide.id)}
                           disabled={requestMaskedCall.isPending}
                           style={{
-                            width: 44,
-                            height: 44,
-                            borderRadius: 22,
+                            alignSelf: "stretch",
+                            marginTop: 14,
+                            height: 46,
+                            borderRadius: 999,
                             backgroundColor: SUCCESS,
                             justifyContent: "center",
                             alignItems: "center",
                             opacity: requestMaskedCall.isPending ? 0.65 : 1,
                           }}
+                          accessibilityLabel="Call assigned driver"
                         >
                           <Phone size={ICON.md} color="#fff" />
                         </TouchableOpacity>
@@ -1599,7 +1650,9 @@ export default function PassengerHome() {
                           Dismiss
                         </Text>
                       </TouchableOpacity>
-                      <TouchableOpacity
+                      <Button
+                        variant="primary"
+                        size="md"
                         onPress={() =>
                           rateRide.mutate({
                             rideId: activeRide.id,
@@ -1607,28 +1660,15 @@ export default function PassengerHome() {
                             feedback: ratingFeedback,
                           })
                         }
+                        loading={rateRide.isPending}
                         disabled={ratingValue === 0 || rateRide.isPending}
                         style={{
                           flex: 2,
-                          paddingVertical: 12,
-                          borderRadius: 10,
-                          alignItems: "center",
-                          backgroundColor:
-                            ratingValue === 0 || rateRide.isPending
-                              ? "#BFD1D3"
-                              : PRIMARY,
                         }}
+                        accessibilityLabel="Submit ride rating"
                       >
-                        <Text
-                          style={{
-                            fontSize: 13,
-                            fontWeight: "700",
-                            color: "#fff",
-                          }}
-                        >
-                          {rateRide.isPending ? "Submitting..." : "Submit Rating"}
-                        </Text>
-                      </TouchableOpacity>
+                        Submit Rating
+                      </Button>
                     </View>
                   </View>
                 )}
@@ -2114,38 +2154,19 @@ export default function PassengerHome() {
             </View>
 
             {/* Request button */}
-            <TouchableOpacity
+            <Button
+              variant="primary"
+              size="lg"
               onPress={() => requestRide.mutate()}
+              loading={requestRide.isPending}
               disabled={!canRequest}
-              activeOpacity={0.85}
               style={{
                 marginTop: 16,
-                backgroundColor: canRequest ? PRIMARY : "#BFD1D3",
-                borderRadius: 14,
-                paddingVertical: 17,
-                flexDirection: "row",
-                justifyContent: "center",
-                alignItems: "center",
-                gap: 10,
-                shadowColor: PRIMARY,
-                shadowOffset: { width: 0, height: 10 },
-                shadowOpacity: canRequest ? 0.5 : 0,
-                shadowRadius: 24,
-                elevation: canRequest ? 14 : 0,
               }}
+              accessibilityLabel="Request auto-rickshaw"
             >
-              <Text
-                style={{
-                  color: "#fff",
-                  fontSize: 16,
-                  fontWeight: "700",
-                  letterSpacing: 0.3,
-                }}
-              >
-                {requestRide.isPending ? "Requesting..." : "Request Auto"}
-              </Text>
-              {!requestRide.isPending && <ArrowRight size={ICON.md} color="#fff" />}
-            </TouchableOpacity>
+              Request Auto
+            </Button>
           </View>
         )}
 

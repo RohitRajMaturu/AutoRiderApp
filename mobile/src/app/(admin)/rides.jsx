@@ -17,6 +17,7 @@ import {
   Car,
   ChevronDown,
 } from "lucide-react-native";
+import { FlashList } from "@shopify/flash-list";
 import { StatusBar } from "expo-status-bar";
 import { ICON } from "@/theme/iconScale";
 
@@ -534,7 +535,10 @@ export default function AdminRides() {
           <ActivityIndicator size="large" color={PRIMARY} />
         </View>
       ) : (
-        <ScrollView
+        <FlashList
+          data={filtered}
+          estimatedItemSize={250}
+          keyExtractor={(ride) => String(ride.id)}
           contentContainerStyle={{ padding: 16, paddingBottom: 80 }}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -544,10 +548,9 @@ export default function AdminRides() {
               tintColor={PRIMARY}
             />
           }
-        >
-          {filtered.length === 0 ? (
+          ListEmptyComponent={
             <View style={{ alignItems: "center", paddingVertical: 60 }}>
-              <Text style={{ fontSize: 40 }}>🛺</Text>
+              <Text style={{ fontSize: 40 }}>??</Text>
               <Text
                 style={{
                   fontSize: 16,
@@ -566,30 +569,28 @@ export default function AdminRides() {
                   : `No ${filter} rides`}
               </Text>
             </View>
-          ) : (
-            filtered.map((ride) => (
-              <RideRow
-                key={ride.id}
-                ride={ride}
-                onCancel={(rideId) =>
-                  Alert.alert(
-                    "Cancel stuck ride?",
-                    "This will close the ride and write an admin audit log entry.",
-                    [
-                      { text: "Keep Ride", style: "cancel" },
-                      {
-                        text: "Cancel Ride",
-                        style: "destructive",
-                        onPress: () => cancelRide.mutate(rideId),
-                      },
-                    ],
-                  )
-                }
-                isCancelling={cancelRide.isPending}
-              />
-            ))
+          }
+          renderItem={({ item }) => (
+            <RideRow
+              ride={item}
+              onCancel={(rideId) =>
+                Alert.alert(
+                  "Cancel stuck ride?",
+                  "This will close the ride and write an admin audit log entry.",
+                  [
+                    { text: "Keep Ride", style: "cancel" },
+                    {
+                      text: "Cancel Ride",
+                      style: "destructive",
+                      onPress: () => cancelRide.mutate(rideId),
+                    },
+                  ],
+                )
+              }
+              isCancelling={cancelRide.isPending}
+            />
           )}
-        </ScrollView>
+        />
       )}
     </View>
   );

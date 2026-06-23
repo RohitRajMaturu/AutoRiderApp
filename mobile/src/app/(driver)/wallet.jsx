@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   Info,
   IndianRupee,
+  MapPin,
   Shield,
   Star,
   TrendingUp,
@@ -14,6 +15,7 @@ import {
 } from "lucide-react-native";
 import { StatusBar } from "expo-status-bar";
 import { toast } from "sonner-native";
+import AutoRickshawIcon from "@/components/AutoRickshawIcon";
 import { useAuth } from "@/utils/auth/useAuth";
 import { ICON } from "@/theme/iconScale";
 
@@ -68,6 +70,20 @@ function formatExpiry(expiry) {
 function formatCurrency(value) {
   const amount = Number(value);
   return `Rs. ${Math.round(Number.isFinite(amount) ? amount : 0).toLocaleString("en-IN")}`;
+}
+
+function formatRideDate(value) {
+  if (!value) return "Completed";
+  return new Date(value).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function formatDistance(value) {
+  const distance = Number(value);
+  return Number.isFinite(distance) ? `${distance.toFixed(1)} km` : null;
 }
 
 export default function DriverWallet() {
@@ -528,35 +544,74 @@ export default function DriverWallet() {
                   <View
                     key={ride.id}
                     style={{
-                      padding: 14,
+                      paddingHorizontal: 14,
+                      paddingVertical: 12,
                       borderBottomWidth: index < rideHistory.length - 1 || hasNextPage ? 1 : 0,
                       borderBottomColor: "#F5F5F4",
                       flexDirection: "row",
-                      gap: 12,
+                      alignItems: "center",
+                      gap: 10,
                     }}
                   >
-                    <View style={{ flex: 1 }}>
+                    <View
+                      style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: 12,
+                        backgroundColor: PRIMARY_LIGHT,
+                        borderWidth: 1,
+                        borderColor: PRIMARY_BORDER,
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <AutoRickshawIcon size={ICON.sm} color={PRIMARY} />
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
                       <Text
                         numberOfLines={1}
                         style={{ fontSize: 13, fontWeight: "700", color: TEXT }}
                       >
-                        {ride.pickup_address}
-                      </Text>
-                      <Text
-                        numberOfLines={1}
-                        style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 2 }}
-                      >
                         {ride.dest_address}
                       </Text>
-                      <Text style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 3 }}>
-                        {ride.completed_at
-                          ? new Date(ride.completed_at).toLocaleDateString("en-IN")
-                          : "Completed"}
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 3 }}>
+                        <MapPin size={ICON.xs} color={TEXT_MUTED} />
+                        <Text
+                          numberOfLines={1}
+                          style={{ flex: 1, fontSize: 11, color: TEXT_SECONDARY }}
+                        >
+                          From {ride.pickup_address}
+                        </Text>
+                      </View>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 }}>
+                        <Text style={{ fontSize: 11, color: TEXT_MUTED, fontWeight: "700" }}>
+                          {formatRideDate(ride.completed_at)}
+                        </Text>
+                        {formatDistance(ride.distance_km) ? (
+                          <Text
+                            style={{
+                              backgroundColor: "#F1F7F7",
+                              borderRadius: 999,
+                              color: TEXT_SECONDARY,
+                              fontSize: 10,
+                              fontWeight: "800",
+                              paddingHorizontal: 8,
+                              paddingVertical: 3,
+                            }}
+                          >
+                            {formatDistance(ride.distance_km)}
+                          </Text>
+                        ) : null}
+                      </View>
+                    </View>
+                    <View style={{ alignItems: "flex-end" }}>
+                      <Text style={{ fontSize: 14, fontWeight: "900", color: PRIMARY }}>
+                        {formatCurrency(ride.fare)}
+                      </Text>
+                      <Text style={{ color: SUCCESS, fontSize: 10, fontWeight: "800", marginTop: 4 }}>
+                        Settled
                       </Text>
                     </View>
-                    <Text style={{ fontSize: 13, fontWeight: "800", color: PRIMARY }}>
-                      {formatCurrency(ride.fare)}
-                    </Text>
                   </View>
                 ))}
                 {hasNextPage && (

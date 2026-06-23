@@ -82,21 +82,21 @@ For production-grade location search and routing, configure the backend with:
 
 ```env
 AUTH_SECRET=replace_with_a_long_random_secret
+AUTH_URL=https://your-api-domain.com
 OLAMAPS_API_KEY=your_ola_maps_api_key
 ENABLE_ADMIN_SETUP=true
 ADMIN_SETUP_PHONES=919999999999
 PASSENGER_REQUEST_COOLDOWN_SECONDS=30
 PASSENGER_POST_CANCEL_COOLDOWN_SECONDS=60
 DRIVER_HEARTBEAT_TIMEOUT_SECONDS=120
+DRIVER_RIDE_RADIUS_KM=8
 ACCEPTED_RIDE_TIMEOUT_MINUTES=45
 NO_DRIVER_REQUEST_TIMEOUT_SECONDS=0
 SUBSCRIPTION_HALT_GRACE_DAYS=5
 MAINTENANCE_INTERVAL_SECONDS=30
-EXPO_PUBLIC_SUPPORT_PHONE=91XXXXXXXXXX
-EXPO_PUBLIC_GUIDELINES_URL=https://your-guidelines-url
-EXPO_PUBLIC_PRIVACY_URL=https://your-privacy-url
 VITE_ANDROID_APP_URL=https://play.google.com/store/apps/details?id=your.app.id
 VITE_IOS_APP_URL=https://apps.apple.com/app/your-app-id
+VITE_PRIVACY_URL=https://your-privacy-url
 FAST2SMS_API_KEY=your_fast2sms_api_key
 CORS_ORIGINS=https://your-domain.com,https://your-other-domain.com
 RATE_LIMIT_MAX_REQUESTS=120
@@ -107,6 +107,7 @@ UPLOAD_S3_BUCKET=auto-ride-kyc
 UPLOAD_S3_REGION=auto
 UPLOAD_S3_ACCESS_KEY_ID=your_r2_access_key_id
 UPLOAD_S3_SECRET_ACCESS_KEY=your_r2_secret_access_key
+UPLOAD_PUBLIC_BASE_URL=
 UPLOAD_SIGNED_URL_TTL_SECONDS=3600
 EXOTEL_SID=
 EXOTEL_API_KEY=
@@ -120,15 +121,6 @@ RAZORPAY_WEBHOOK_SECRET=
 RAZORPAY_PLAN_STARTER=
 RAZORPAY_PLAN_ACTIVE=
 RAZORPAY_PLAN_PRO=
-SENTRY_DSN=
-SENTRY_ENVIRONMENT=production
-VITE_SENTRY_DSN=
-EXPO_PUBLIC_SENTRY_DSN=
-GRAFANA_CLOUD_URL=
-GRAFANA_CLOUD_USER=
-GRAFANA_CLOUD_API_KEY=
-OTEL_EXPORTER_OTLP_ENDPOINT=
-OTEL_SERVICE_NAME=autoride-backend
 ```
 
 FAST2SMS_API_KEY is required for phone OTP on signup and signin. Without it, OTP requests will silently fail. Get a key at fast2sms.com. CORS_ORIGINS should be set to your deployed web domain(s) in production; omitting it disables CORS validation, which is acceptable only for local development.
@@ -193,10 +185,13 @@ truth.
 Configure these values for negotiation realtime:
 
 ```env
+# web/.env
 PUSHER_APP_ID=
 PUSHER_KEY=
 PUSHER_SECRET=
 PUSHER_CLUSTER=ap2
+
+# mobile/.env
 EXPO_PUBLIC_PUSHER_KEY=
 EXPO_PUBLIC_PUSHER_CLUSTER=ap2
 ```

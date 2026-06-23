@@ -49,13 +49,31 @@ function Ensure-Dependencies {
 }
 
 function Get-LanIpAddress {
-  $Address = Get-NetIPAddress -AddressFamily IPv4 |
-    Where-Object {
-      $_.IPAddress -notlike "127.*" -and
-      $_.IPAddress -notlike "169.254.*" -and
-      $_.PrefixOrigin -ne "WellKnown"
-    } |
-    Select-Object -First 1 -ExpandProperty IPAddress
+  $Address = $null
+
+  try {
+    $Address = [System.Net.Dns]::GetHostAddresses([System.Net.Dns]::GetHostName()) |
+      Where-Object {
+        $_.AddressFamily -eq [System.Net.Sockets.AddressFamily]::InterNetwork -and
+        $_.IPAddressToString -notlike "127.*" -and
+        $_.IPAddressToString -notlike "169.254.*"
+      } |
+      Select-Object -First 1 -ExpandProperty IPAddressToString
+  } catch {
+    $Address = $null
+  }
+
+  if (-not $Address) {
+    $IpConfig = ipconfig | Select-String -Pattern "IPv4 Address"
+    $Address = $IpConfig |
+      ForEach-Object {
+        if ($_.Line -match ":\s*([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)") {
+          $Matches[1]
+        }
+      } |
+      Where-Object { $_ -notlike "127.*" -and $_ -notlike "169.254.*" } |
+      Select-Object -First 1
+  }
 
   if (-not $Address) {
     return "127.0.0.1"

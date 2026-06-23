@@ -314,6 +314,8 @@ export async function GET(request, { params }) {
         r.*,
         d.vehicle_number,
         d.auto_photo_url,
+        du.name as driver_name,
+        du.image as driver_image,
         d.last_lat as driver_last_lat,
         d.last_lng as driver_last_lng,
         (r.status = 'accepted' AND r.driver_id IS NOT NULL) AS can_call,
@@ -324,6 +326,7 @@ export async function GET(request, { params }) {
         ), '[]'::json) as fare_offers
       FROM rides r
       LEFT JOIN drivers d ON r.driver_id = d.id
+      LEFT JOIN auth_users du ON d.user_id = du.id
       JOIN auth_users requester ON requester.id = ${session.user.id}
       WHERE r.id = ${id}
       AND (

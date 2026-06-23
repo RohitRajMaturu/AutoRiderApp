@@ -269,7 +269,10 @@ export default function Index() {
     staleTime: 0,
   });
 
-  if (!testModeLoaded || !isReady || (auth && isLoading && !isSigningOut)) {
+  // Guard: never redirect based on stale data during or just after sign-out
+  const canRedirect = isReady && testModeLoaded && !isSigningOut && !isLoading;
+
+  if (!testModeLoaded || !isReady || isSigningOut || (auth && isLoading)) {
     return (
       <View
         style={{
@@ -286,13 +289,13 @@ export default function Index() {
     );
   }
 
-  if (!isSigningOut && testMode && testRole) {
+  if (canRedirect && testMode && testRole) {
     if (testRole === "admin") return <Redirect href="/(admin)" />;
     if (testRole === "driver") return <Redirect href="/(driver)" />;
     return <Redirect href="/(passenger)" />;
   }
 
-  if (auth && !isSigningOut) {
+  if (canRedirect && auth) {
     const role = data?.user?.role || auth?.user?.role || "passenger";
     if (role === "admin") return <Redirect href="/(admin)" />;
     if (role === "driver") return <Redirect href="/(driver)" />;

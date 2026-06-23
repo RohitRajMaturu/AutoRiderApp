@@ -10,6 +10,7 @@ import { QueryClientProvider, useMutation, useQuery, useQueryClient } from "@tan
 import queryClient from "@/utils/queryClient";
 import { Toaster } from "sonner-native";
 import { registerPushToken } from "@/utils/pushNotifications";
+import { OfflineBanner } from "@/components/OfflineBanner";
 SplashScreen.preventAutoHideAsync();
 
 const PRIMARY = "#43B8B3";
@@ -209,6 +210,7 @@ export default function RootLayout() {
           <AuthModal />
           <ConsentGate />
           <Toaster />
+          <OfflineBanner />
           {!isReady ? <AuthBootOverlay /> : null}
         </GestureHandlerRootView>
       </ThemeProvider>

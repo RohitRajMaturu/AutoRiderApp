@@ -27,16 +27,8 @@ decisions.
   - `RAZORPAY_PLAN_STARTER`
   - `RAZORPAY_PLAN_ACTIVE`
   - `RAZORPAY_PLAN_PRO`
-- Set production observability values:
-  - `SENTRY_DSN`
-  - `SENTRY_ENVIRONMENT`
-  - `VITE_SENTRY_DSN`
-  - `EXPO_PUBLIC_SENTRY_DSN`
-  - `GRAFANA_CLOUD_URL`
-  - `GRAFANA_CLOUD_USER`
-  - `GRAFANA_CLOUD_API_KEY`
-  - `OTEL_EXPORTER_OTLP_ENDPOINT`
-  - `OTEL_SERVICE_NAME`
+- Add production observability SDK/exporter keys later when Sentry/Grafana/OTel
+  code is connected.
 - Set production notification retention values if defaults are not acceptable:
   - `OPERATIONAL_EVENT_RETENTION_DAYS`
   - `INACTIVE_PUSH_TOKEN_RETENTION_DAYS`

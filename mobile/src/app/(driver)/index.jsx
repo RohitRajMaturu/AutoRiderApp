@@ -28,12 +28,15 @@ import {
   IndianRupee,
 } from "lucide-react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { FlashList } from "@shopify/flash-list";
 import { StatusBar } from "expo-status-bar";
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
 import { Audio } from "expo-av";
 import { toast } from "sonner-native";
 import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedView";
+import { Button } from "@/components/ui";
+import { MotionPressable } from "@/components/motion";
 import { useAuth } from "@/utils/auth/useAuth";
 import { ICON } from "@/theme/iconScale";
 import { createRidePusher } from "@/utils/pusher";
@@ -943,33 +946,39 @@ function RideRequestCard({
                   editable={!isOffering && !isLocked && !hasDeclined}
                   style={{ borderRadius: 10, borderWidth: 1, borderColor: BORDER, backgroundColor: SURFACE, paddingHorizontal: 12, paddingVertical: 12, minHeight: 48, color: TEXT, fontWeight: "700", fontSize: 16 }}
                 />
-                <TouchableOpacity
+                <Button
+                  variant="primary"
+                  size="md"
                   onPress={() => onFareOffer(ride.id, { offerType: "counter", offeredFare: Number(counterFare) })}
+                  loading={isOffering}
                   disabled={isOffering || isLocked || !counterFare || hasDeclined}
-                  style={{ borderRadius: 10, backgroundColor: isOffering || isLocked || !counterFare || hasDeclined ? "#BFD1D3" : "#0369A1", paddingVertical: 12, alignItems: "center" }}
+                  accessibilityLabel="Send counter fare"
                 >
-                  <Text style={{ color: "#fff", fontSize: 13, fontWeight: "800" }}>Send Counter</Text>
-                </TouchableOpacity>
+                  Send Counter
+                </Button>
               </View>
             )}
           </View>
         )}
 
         {!isWaitingForPassenger && !hasDeclined && (
-          <TouchableOpacity
+          <Button
+            variant="primary"
+            size="md"
             onPress={() => isNegotiating ? onFareOffer(ride.id, { offerType: "accept" }) : onAccept(ride.id)}
+            loading={isAccepting || isOffering}
             disabled={isAccepting || isOffering || isLocked}
-            style={{ marginTop: 14, backgroundColor: isLocked ? "#BFD1D3" : PRIMARY, borderRadius: 12, paddingVertical: 14, alignItems: "center", shadowColor: PRIMARY, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 4 }}
-            activeOpacity={0.85}
+            style={{ marginTop: 14 }}
+            accessibilityLabel="Accept ride request"
           >
-            <Text style={{ color: "#fff", fontSize: 15, fontWeight: "700" }}>{isAccepting ? "Accepting..." : "Accept Ride"}</Text>
-          </TouchableOpacity>
+            Accept Ride
+          </Button>
         )}
 
         {isNegotiating && !isWaitingForPassenger && !hasDeclined && (
-          <TouchableOpacity onPress={() => onFareOffer(ride.id, { offerType: "decline" })} disabled={isOffering || isLocked} style={{ marginTop: 10, alignItems: "center", paddingVertical: 10 }}>
+          <MotionPressable onPress={() => onFareOffer(ride.id, { offerType: "decline" })} disabled={isOffering || isLocked} style={{ marginTop: 10 }}>
             <Text style={{ color: "#DC2626", fontSize: 13, fontWeight: "700" }}>Decline</Text>
-          </TouchableOpacity>
+          </MotionPressable>
         )}
 
         {hasDeclined && (
@@ -1109,7 +1118,7 @@ function ActiveRideCard({
           </View>
           <View style={{ alignItems: "flex-end", gap: 10 }}>
             {ride.can_call && (
-              <TouchableOpacity
+              <MotionPressable
                 onPress={() => onCall(ride.id)}
                 disabled={isCalling}
                 accessibilityLabel="Call passenger"
@@ -1122,10 +1131,9 @@ function ActiveRideCard({
                   alignItems: "center",
                   opacity: isCalling ? 0.65 : 1,
                 }}
-                activeOpacity={0.85}
               >
                 <Phone size={ICON.md} color="#fff" />
-              </TouchableOpacity>
+              </MotionPressable>
             )}
             <View
               style={{
@@ -1183,7 +1191,7 @@ function ActiveRideCard({
               </Text>
             </View>
           </View>
-          <TouchableOpacity
+          <MotionPressable
             onPress={() =>
               openGoogleMaps(
                 hasStarted ? ride.dest_lat : ride.pickup_lat,
@@ -1208,7 +1216,7 @@ function ActiveRideCard({
             <Text style={{ fontSize: 13, fontWeight: "700", color: PRIMARY }}>
               {hasStarted ? "Navigate to Drop-off" : "Navigate to Pickup"}
             </Text>
-          </TouchableOpacity>
+          </MotionPressable>
           <View
             style={{ flexDirection: "row", gap: 12, alignItems: "flex-start" }}
           >
@@ -1252,7 +1260,9 @@ function ActiveRideCard({
           </View>
         </View>
         <View style={{ flexDirection: "row", gap: 10 }}>
-          <TouchableOpacity
+          <Button
+            variant="primary"
+            size="md"
             onPress={() => {
               if (!hasStarted) {
                 onStart(ride.id);
@@ -1260,44 +1270,28 @@ function ActiveRideCard({
               }
               onComplete(ride.id);
             }}
+            loading={isStarting || isCompleting}
             disabled={isStarting || isCompleting || isCancelling}
             style={{
               flex: 2,
-              backgroundColor: hasStarted ? PRIMARY : "#F3B51B",
-              borderRadius: 12,
-              paddingVertical: 14,
-              alignItems: "center",
             }}
-            activeOpacity={0.85}
+            accessibilityLabel={hasStarted ? "Complete ride" : "Start ride"}
           >
-            <Text style={{ color: hasStarted ? "#fff" : DARK, fontSize: 14, fontWeight: "800" }}>
-              {!hasStarted
-                ? isStarting
-                  ? "Starting..."
-                  : "Start Ride"
-                : isCompleting
-                  ? "Completing..."
-                  : "Complete Ride"}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
+            {hasStarted ? "Complete Ride" : "Start Ride"}
+          </Button>
+          <Button
+            variant="danger"
+            size="md"
             onPress={() => onCancel(ride.id)}
+            loading={isCancelling}
             disabled={isStarting || isCompleting || isCancelling}
             style={{
               flex: 1,
-              backgroundColor: "#FEE2E2",
-              borderColor: "#FECACA",
-              borderRadius: 12,
-              borderWidth: 1,
-              paddingVertical: 14,
-              alignItems: "center",
             }}
-            activeOpacity={0.85}
+            accessibilityLabel="Cancel active ride"
           >
-            <Text style={{ color: "#DC2626", fontSize: 14, fontWeight: "800" }}>
-              {isCancelling ? "Cancelling..." : "Cancel"}
-            </Text>
-          </TouchableOpacity>
+            Cancel
+          </Button>
         </View>
       </View>
     </View>
@@ -2099,7 +2093,10 @@ export default function DriverHome() {
         )}
       </View>
 
-      <ScrollView
+      <FlashList
+        data={driver.is_online && availableRides.length > 0 ? visibleAvailableRides : []}
+        keyExtractor={(ride) => String(ride.id)}
+        estimatedItemSize={180}
         contentContainerStyle={{ padding: 16, paddingBottom: 80 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -2109,8 +2106,9 @@ export default function DriverHome() {
             tintColor={PRIMARY}
           />
         }
-      >
-        {activeRide && (
+        ListHeaderComponent={
+          <>
+            {activeRide && (
           <ActiveRideCard
             ride={activeRide}
             onCall={(id) => requestMaskedCall.mutate(id)}
@@ -2302,44 +2300,44 @@ export default function DriverHome() {
                   automatically
                 </Text>
               </View>
-            ) : (
-              <>
-                {visibleAvailableRides.map((ride) => (
-                  <RideRequestCard
-                    key={ride.id}
-                    ride={ride}
-                    driverId={driver.id}
-                    onAccept={(id) => acceptRide.mutate(id)}
-                    isAccepting={acceptRide.isPending}
-                    onFareOffer={(rideId, offer) =>
-                      fareOffer.mutate({ rideId, ...offer })
-                    }
-                    isOffering={fareOffer.isPending}
-                    isLocked={lockedRideIds.has(ride.id)}
-                  />
-                ))}
-                {hiddenAvailableRideCount > 0 && (
-                  <TouchableOpacity
-                    onPress={() => setVisibleRequestCount((count) => count + 5)}
-                    style={{
-                      backgroundColor: SURFACE,
-                      borderRadius: 12,
-                      borderWidth: 1,
-                      borderColor: BORDER,
-                      paddingVertical: 13,
-                      alignItems: "center",
-                    }}
-                  >
-                    <Text style={{ color: PRIMARY, fontSize: 13, fontWeight: "800" }}>
-                      Show {Math.min(hiddenAvailableRideCount, 5)} More Requests
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </>
-            )}
+            ) : null}
           </>
         )}
-      </ScrollView>
+          </>
+        }
+        ListFooterComponent={
+          driver.is_online && hiddenAvailableRideCount > 0 ? (
+            <TouchableOpacity
+              onPress={() => setVisibleRequestCount((count) => count + 5)}
+              style={{
+                backgroundColor: SURFACE,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: BORDER,
+                paddingVertical: 13,
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ color: PRIMARY, fontSize: 13, fontWeight: "800" }}>
+                Show {Math.min(hiddenAvailableRideCount, 5)} More Requests
+              </Text>
+            </TouchableOpacity>
+          ) : null
+        }
+        renderItem={({ item }) => (
+          <RideRequestCard
+            ride={item}
+            driverId={driver.id}
+            onAccept={(id) => acceptRide.mutate(id)}
+            isAccepting={acceptRide.isPending}
+            onFareOffer={(rideId, offer) =>
+              fareOffer.mutate({ rideId, ...offer })
+            }
+            isOffering={fareOffer.isPending}
+            isLocked={lockedRideIds.has(item.id)}
+          />
+        )}
+      />
       <ConfirmActionModal
         config={confirmAction}
         onClose={() => setConfirmAction(null)}

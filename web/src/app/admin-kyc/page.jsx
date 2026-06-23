@@ -199,7 +199,7 @@ export default function AdminKycPage() {
                 value={reason}
                 onChange={(event) => setReason(event.target.value)}
                 placeholder="Reason required when rejecting"
-                className="min-h-24 w-full rounded-lg border bg-transparent p-3 text-sm outline-none"
+                className="min-h-24 w-full rounded-lg border bg-transparent p-3 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
                 style={{ borderColor: "var(--ar-border)", color: "var(--ar-t1)" }}
               />
 

@@ -2,26 +2,15 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
   ArrowRight,
-  Car,
   Clock,
   IndianRupee,
   Route,
   Users,
 } from "lucide-react";
 import AdminShell from "@/components/AdminShell";
+import AutoRickshawIcon from "@/components/AutoRickshawIcon";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { ICON } from "@/lib/iconScale";
-
-const PRIMARY = "#F5A623";
-const BG = "#0D0F12";
-const TEXT = "#F0F2F5";
-const TEXT_SEC = "#8A8F9E";
-const BORDER = "rgba(255,255,255,0.08)";
-const SUCCESS = "#22C55E";
-const ERROR = "#EF4444";
-const GOLD = "#F59E0B";
-const SURFACE = "#1C2028";
-const SURFACE_2 = "#242830";
 
 function numberValue(value) {
   const parsed = Number(value);
@@ -40,19 +29,22 @@ function maskPhone(value) {
 
 function Metric({ label, value, tone, Icon }) {
   return (
-    <div className="rounded-lg border p-5 shadow-sm" style={{ borderColor: BORDER, background: SURFACE }}>
+    <div className="rounded-lg border p-5 shadow-sm" style={{ borderColor: "var(--ar-border)", background: "var(--ar-s2)" }}>
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-xs font-medium uppercase tracking-widest" style={{ color: TEXT_SEC }}>
+          <p className="text-xs font-medium uppercase tracking-widest" style={{ color: "var(--ar-t2)" }}>
             {label}
           </p>
-          <p className="mt-3 text-3xl font-semibold tracking-tight" style={{ color: TEXT }}>
+          <p className="mt-3 text-3xl font-semibold tracking-tight" style={{ color: "var(--ar-t1)" }}>
             {value}
           </p>
         </div>
         <div
           className="flex h-12 w-12 items-center justify-center rounded-lg"
-          style={{ backgroundColor: `${tone}18`, color: tone }}
+          style={{
+            backgroundColor: `color-mix(in srgb, ${tone} 12%, transparent)`,
+            color: tone,
+          }}
         >
           <Icon size={ICON.xxl} />
         </div>
@@ -63,30 +55,30 @@ function Metric({ label, value, tone, Icon }) {
 
 function AdminLoadingState() {
   return (
-    <section className="rounded-lg border p-5 shadow-sm" style={{ borderColor: BORDER, background: SURFACE }}>
+    <section className="rounded-lg border p-5 shadow-sm" style={{ borderColor: "var(--ar-border)", background: "var(--ar-s2)" }}>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="flex h-12 w-12 items-center justify-center rounded-lg" style={{ background: "var(--ar-accent-dim)" }}>
-            <div className="h-6 w-6 animate-pulse rounded-full" style={{ background: PRIMARY }} />
+            <div className="h-6 w-6 animate-pulse rounded-full" style={{ background: "var(--ar-accent)" }} />
           </div>
           <div>
-            <p className="text-sm font-semibold" style={{ color: TEXT }}>
+            <p className="text-sm font-semibold" style={{ color: "var(--ar-t1)" }}>
               Loading command center
             </p>
-            <p className="mt-1 text-xs font-medium" style={{ color: TEXT_SEC }}>
+            <p className="mt-1 text-xs font-medium" style={{ color: "var(--ar-t2)" }}>
               Syncing rides, driver fleet, revenue, and admin controls.
             </p>
           </div>
         </div>
-        <span className="rounded-lg px-3 py-2 text-xs font-semibold" style={{ background: "var(--ar-warn-dim)", color: GOLD }}>
+        <span className="rounded-lg px-3 py-2 text-xs font-semibold" style={{ background: "var(--ar-warn-dim)", color: "var(--ar-warn)" }}>
           Live data initializing
         </span>
       </div>
       <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
         {["Authentication", "Operations API", "Fleet telemetry"].map((item) => (
-          <div key={item} className="rounded-lg border p-3" style={{ borderColor: BORDER, background: SURFACE_2 }}>
+          <div key={item} className="rounded-lg border p-3" style={{ borderColor: "var(--ar-border)", background: "var(--ar-s3)" }}>
             <div className="h-2 w-20 animate-pulse rounded-full" style={{ background: "var(--ar-accent-dim)" }} />
-            <p className="mt-3 text-xs font-medium uppercase tracking-widest" style={{ color: TEXT_SEC }}>
+            <p className="mt-3 text-xs font-medium uppercase tracking-widest" style={{ color: "var(--ar-t2)" }}>
               {item}
             </p>
           </div>
@@ -112,8 +104,14 @@ export default function AdminPage() {
           fetch("/api/admin/drivers"),
           fetch("/api/admin/rides"),
         ]);
-        if (!statsRes.ok || !driversRes.ok || !ridesRes.ok) {
-          throw new Error("Could not load admin data");
+        const failed = [
+          [statsRes, "stats"],
+          [driversRes, "drivers"],
+          [ridesRes, "rides"],
+        ].find(([response]) => !response.ok);
+        if (failed) {
+          const [response, label] = failed;
+          throw new Error(`Could not load admin ${label} data (${response.status})`);
         }
         const [statsBody, driversBody, ridesBody] = await Promise.all([
           statsRes.json(),
@@ -121,6 +119,7 @@ export default function AdminPage() {
           ridesRes.json(),
         ]);
         if (!active) return;
+        setError("");
         setStats(statsBody.stats || {});
         setDrivers(driversBody.drivers || []);
         setRides(ridesBody.rides || []);
@@ -156,7 +155,7 @@ export default function AdminPage() {
     <AdminShell title="TukTukGo Command Center" eyebrow="Admin">
       <div className="mx-auto max-w-7xl space-y-5">
         {error ? (
-          <div className="rounded-lg border px-4 py-3 text-sm font-semibold" style={{ borderColor: "var(--ar-err)", background: "var(--ar-err-dim)", color: ERROR }}>
+          <div className="rounded-lg border px-4 py-3 text-sm font-semibold" style={{ borderColor: "var(--ar-err)", background: "var(--ar-err-dim)", color: "var(--ar-err)" }}>
             {error}
           </div>
         ) : null}
@@ -166,19 +165,19 @@ export default function AdminPage() {
           <Metric
             label="Active Rides"
             value={stats ? numberValue(stats.activeRides) : "..."}
-            tone={PRIMARY}
+            tone={"var(--ar-accent)"}
             Icon={Route}
           />
           <Metric
             label="Online Drivers"
             value={stats ? numberValue(stats.activeDrivers) : "..."}
-            tone={SUCCESS}
-            Icon={Car}
+            tone={"var(--ar-ok)"}
+            Icon={AutoRickshawIcon}
           />
           <Metric
             label="Today Rides"
             value={stats ? numberValue(stats.todayRides) : "..."}
-            tone={GOLD}
+            tone={"var(--ar-warn)"}
             Icon={Clock}
           />
           <Metric
@@ -190,7 +189,7 @@ export default function AdminPage() {
         </section>
 
         <section className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_420px]">
-          <div className="rounded-lg border p-5 shadow-sm" style={{ borderColor: BORDER, background: SURFACE }}>
+          <div className="rounded-lg border p-5 shadow-sm" style={{ borderColor: "var(--ar-border)", background: "var(--ar-s2)" }}>
             <div className="mb-4 flex items-center justify-between gap-3">
               <h2 className="text-base font-semibold">Live Ride Queue</h2>
               <StatusBadge status={liveRides.length ? "accepted" : "offline"} label={`${liveRides.length} live`} />
@@ -198,37 +197,37 @@ export default function AdminPage() {
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead>
-                  <tr className="text-left text-xs font-medium uppercase tracking-widest" style={{ color: TEXT_SEC }}>
-                    <th className="border-b px-3 py-3" style={{ borderColor: BORDER }}>Ride</th>
-                    <th className="border-b px-3 py-3" style={{ borderColor: BORDER }}>Status</th>
-                    <th className="border-b px-3 py-3" style={{ borderColor: BORDER }}>Passenger</th>
-                    <th className="border-b px-3 py-3" style={{ borderColor: BORDER }}>Driver</th>
-                    <th className="border-b px-3 py-3" style={{ borderColor: BORDER }}>Fare</th>
+                  <tr className="text-left text-xs font-medium uppercase tracking-widest" style={{ color: "var(--ar-t2)" }}>
+                    <th className="border-b px-3 py-3" style={{ borderColor: "var(--ar-border)" }}>Ride</th>
+                    <th className="border-b px-3 py-3" style={{ borderColor: "var(--ar-border)" }}>Status</th>
+                    <th className="border-b px-3 py-3" style={{ borderColor: "var(--ar-border)" }}>Passenger</th>
+                    <th className="border-b px-3 py-3" style={{ borderColor: "var(--ar-border)" }}>Driver</th>
+                    <th className="border-b px-3 py-3" style={{ borderColor: "var(--ar-border)" }}>Fare</th>
                   </tr>
                 </thead>
                 <tbody>
                   {(liveRides.length ? liveRides : rides.slice(0, 8)).map((ride) => (
                     <tr key={ride.id}>
-                      <td className="border-b px-3 py-3 text-sm font-normal" style={{ borderColor: BORDER }}>
+                      <td className="border-b px-3 py-3 text-sm font-normal" style={{ borderColor: "var(--ar-border)" }}>
                         {String(ride.id).slice(0, 8)}
                       </td>
-                      <td className="border-b px-3 py-3" style={{ borderColor: BORDER }}>
+                      <td className="border-b px-3 py-3" style={{ borderColor: "var(--ar-border)" }}>
                         <StatusBadge status={ride.status} />
                       </td>
-                      <td className="border-b px-3 py-3 text-sm font-normal" style={{ borderColor: BORDER, color: TEXT_SEC }}>
+                      <td className="border-b px-3 py-3 text-sm font-normal" style={{ borderColor: "var(--ar-border)", color: "var(--ar-t2)" }}>
                         {ride.passenger_phone ? maskPhone(ride.passenger_phone) : ride.passenger_email || "-"}
                       </td>
-                      <td className="border-b px-3 py-3 text-sm font-normal" style={{ borderColor: BORDER, color: TEXT_SEC }}>
+                      <td className="border-b px-3 py-3 text-sm font-normal" style={{ borderColor: "var(--ar-border)", color: "var(--ar-t2)" }}>
                         {ride.vehicle_number || "-"}
                       </td>
-                      <td className="border-b px-3 py-3 text-sm font-semibold" style={{ borderColor: BORDER }}>
+                      <td className="border-b px-3 py-3 text-sm font-semibold" style={{ borderColor: "var(--ar-border)" }}>
                         {ride.estimated_fare ? formatCurrency(ride.estimated_fare) : "-"}
                       </td>
                     </tr>
                   ))}
                   {!rides.length ? (
                     <tr>
-                      <td colSpan="5" className="px-3 py-8 text-center text-sm font-bold" style={{ color: TEXT_SEC }}>
+                      <td colSpan="5" className="px-3 py-8 text-center text-sm font-bold" style={{ color: "var(--ar-t2)" }}>
                         No ride data yet
                       </td>
                     </tr>
@@ -239,17 +238,17 @@ export default function AdminPage() {
           </div>
 
           <div className="space-y-5">
-            <div className="rounded-lg border p-5 shadow-sm" style={{ borderColor: BORDER, background: SURFACE }}>
+            <div className="rounded-lg border p-5 shadow-sm" style={{ borderColor: "var(--ar-border)", background: "var(--ar-s2)" }}>
               <div className="mb-4 flex items-center gap-2">
-                <Users size={ICON.lg} color={PRIMARY} />
+                <Users size={ICON.lg} color={"var(--ar-accent)"} />
                 <h2 className="text-base font-semibold">Top Drivers</h2>
               </div>
               <div className="space-y-3">
                 {topDrivers.map((driver) => (
-                  <div key={driver.id} className="flex items-center justify-between gap-3 border-b pb-3 last:border-0 last:pb-0" style={{ borderColor: BORDER }}>
+                  <div key={driver.id} className="flex items-center justify-between gap-3 border-b pb-3 last:border-0 last:pb-0" style={{ borderColor: "var(--ar-border)" }}>
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold">{driver.vehicle_number || "Unassigned"}</p>
-                      <p className="truncate text-xs font-normal" style={{ color: TEXT_SEC }}>
+                      <p className="truncate text-xs font-normal" style={{ color: "var(--ar-t2)" }}>
                         {driver.phone || driver.email || "-"}
                       </p>
                     </div>
@@ -257,7 +256,7 @@ export default function AdminPage() {
                   </div>
                 ))}
                 {!topDrivers.length ? (
-                  <p className="py-8 text-center text-sm font-bold" style={{ color: TEXT_SEC }}>
+                  <p className="py-8 text-center text-sm font-bold" style={{ color: "var(--ar-t2)" }}>
                     No drivers yet
                   </p>
                 ) : null}
@@ -267,19 +266,19 @@ export default function AdminPage() {
             <a
               href="/admin-ops"
               className="flex items-center justify-between gap-4 rounded-lg border p-5 shadow-sm transition"
-              style={{ borderColor: BORDER }}
+              style={{ borderColor: "var(--ar-border)" }}
             >
               <div>
-                <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: PRIMARY }}>
+                <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--ar-accent)" }}>
                   <Activity size={ICON.md} />
                   More data
                 </div>
                 <p className="mt-2 text-xl font-semibold">Ops Dashboard</p>
-                <p className="mt-1 text-sm font-normal" style={{ color: TEXT_SEC }}>
+                <p className="mt-1 text-sm font-normal" style={{ color: "var(--ar-t2)" }}>
                   Fleet heartbeat, zones, audit log, cancellation analytics, and live operations.
                 </p>
               </div>
-              <ArrowRight size={ICON.xl} color={PRIMARY} />
+              <ArrowRight size={ICON.xl} color={"var(--ar-accent)"} />
             </a>
           </div>
         </section>

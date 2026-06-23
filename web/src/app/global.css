@@ -10,6 +10,7 @@
   --ar-border: rgba(255,255,255,0.08);
   --ar-border-h: rgba(255,255,255,0.14);
   --ar-accent: #F5A623;
+  --ar-primary: #F5A623;
   --ar-accent-dim: rgba(245,166,35,0.12);
   --ar-t1: #F0F2F5;
   --ar-t2: #8A8F9E;
@@ -21,6 +22,7 @@
   --ar-warn: #F59E0B;
   --ar-warn-dim: rgba(245,158,11,0.12);
   --ar-info: #38BDF8;
+  --ar-surface: #1C2028;
   --ar-fast: 150ms ease;
   --ar-base: 200ms ease;
   --ar-slow: 280ms cubic-bezier(0.4,0,0.2,1);

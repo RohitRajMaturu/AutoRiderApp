@@ -3,9 +3,10 @@ import { Animated, View, Text, TouchableOpacity, RefreshControl } from "react-na
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { FlashList } from "@shopify/flash-list";
-import { Clock, CheckCircle2, XCircle, Car, MapPin, Sparkles, IndianRupee } from "lucide-react-native";
+import { Clock, CheckCircle2, XCircle, MapPin, Sparkles, IndianRupee } from "lucide-react-native";
 import { StatusBar } from "expo-status-bar";
 import { SkeletonLoader, StatusBadge } from "@/components/ui";
+import AutoRickshawIcon from "@/components/AutoRickshawIcon";
 import { useTheme } from "@/theme/ThemeContext";
 import { ICON } from "@/theme/iconScale";
 
@@ -45,7 +46,7 @@ function createStatusConfig(theme) {
     accepted: {
       bg: theme.primaryLight,
       text: theme.primaryDark,
-      Icon: Car,
+      Icon: AutoRickshawIcon,
       label: "Accepted",
       accent: theme.primary,
     },
@@ -94,46 +95,40 @@ const RideCard = memo(function RideCard({ ride }) {
 
   return (
     <View
-      style={[
-        theme.shadow.card,
-        {
-          backgroundColor: theme.surface,
-          borderColor: theme.border,
-          borderLeftColor: config.accent,
-          borderLeftWidth: 4,
-          borderRadius: theme.radii.lg,
-          borderWidth: 1,
-          marginBottom: theme.spacing[3],
-          overflow: "hidden",
-        },
-      ]}
+      style={{
+        backgroundColor: theme.surface,
+        borderColor: theme.border,
+        borderLeftColor: config.accent,
+        borderLeftWidth: 3,
+        borderRadius: theme.radii.lg,
+        borderWidth: 1,
+        marginBottom: theme.spacing[2],
+        padding: theme.spacing[3],
+      }}
     >
       <View
         style={{
           alignItems: "center",
-          borderBottomColor: theme.mutedSurface,
-          borderBottomWidth: 1,
           flexDirection: "row",
+          gap: theme.spacing[3],
           justifyContent: "space-between",
-          paddingHorizontal: theme.spacing[4],
-          paddingVertical: theme.spacing[3],
         }}
       >
-        <View style={{ alignItems: "center", flex: 1, flexDirection: "row", gap: theme.spacing[3], paddingRight: theme.spacing[2] }}>
+        <View style={{ alignItems: "center", flex: 1, flexDirection: "row", gap: theme.spacing[2] }}>
           <View
             style={{
               alignItems: "center",
               backgroundColor: config.bg,
-              borderRadius: theme.radii.pill,
-              height: 40,
+              borderRadius: 12,
+              height: 34,
               justifyContent: "center",
-              width: 40,
+              width: 34,
             }}
           >
-            <Icon size={ICON.md} color={config.text} />
+            <Icon size={ICON.sm} color={config.text} strokeWidth={2.4} />
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[theme.typography.caption, { color: theme.text }]} numberOfLines={1}>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={[theme.typography.caption, { color: theme.text, fontWeight: "800" }]} numberOfLines={1}>
               {ride.status === "completed" ? "Trip completed" : ride.status === "cancelled" ? "Trip cancelled" : "Trip in progress"}
             </Text>
             <Text style={[theme.typography.micro, { color: theme.textMuted, marginTop: 2 }]} numberOfLines={1}>
@@ -144,81 +139,88 @@ const RideCard = memo(function RideCard({ ride }) {
         <StatusBadge status={ride.status} config={badgeConfig} />
       </View>
 
-      <View style={{ padding: theme.spacing[4], gap: theme.spacing[3] }}>
-        <View style={{ gap: theme.spacing[2] }}>
-          <View style={{ flexDirection: "row", gap: theme.spacing[2] }}>
-            <MapPin size={ICON.sm} color={theme.success} />
-            <Text style={[theme.typography.caption, { color: theme.text, flex: 1 }]} numberOfLines={2}>
+      <View style={{ marginTop: theme.spacing[3], gap: theme.spacing[1] }}>
+        <View style={{ alignItems: "flex-start", flexDirection: "row", gap: theme.spacing[2] }}>
+          <MapPin size={ICON.sm} color={theme.success} />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={[theme.typography.caption, { color: theme.text }]} numberOfLines={1}>
               {ride.dest_address}
             </Text>
+            <Text style={[theme.typography.micro, { color: theme.textMuted, marginTop: 2 }]} numberOfLines={1}>
+              From {ride.pickup_address}
+            </Text>
           </View>
-          <Text style={[theme.typography.micro, { color: theme.textMuted, marginLeft: 24 }]} numberOfLines={1}>
-            From {ride.pickup_address}
-          </Text>
         </View>
+      </View>
 
+      <View
+        style={{
+          borderTopColor: theme.mutedSurface,
+          borderTopWidth: 1,
+          flexDirection: "row",
+          flexWrap: "wrap",
+          gap: theme.spacing[2],
+          marginTop: theme.spacing[3],
+          paddingTop: theme.spacing[3],
+        }}
+      >
         {ride.vehicle_number ? (
           <View
             style={{
               alignItems: "center",
-              borderTopColor: theme.mutedSurface,
-              borderTopWidth: 1,
+              backgroundColor: theme.primaryLight,
+              borderRadius: theme.radii.pill,
               flexDirection: "row",
               gap: theme.spacing[2],
-              marginTop: theme.spacing[3],
-              paddingTop: theme.spacing[3],
+              paddingHorizontal: theme.spacing[3],
+              paddingVertical: theme.spacing[2],
             }}
           >
-            <Car size={ICON.sm} color={theme.textMuted} />
-            <Text style={[theme.typography.caption, { color: theme.textSecondary }]}>
+            <AutoRickshawIcon size={ICON.sm} color={theme.primaryDark} />
+            <Text style={[theme.typography.micro, { color: theme.primaryDark, fontWeight: "800" }]}>
               {ride.vehicle_number}
             </Text>
           </View>
         ) : null}
 
-        {(fare || Number.isFinite(distance)) && (
+        {fare ? (
           <View
             style={{
               alignItems: "center",
-              borderTopColor: theme.mutedSurface,
-              borderTopWidth: 1,
+              backgroundColor: theme.successLight,
+              borderRadius: theme.radii.pill,
               flexDirection: "row",
-              gap: theme.spacing[4],
-              paddingTop: theme.spacing[3],
+              gap: theme.spacing[1],
+              paddingHorizontal: theme.spacing[3],
+              paddingVertical: theme.spacing[2],
             }}
           >
-            {fare ? (
-              <View style={{ alignItems: "center", flexDirection: "row", gap: theme.spacing[1] }}>
-                <IndianRupee size={ICON.xs} color={theme.primary} />
-                <Text style={[theme.typography.caption, { color: theme.primaryDark }]}>
-                  {fare}
-                </Text>
-              </View>
-            ) : null}
-            {Number.isFinite(distance) ? (
-              <Text style={[theme.typography.caption, { color: theme.textSecondary }]}>
-                {distance.toFixed(1)} km
-              </Text>
-            ) : null}
+            <IndianRupee size={ICON.xs} color={theme.success} />
+            <Text style={[theme.typography.micro, { color: theme.success, fontWeight: "800" }]}>
+              {fare}
+            </Text>
           </View>
-        )}
+        ) : null}
 
-        {ride.status === "cancelled" && ride.cancellation_reason ? (
+        {Number.isFinite(distance) ? (
           <View
             style={{
-              borderTopColor: theme.mutedSurface,
-              borderTopWidth: 1,
-              marginTop: theme.spacing[3],
-              paddingTop: theme.spacing[3],
+              backgroundColor: theme.mutedSurface,
+              borderRadius: theme.radii.pill,
+              paddingHorizontal: theme.spacing[3],
+              paddingVertical: theme.spacing[2],
             }}
           >
-            <Text style={[theme.typography.micro, { color: theme.textMuted }]}>
-              Cancellation reason
-            </Text>
-            <Text style={[theme.typography.caption, { color: theme.error, marginTop: theme.spacing[1] }]}>
-              {formatCancellationReason(ride.cancellation_reason)}
+            <Text style={[theme.typography.micro, { color: theme.textSecondary, fontWeight: "800" }]}>
+              {distance.toFixed(1)} km
             </Text>
           </View>
+        ) : null}
+
+        {ride.status === "cancelled" && ride.cancellation_reason ? (
+          <Text style={[theme.typography.micro, { color: theme.error, flexBasis: "100%" }]} numberOfLines={1}>
+            Reason: {formatCancellationReason(ride.cancellation_reason)}
+          </Text>
         ) : null}
       </View>
     </View>

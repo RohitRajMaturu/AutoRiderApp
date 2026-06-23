@@ -71,6 +71,7 @@ export const useAuth = () => {
       await queryClient.cancelQueries();
 
       setAuth(null);
+      queryClient.removeQueries({ queryKey: ["userProfile"] });
 
       await Promise.allSettled([
         Promise.resolve(resetSessionState()),
