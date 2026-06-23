@@ -8,6 +8,7 @@ web/.env.*
 !web/.env.example
 mobile/.env
 mobile/.env.*
+!mobile/.env.example
 
 # Native signing credentials
 *.jks
