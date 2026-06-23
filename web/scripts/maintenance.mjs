@@ -45,6 +45,12 @@ function readAcceptedRideTimeoutMinutes() {
   return minutes;
 }
 
+function readOptionalTimeoutSeconds(name) {
+  const seconds = Number(process.env[name] || 0);
+  if (!Number.isFinite(seconds) || seconds < 0 || seconds > 86400) return 0;
+  return seconds;
+}
+
 function readRetentionDays(name, fallback, { min = 1, max = 3650 } = {}) {
   const days = Number(process.env[name] || fallback);
   if (!Number.isFinite(days) || days < min || days > max) return fallback;
@@ -72,6 +78,14 @@ async function runMaintenance(pool) {
     const inactivePushTokenRetentionDays = readRetentionDays(
       "INACTIVE_PUSH_TOKEN_RETENTION_DAYS",
       180,
+    );
+    const noDriverTimeoutSeconds = readOptionalTimeoutSeconds(
+      "NO_DRIVER_REQUEST_TIMEOUT_SECONDS",
+    );
+    const subscriptionGraceDays = readRetentionDays(
+      "SUBSCRIPTION_HALT_GRACE_DAYS",
+      5,
+      { min: 0, max: 30 },
     );
 
     await client.query( // PATCHED:
@@ -102,6 +116,39 @@ async function runMaintenance(pool) {
           AND accepted_at < CURRENT_TIMESTAMP - make_interval(mins => $1)
       `,
       [acceptedRideTimeoutMinutes],
+    );
+
+    if (noDriverTimeoutSeconds > 0) {
+      await client.query(
+        `
+          UPDATE rides
+          SET status = 'cancelled',
+              cancelled_at = CURRENT_TIMESTAMP,
+              cancellation_reason = 'no_driver_timeout',
+              updated_at = CURRENT_TIMESTAMP
+          WHERE status IN ('requested', 'negotiating')
+            AND driver_id IS NULL
+            AND created_at < CURRENT_TIMESTAMP - make_interval(secs => $1)
+        `,
+        [noDriverTimeoutSeconds],
+      );
+    }
+
+    await client.query(
+      `
+        UPDATE drivers
+        SET is_online = false,
+            online_since = NULL,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE is_online = true
+          AND subscription_status IN ('halted', 'expired')
+          AND (
+            subscription_status = 'expired'
+            OR subscription_halted_at IS NULL
+            OR subscription_halted_at < CURRENT_TIMESTAMP - make_interval(days => $1)
+          )
+      `,
+      [subscriptionGraceDays],
     );
 
     await client.query("DELETE FROM realtime_tokens WHERE expires_at <= CURRENT_TIMESTAMP"); // PATCHED:

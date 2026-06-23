@@ -316,8 +316,7 @@ export async function GET(request, { params }) {
         d.auto_photo_url,
         d.last_lat as driver_last_lat,
         d.last_lng as driver_last_lng,
-        du.phone as driver_phone,
-        pu.phone as passenger_phone,
+        (r.status = 'accepted' AND r.driver_id IS NOT NULL) AS can_call,
         COALESCE((
           SELECT json_agg(o ORDER BY o.responded_at DESC)
           FROM ride_fare_offers o
@@ -325,8 +324,6 @@ export async function GET(request, { params }) {
         ), '[]'::json) as fare_offers
       FROM rides r
       LEFT JOIN drivers d ON r.driver_id = d.id
-      LEFT JOIN auth_users du ON d.user_id = du.id
-      JOIN auth_users pu ON r.passenger_id = pu.id
       JOIN auth_users requester ON requester.id = ${session.user.id}
       WHERE r.id = ${id}
       AND (

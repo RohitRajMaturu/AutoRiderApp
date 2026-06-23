@@ -103,6 +103,16 @@ Backend-only secrets and controls:
   Channels settings for negotiated-fare realtime. Use `ap2` for India latency.
 - `EXPO_PUBLIC_PUSHER_KEY`, `EXPO_PUBLIC_PUSHER_CLUSTER`: mobile Pusher
   subscription settings for negotiated rides.
+- `EXOTEL_SID`, `EXOTEL_API_KEY`, `EXOTEL_API_TOKEN`,
+  `EXOTEL_SUBDOMAIN`, `EXOTEL_VIRTUAL_NUMBER`, `EXOTEL_APP_ID`: planned
+  masked-calling provider configuration.
+- `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`,
+  `RAZORPAY_PLAN_STARTER`, `RAZORPAY_PLAN_ACTIVE`, `RAZORPAY_PLAN_PRO`:
+  planned driver subscription billing configuration.
+- `SENTRY_DSN`, `SENTRY_ENVIRONMENT`, `VITE_SENTRY_DSN`,
+  `EXPO_PUBLIC_SENTRY_DSN`, `GRAFANA_CLOUD_URL`, `GRAFANA_CLOUD_USER`,
+  `GRAFANA_CLOUD_API_KEY`, `OTEL_EXPORTER_OTLP_ENDPOINT`,
+  `OTEL_SERVICE_NAME`: planned production observability configuration.
 - `OPERATIONAL_EVENT_RETENTION_DAYS`: retention for diagnostic events, default `90`.
 - `INACTIVE_PUSH_TOKEN_RETENTION_DAYS`: retention for stale push tokens, default `180`.
 - `HYPERVERGE_APP_ID`: HyperVerge app id for driver KYC.
@@ -162,12 +172,16 @@ Auth and API behavior:
 - `/api/auth/token` returns `{ jwt, user, auth }`.
 - Mobile fetch helpers attach the stored JWT as a bearer token for backend API calls.
 - Passenger, driver, and admin role route groups redirect unauthenticated users back to `/` so device back navigation after logout cannot expose a stale role screen.
-- The route groups return an explicit `<Redirect href="/" />` when auth is gone,
-  preventing the blank white tab screen that can otherwise appear after logout.
+- Logout clears auth before redirect decisions run, and the landing screen
+  suppresses role redirects during sign-out so users do not bounce back into the
+  previous role dashboard.
 - Test mode persists with `@autoconnect_test_mode` and `@autoconnect_test_role`; it is useful for demos but can hide real auth/backend failures.
 - Physical iOS/Android devices attempt Expo push-token registration after sign-in
   through `POST /api/notifications/push-token`. Backend ride lifecycle routes
   send basic Expo push notifications when active tokens exist.
+- Passenger and driver call actions use `POST /api/rides/:id/call`, which
+  initiates Exotel masked calls when configured. Ride feeds no longer expose raw
+  passenger/driver phone numbers to those clients.
 
 Passenger location behavior:
 - Current location and reverse-geocode calls have timeouts so pickup detection does not hang indefinitely.
@@ -212,6 +226,13 @@ Major API groups:
 - `POST /api/rides/:id/expire-negotiation`
 - `GET /api/locations/estimate`
 - `GET /api/drivers/rides`
+- `GET /api/driver/subscription/status`
+- `POST /api/driver/subscription/create`
+- `POST /api/driver/subscription/cancel`
+- `POST /api/webhooks/razorpay`
+- `POST /api/rides/:id/call`
+- `GET /api/health`
+- `GET /api/metrics`
 - `POST /api/pusher/auth`
 - `POST/DELETE /api/notifications/push-token`
 - `POST/GET /api/drivers`
@@ -322,6 +343,8 @@ Latest verified checks:
 - `cd web; npm run typecheck`
 - `cd web; npm run test:api`
 - `cd mobile; npx expo export --platform web`
+- `cd mobile; npx expo export --platform web` after the logout loop and
+  Reanimated worklet-ref fixes.
 - `cd web; npm run db:migrate` applied through `014_fare_negotiation.sql`
 - Fare negotiation race tests cover losing driver accept, stale counter
   approval, and expiry fallback.
@@ -347,15 +370,17 @@ External launch gates:
 - Verify mobile push-token registration on physical devices with production app
   credentials.
 - Configure production R2/S3-compatible storage credentials and verify private KYC uploads plus signed read URLs against HyperVerge.
+- Configure Exotel, Razorpay, Sentry, Grafana Cloud, OpenTelemetry, and
+  UptimeRobot values from the current infrastructure plan.
 
 Deferred product decisions:
-- Add payment-backed driver subscription renewal with verified webhooks.
+- Validate Razorpay-backed driver subscription renewal with real plans/webhooks,
+  mandate retry handling, fallback payment links, and the driver subscription UI.
 - Verify Expo push notification delivery on physical devices and tune payloads
   before relying on push as an operational channel.
-- Add toll-free/proxy calling so raw passenger and driver phone numbers are not
-  exposed to mobile clients.
-- Add external log/metric shipping, dashboarding, alerting, and formal privacy
-  policy/legal review.
+- Validate Exotel masked calling with real numbers and provider credentials.
+- Add Sentry/Grafana/OpenTelemetry log, metric, trace, dashboard, alerting, and
+  formal privacy policy/legal review.
 - Finalize and implement backend no-driver escalation/expiry policy. Current UI
   warning appears after 60 seconds, but server-side thresholds should be based
   on online approved driver count, zone demand, request age, and dispatch radius.

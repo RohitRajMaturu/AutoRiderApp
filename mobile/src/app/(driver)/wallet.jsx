@@ -1,7 +1,7 @@
 import React from "react";
-import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity } from "react-native";
+import { Linking, View, Text, ScrollView, ActivityIndicator, TouchableOpacity } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Calendar,
   CheckCircle2,
@@ -13,6 +13,7 @@ import {
   Zap,
 } from "lucide-react-native";
 import { StatusBar } from "expo-status-bar";
+import { toast } from "sonner-native";
 import { useAuth } from "@/utils/auth/useAuth";
 import { ICON } from "@/theme/iconScale";
 
@@ -72,6 +73,7 @@ function formatCurrency(value) {
 export default function DriverWallet() {
   const insets = useSafeAreaInsets();
   const { auth } = useAuth();
+  const queryClient = useQueryClient();
   const authUserKey =
     auth?.user?.id || auth?.user?.email || auth?.user?.phone || "anonymous";
 
@@ -95,6 +97,46 @@ export default function DriverWallet() {
     },
     enabled: !!auth,
     staleTime: 30000,
+  });
+
+  const { data: subscriptionData } = useQuery({
+    queryKey: ["driverSubscription", authUserKey],
+    queryFn: async () => {
+      const res = await fetch("/api/driver/subscription/status");
+      if (!res.ok) throw new Error("Failed to load subscription");
+      return res.json();
+    },
+    enabled: !!auth,
+    staleTime: 30000,
+  });
+
+  const createSubscription = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/driver/subscription/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planKey: subscriptionData?.subscription?.plan || "starter" }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || "Could not start subscription");
+      return body;
+    },
+    onSuccess: async (data) => {
+      queryClient.invalidateQueries({ queryKey: ["driverSubscription", authUserKey] });
+      const shortUrl = data?.subscription?.shortUrl;
+      if (shortUrl) {
+        await Linking.openURL(shortUrl);
+      } else {
+        toast("Subscription created", {
+          description: "Complete payment from the Razorpay link when available.",
+        });
+      }
+    },
+    onError: (err) => {
+      toast("Subscription unavailable", {
+        description: err.message || "Payment setup is not ready yet.",
+      });
+    },
   });
 
   const {
@@ -136,6 +178,8 @@ export default function DriverWallet() {
   }
 
   const driver = driverData?.driver;
+  const subscription = subscriptionData?.subscription;
+  const providerConfigured = Boolean(subscriptionData?.providerConfigured);
   const expiry = driver?.subscription_expiry
     ? new Date(driver.subscription_expiry)
     : null;
@@ -306,10 +350,12 @@ export default function DriverWallet() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 14, fontWeight: "700", color: TEXT }}>
-                Admin-managed pilot access
+                {providerConfigured ? "Razorpay subscription" : "Admin-managed pilot access"}
               </Text>
               <Text style={{ fontSize: 12, color: PRIMARY, marginTop: 3 }}>
-                అడ్మిన్ ద్వారా పొడిగింపు / एडमिन से बढ़ेगा
+                {subscription?.status
+                  ? `Status: ${subscription.status}${subscription.mandateStatus ? `, mandate ${subscription.mandateStatus}` : ""}`
+                  : "Pilot access is controlled by TukTukGo operations"}
               </Text>
               <Text
                 style={{
@@ -319,10 +365,47 @@ export default function DriverWallet() {
                   marginTop: 6,
                 }}
               >
-                Subscription expiry is extended manually by the TukTukGo admin
-                team during the Secunderabad pilot. Payment integration is not
-                enabled in this build.
+                {providerConfigured
+                  ? "Use Razorpay UPI AutoPay to activate or renew access. If a mandate fails, a manual payment link can be shown here."
+                  : "Subscription expiry is extended manually by the TukTukGo admin team until Razorpay credentials are connected."}
               </Text>
+              {subscription?.manualPaymentLink ? (
+                <TouchableOpacity
+                  onPress={() => Linking.openURL(subscription.manualPaymentLink)}
+                  style={{
+                    alignSelf: "flex-start",
+                    backgroundColor: PRIMARY,
+                    borderRadius: 12,
+                    marginTop: 12,
+                    paddingHorizontal: 14,
+                    paddingVertical: 10,
+                  }}
+                  activeOpacity={0.85}
+                >
+                  <Text style={{ color: "#fff", fontSize: 13, fontWeight: "900" }}>
+                    Renew Now
+                  </Text>
+                </TouchableOpacity>
+              ) : providerConfigured ? (
+                <TouchableOpacity
+                  onPress={() => createSubscription.mutate()}
+                  disabled={createSubscription.isPending}
+                  style={{
+                    alignSelf: "flex-start",
+                    backgroundColor: PRIMARY,
+                    borderRadius: 12,
+                    marginTop: 12,
+                    opacity: createSubscription.isPending ? 0.65 : 1,
+                    paddingHorizontal: 14,
+                    paddingVertical: 10,
+                  }}
+                  activeOpacity={0.85}
+                >
+                  <Text style={{ color: "#fff", fontSize: 13, fontWeight: "900" }}>
+                    {createSubscription.isPending ? "Opening..." : isActive ? "Manage Renewal" : "Activate Plan"}
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
           </View>
         </View>

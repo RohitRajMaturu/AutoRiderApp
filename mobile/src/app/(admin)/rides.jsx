@@ -31,6 +31,12 @@ const ERROR = "#EF4444";
 const GOLD = "#F59E0B";
 const WARNING = "#F59E0B";
 
+function maskPhone(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (digits.length < 4) return "Masked";
+  return `•••• ${digits.slice(-4)}`;
+}
+
 const STATUS_CONFIG = {
   requested: {
     bg: `${WARNING}20`,
@@ -231,7 +237,7 @@ function RideRow({ ride, onCancel, isCancelling }) {
                   Passenger
                 </Text>
                 <Text style={{ fontSize: 12, color: TEXT }}>
-                  {ride.passenger_phone}
+                  {maskPhone(ride.passenger_phone)}
                 </Text>
               </View>
             )}
@@ -251,7 +257,7 @@ function RideRow({ ride, onCancel, isCancelling }) {
                 </Text>
                 <Text style={{ fontSize: 12, color: TEXT }}>
                   {ride.vehicle_number}{" "}
-                  {ride.driver_phone ? `· ${ride.driver_phone}` : ""}
+                  {ride.driver_phone ? `� ${maskPhone(ride.driver_phone)}` : ""}
                 </Text>
               </View>
             )}

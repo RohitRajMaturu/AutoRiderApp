@@ -89,6 +89,8 @@ PASSENGER_REQUEST_COOLDOWN_SECONDS=30
 PASSENGER_POST_CANCEL_COOLDOWN_SECONDS=60
 DRIVER_HEARTBEAT_TIMEOUT_SECONDS=120
 ACCEPTED_RIDE_TIMEOUT_MINUTES=45
+NO_DRIVER_REQUEST_TIMEOUT_SECONDS=0
+SUBSCRIPTION_HALT_GRACE_DAYS=5
 MAINTENANCE_INTERVAL_SECONDS=30
 EXPO_PUBLIC_SUPPORT_PHONE=91XXXXXXXXXX
 EXPO_PUBLIC_GUIDELINES_URL=https://your-guidelines-url
@@ -106,6 +108,27 @@ UPLOAD_S3_REGION=auto
 UPLOAD_S3_ACCESS_KEY_ID=your_r2_access_key_id
 UPLOAD_S3_SECRET_ACCESS_KEY=your_r2_secret_access_key
 UPLOAD_SIGNED_URL_TTL_SECONDS=3600
+EXOTEL_SID=
+EXOTEL_API_KEY=
+EXOTEL_API_TOKEN=
+EXOTEL_SUBDOMAIN=api.exotel.com
+EXOTEL_VIRTUAL_NUMBER=
+EXOTEL_APP_ID=
+RAZORPAY_KEY_ID=
+RAZORPAY_KEY_SECRET=
+RAZORPAY_WEBHOOK_SECRET=
+RAZORPAY_PLAN_STARTER=
+RAZORPAY_PLAN_ACTIVE=
+RAZORPAY_PLAN_PRO=
+SENTRY_DSN=
+SENTRY_ENVIRONMENT=production
+VITE_SENTRY_DSN=
+EXPO_PUBLIC_SENTRY_DSN=
+GRAFANA_CLOUD_URL=
+GRAFANA_CLOUD_USER=
+GRAFANA_CLOUD_API_KEY=
+OTEL_EXPORTER_OTLP_ENDPOINT=
+OTEL_SERVICE_NAME=autoride-backend
 ```
 
 FAST2SMS_API_KEY is required for phone OTP on signup and signin. Without it, OTP requests will silently fail. Get a key at fast2sms.com. CORS_ORIGINS should be set to your deployed web domain(s) in production; omitting it disables CORS validation, which is acceptable only for local development.
@@ -129,7 +152,7 @@ Mobile passenger/driver signup intentionally uses the shared web auth page insid
 
 The public web landing page reads `VITE_ANDROID_APP_URL` and `VITE_IOS_APP_URL` for store buttons. If either value is blank, that button renders as a non-clickable coming-soon state instead of a placeholder link.
 
-Mobile role screens are guarded after logout. If a user signs out and then uses the device back button, passenger, driver, and admin route groups redirect back to the welcome/login screen instead of showing the previous logged-in role UI or a blank protected tab screen.
+Mobile role screens are guarded after logout. If a user signs out and then uses the device back button, passenger, driver, and admin route groups redirect back to the welcome/login screen instead of showing the previous logged-in role UI or a blank protected tab screen. Sign-out clears auth before redirect decisions run, so the welcome screen does not bounce the user back to the previous role dashboard.
 
 Backend `/api/*` routes include basic rate limiting and security headers. Set `RATE_LIMIT_MAX_REQUESTS=0` only for local debugging.
 
@@ -220,8 +243,9 @@ EXPO_PUBLIC_PUSHER_CLUSTER=ap2
 
 Pending negotiation/privacy follow-up:
 
-- Replace direct `tel:` calls with a toll-free/proxy calling service so passenger
-  and driver phone numbers do not need to be exposed to clients.
+- Masked calls are routed through a backend Exotel integration point so
+  passenger and driver clients no longer open direct `tel:` links or receive raw
+  phone numbers. Live credentials and real-phone validation are pending.
 - Add live-device validation for Pusher event delivery once production Pusher
   credentials are configured.
 
@@ -250,11 +274,18 @@ Production approach:
 - Privacy retention is enforced by maintenance jobs, not manual cleanup.
 - Add metrics/log shipping later from `operational_events` or app logs to the
   chosen production observability stack.
-- Proxy calling remains pending; until then, call actions should avoid visible
-  raw phone-number text.
+- Proxy calling is wired through the backend masked-call route; live Exotel
+  credentials are still required before real calls can connect.
 - Driver earnings use `final_fare` when present, refresh immediately after ride
   completion, and completed driver rides can be lazy-loaded through paginated
   history.
+- Reanimated keyboard handling no longer captures mutable refs inside worklets,
+  preventing the `Tried to modify key current` warning on affected devices.
+- Driver subscription schema, Razorpay status/create/cancel routes, webhook
+  handling, and wallet UI actions are implemented behind Razorpay env
+  configuration.
+- `/api/health` and `/api/metrics` provide deployment health and Prometheus-style
+  metrics scaffolding.
 
 Real-device E2E checklist:
 
@@ -368,6 +399,9 @@ flowchart LR
   Api --> Ola[Ola Maps REST]
   Api --> Pusher[Pusher Channels REST]
   Pusher --> Mobile
+  Api -. planned .-> Exotel[Exotel masked calls]
+  Api -. planned .-> Razorpay[Razorpay subscriptions]
+  Api -. planned .-> Observability[Sentry/Grafana/OTel]
   Api --> Maintenance[Maintenance worker]
   Api --> DriverHistory[Paginated driver ride history]
   Mobile --> Motion[React Native motion components]
@@ -415,15 +449,18 @@ Code-complete items that still need environment or field validation:
 - Verify polling-based ride discovery on the deployed VPS.
 - Verify the maintenance worker marks expired drivers offline and cancels timed-out accepted rides.
 - Verify mobile push-token registration on physical devices.
-- Verify logout/back-navigation behavior on real passenger, driver, and admin
-  devices.
+- Re-verify logout/back-navigation behavior on real passenger, driver, and admin
+  devices after the latest sign-out loop fix.
 
 Deferred product decisions:
 
 - Push-token registration and basic Expo ride-lifecycle sending are implemented.
   Real-device delivery validation is still required before relying on it.
 - Add toll-free/proxy calling so raw passenger and driver phone numbers are never
-  exposed to mobile clients.
+  exposed to mobile clients. Exotel is wired in code and still needs live
+  credentials/validation.
+- Add Sentry/Grafana/OpenTelemetry SDK/exporter transport and production
+  alerting after provider projects are created.
 - Finalize backend no-driver expiry/escalation policy. The UI now warns after
   60 seconds, but server-side cancellation/escalation thresholds still need a
   business decision.

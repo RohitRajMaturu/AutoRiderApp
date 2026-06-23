@@ -32,6 +32,12 @@ function formatCurrency(value) {
   return `Rs. ${Math.round(numberValue(value)).toLocaleString("en-IN")}`;
 }
 
+function maskPhone(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (digits.length < 4) return "Masked";
+  return `•••• ${digits.slice(-4)}`;
+}
+
 function Metric({ label, value, tone, Icon }) {
   return (
     <div className="rounded-lg border p-5 shadow-sm" style={{ borderColor: BORDER, background: SURFACE }}>
@@ -210,7 +216,7 @@ export default function AdminPage() {
                         <StatusBadge status={ride.status} />
                       </td>
                       <td className="border-b px-3 py-3 text-sm font-normal" style={{ borderColor: BORDER, color: TEXT_SEC }}>
-                        {ride.passenger_phone || ride.passenger_email || "-"}
+                        {ride.passenger_phone ? maskPhone(ride.passenger_phone) : ride.passenger_email || "-"}
                       </td>
                       <td className="border-b px-3 py-3 text-sm font-normal" style={{ borderColor: BORDER, color: TEXT_SEC }}>
                         {ride.vehicle_number || "-"}

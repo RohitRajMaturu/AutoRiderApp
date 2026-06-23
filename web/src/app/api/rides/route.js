@@ -297,7 +297,7 @@ export async function GET(request) {
       rides = await sql`
         SELECT
           r.*,
-          u.phone as passenger_phone,
+          (r.status = 'accepted' AND r.driver_id = ${driver.id}) AS can_call,
           z.name as zone_name,
           COALESCE((
             SELECT json_agg(o ORDER BY o.responded_at DESC)
@@ -305,7 +305,6 @@ export async function GET(request) {
             WHERE o.ride_id = r.id
           ), '[]'::json) as fare_offers
         FROM rides r
-        JOIN auth_users u ON r.passenger_id = u.id
         LEFT JOIN geo_zones z ON z.id = r.zone_id
         WHERE
           r.driver_id = ${driver.id}
@@ -329,7 +328,7 @@ export async function GET(request) {
           d.auto_photo_url,
           d.last_lat as driver_last_lat,
           d.last_lng as driver_last_lng,
-          u.phone as driver_phone,
+          (r.status = 'accepted' AND r.driver_id IS NOT NULL) AS can_call,
           COALESCE((
             SELECT json_agg(o ORDER BY o.responded_at DESC)
             FROM ride_fare_offers o
@@ -337,7 +336,6 @@ export async function GET(request) {
           ), '[]'::json) as fare_offers
         FROM rides r
         LEFT JOIN drivers d ON r.driver_id = d.id
-        LEFT JOIN auth_users u ON d.user_id = u.id
         WHERE r.passenger_id = ${session.user.id}
         ORDER BY r.created_at DESC
       `;

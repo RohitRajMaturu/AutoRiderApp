@@ -31,6 +31,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
 import * as Location from "expo-location";
+import { toast } from "sonner-native";
 import TukTukGoLoader from "@/components/TukTukGoLoader";
 import { ICON } from "@/theme/iconScale";
 import { useAuth } from "@/utils/auth/useAuth";
@@ -674,6 +675,32 @@ export default function PassengerHome() {
       queryClient.invalidateQueries({ queryKey: ["passengerRides"] });
     },
     onError: (err) => Alert.alert("Rating Failed", err.message),
+  });
+
+  const requestMaskedCall = useMutation({
+    mutationFn: async (rideId) => {
+      const res = await fetch(`/api/rides/${rideId}/call`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        throw new Error(error.error || "Call failed. Try again.");
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast("Connecting call", {
+        description: data.message || "Connecting you now...",
+        duration: 3500,
+      });
+    },
+    onError: (err) => {
+      toast("Call unavailable", {
+        description: err.message || "Call failed. Try again.",
+        duration: 3500,
+      });
+    },
   });
 
   const hasTripEstimate = Number.isFinite(Number(tripEstimate?.fareEstimate));
@@ -1401,15 +1428,14 @@ export default function PassengerHome() {
                             {activeRide.vehicle_number}
                           </Text>
                           <Text style={{ fontSize: 12, color: TEXT_SECONDARY }}>
-                            {activeRide.driver_phone ? "Call driver from the app" : "Your driver"}
+                            {activeRide.can_call ? "Call driver from the app" : "Your driver"}
                           </Text>
                         </View>
                       </View>
-                      {activeRide.driver_phone && (
+                      {activeRide.can_call && (
                         <TouchableOpacity
-                          onPress={() =>
-                            Linking.openURL(`tel:${activeRide.driver_phone}`)
-                          }
+                          onPress={() => requestMaskedCall.mutate(activeRide.id)}
+                          disabled={requestMaskedCall.isPending}
                           style={{
                             width: 44,
                             height: 44,
@@ -1417,6 +1443,7 @@ export default function PassengerHome() {
                             backgroundColor: SUCCESS,
                             justifyContent: "center",
                             alignItems: "center",
+                            opacity: requestMaskedCall.isPending ? 0.65 : 1,
                           }}
                         >
                           <Phone size={ICON.md} color="#fff" />

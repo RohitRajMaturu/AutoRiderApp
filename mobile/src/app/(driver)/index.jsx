@@ -1050,9 +1050,11 @@ function KycGateScreen({ status, reason }) {
 
 function ActiveRideCard({
   ride,
+  onCall,
   onStart,
   onComplete,
   onCancel,
+  isCalling,
   isStarting,
   isCompleting,
   isCancelling,
@@ -1106,9 +1108,10 @@ function ActiveRideCard({
             </Text>
           </View>
           <View style={{ alignItems: "flex-end", gap: 10 }}>
-            {ride.passenger_phone && (
+            {ride.can_call && (
               <TouchableOpacity
-                onPress={() => Linking.openURL(`tel:${ride.passenger_phone}`)}
+                onPress={() => onCall(ride.id)}
+                disabled={isCalling}
                 accessibilityLabel="Call passenger"
                 style={{
                   width: 42,
@@ -1117,6 +1120,7 @@ function ActiveRideCard({
                   backgroundColor: SUCCESS,
                   justifyContent: "center",
                   alignItems: "center",
+                  opacity: isCalling ? 0.65 : 1,
                 }}
                 activeOpacity={0.85}
               >
@@ -1767,6 +1771,25 @@ export default function DriverHome() {
     onError: (err) => Alert.alert("Start Failed", err.message),
   });
 
+  const requestMaskedCall = useMutation({
+    mutationFn: async (rideId) => {
+      const res = await fetch(`/api/rides/${rideId}/call`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) {
+        await readApiError(res, "Call failed. Try again.");
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      showDriverNotice("Connecting call", data.message || "Connecting you now...");
+    },
+    onError: (err) => {
+      showDriverNotice("Call unavailable", err.message || "Call failed. Try again.");
+    },
+  });
+
   const cancelRide = useMutation({
     mutationFn: async (rideId) => {
       const res = await fetch(`/api/rides/${rideId}`, {
@@ -2090,6 +2113,7 @@ export default function DriverHome() {
         {activeRide && (
           <ActiveRideCard
             ride={activeRide}
+            onCall={(id) => requestMaskedCall.mutate(id)}
             onStart={(id) =>
               setConfirmAction({
                 title: "Start ride?",
@@ -2116,6 +2140,7 @@ export default function DriverHome() {
                 onConfirm: () => cancelRide.mutate(id),
               })
             }
+            isCalling={requestMaskedCall.isPending}
             isStarting={startRide.isPending}
             isCompleting={completeRide.isPending}
             isCancelling={cancelRide.isPending}
