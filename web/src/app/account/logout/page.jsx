@@ -4,21 +4,11 @@ import TukTukGoLoader from "@/components/TukTukGoLoader";
 import { ConceptBackdrop } from "@/components/ConceptVisuals";
 
 function getLogoutCallbackUrl() {
-  if (typeof window === "undefined") return "/account/signin";
+  if (typeof window === "undefined") return "/";
   const params = new URLSearchParams(window.location.search);
   const next = params.get("next");
   if (next && next.startsWith("/")) return next;
-
-  const signinParams = new URLSearchParams();
-  for (const key of ["callbackUrl", "finalCallbackUrl", "mode", "role"]) {
-    const value = params.get(key);
-    if (value) signinParams.set(key, value);
-  }
-
-  const requestedRole = signinParams.get("role");
-  const base = requestedRole === "admin" ? "/admin-login" : "/account/signin";
-  const query = signinParams.toString();
-  return `${base}${query ? `?${query}` : ""}`;
+  return "/";
 }
 
 function LogoutPage() {
