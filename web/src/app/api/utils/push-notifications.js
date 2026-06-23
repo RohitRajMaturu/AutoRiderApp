@@ -40,6 +40,8 @@ export async function sendPushToUsers(userIds, notification, scopedSql = sql) {
       compactPayload({
         to: row.token,
         sound: "default",
+        channelId: notification.channelId || "ride-requests",
+        priority: notification.priority || "high",
         title: notification.title,
         body: notification.body,
         data: notification.data || {},

@@ -30,7 +30,11 @@ export async function GET(request) {
         subscription_halted_at,
         subscription_failure_count,
         manual_payment_link,
-        razorpay_subscription_id
+        razorpay_subscription_id,
+        queued_subscription_plan,
+        queued_subscription_starts_at,
+        queued_subscription_requested_at,
+        queued_razorpay_subscription_id
       FROM drivers
       WHERE user_id = ${session.user.id}
       LIMIT 1
@@ -52,6 +56,10 @@ export async function GET(request) {
         failureCount: driver.subscription_failure_count || 0,
         manualPaymentLink: driver.manual_payment_link || null,
         subscriptionId: driver.razorpay_subscription_id || null,
+        queuedPlan: driver.queued_subscription_plan || null,
+        queuedStartsAt: driver.queued_subscription_starts_at || null,
+        queuedRequestedAt: driver.queued_subscription_requested_at || null,
+        queuedSubscriptionId: driver.queued_razorpay_subscription_id || null,
       },
     });
   } catch (err) {

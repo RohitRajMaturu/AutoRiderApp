@@ -18,6 +18,10 @@ function readSubscription(payload) {
   return payload?.payload?.subscription?.entity || null;
 }
 
+function readSubscriptionId(subscription) {
+  return subscription?.id || null;
+}
+
 export async function POST(request) {
   const rawBody = await request.text();
   const signature = request.headers.get("x-razorpay-signature");
@@ -30,6 +34,7 @@ export async function POST(request) {
     const eventType = payload.event;
     const driverId = readDriverId(payload);
     const subscription = readSubscription(payload);
+    const subscriptionId = readSubscriptionId(subscription);
     const eventId = payload.id || null;
 
     await sql.transaction(async (tx) => {
@@ -53,9 +58,31 @@ export async function POST(request) {
           UPDATE drivers
           SET subscription_status = 'active',
               mandate_status = COALESCE(mandate_status, 'confirmed'),
+              subscription_plan = CASE
+                WHEN queued_razorpay_subscription_id = ${subscriptionId}
+                  THEN COALESCE(queued_subscription_plan, subscription_plan)
+                ELSE subscription_plan
+              END,
+              razorpay_subscription_id = COALESCE(${subscriptionId}, razorpay_subscription_id),
               subscription_failure_count = 0,
               next_renewal_at = COALESCE(${nextRenewalAt}, next_renewal_at),
               subscription_expiry = COALESCE(${nextRenewalAt}, subscription_expiry),
+              queued_subscription_plan = CASE
+                WHEN queued_razorpay_subscription_id = ${subscriptionId} THEN NULL
+                ELSE queued_subscription_plan
+              END,
+              queued_subscription_starts_at = CASE
+                WHEN queued_razorpay_subscription_id = ${subscriptionId} THEN NULL
+                ELSE queued_subscription_starts_at
+              END,
+              queued_subscription_requested_at = CASE
+                WHEN queued_razorpay_subscription_id = ${subscriptionId} THEN NULL
+                ELSE queued_subscription_requested_at
+              END,
+              queued_razorpay_subscription_id = CASE
+                WHEN queued_razorpay_subscription_id = ${subscriptionId} THEN NULL
+                ELSE queued_razorpay_subscription_id
+              END,
               updated_at = CURRENT_TIMESTAMP
           WHERE id = ${driverId}
         `;
@@ -71,14 +98,24 @@ export async function POST(request) {
       } else if (eventType === "subscription.cancelled") {
         await tx`
           UPDATE drivers
-          SET subscription_status = 'cancelled',
+          SET subscription_status = CASE
+                WHEN queued_razorpay_subscription_id IS NOT NULL
+                  AND razorpay_subscription_id = ${subscriptionId}
+                  THEN subscription_status
+                ELSE 'cancelled'
+              END,
               updated_at = CURRENT_TIMESTAMP
           WHERE id = ${driverId}
         `;
       } else if (eventType === "subscription.completed") {
         await tx`
           UPDATE drivers
-          SET subscription_status = 'expired',
+          SET subscription_status = CASE
+                WHEN queued_razorpay_subscription_id IS NOT NULL
+                  AND razorpay_subscription_id = ${subscriptionId}
+                  THEN subscription_status
+                ELSE 'expired'
+              END,
               updated_at = CURRENT_TIMESTAMP
           WHERE id = ${driverId}
         `;

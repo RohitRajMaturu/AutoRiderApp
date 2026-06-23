@@ -517,11 +517,18 @@ ALTER TABLE drivers
   ADD COLUMN IF NOT EXISTS trial_ends_at timestamptz,
   ADD COLUMN IF NOT EXISTS subscription_halted_at timestamptz,
   ADD COLUMN IF NOT EXISTS subscription_failure_count integer NOT NULL DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS manual_payment_link text;
+  ADD COLUMN IF NOT EXISTS manual_payment_link text,
+  ADD COLUMN IF NOT EXISTS queued_subscription_plan text CHECK (queued_subscription_plan IN ('starter', 'active', 'pro')),
+  ADD COLUMN IF NOT EXISTS queued_subscription_starts_at timestamptz,
+  ADD COLUMN IF NOT EXISTS queued_subscription_requested_at timestamptz,
+  ADD COLUMN IF NOT EXISTS queued_razorpay_subscription_id text;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_drivers_razorpay_subscription_id
   ON drivers(razorpay_subscription_id)
   WHERE razorpay_subscription_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_drivers_queued_razorpay_subscription_id
+  ON drivers(queued_razorpay_subscription_id)
+  WHERE queued_razorpay_subscription_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS subscription_events (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

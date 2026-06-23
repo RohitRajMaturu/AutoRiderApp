@@ -56,6 +56,10 @@ export async function POST(request) {
           mandate_status = 'pending',
           razorpay_subscription_id = ${subscription.id},
           next_renewal_at = ${nextRenewalAt},
+          queued_subscription_plan = NULL,
+          queued_subscription_starts_at = NULL,
+          queued_subscription_requested_at = NULL,
+          queued_razorpay_subscription_id = NULL,
           updated_at = CURRENT_TIMESTAMP
       WHERE id = ${driver.id}
     `;

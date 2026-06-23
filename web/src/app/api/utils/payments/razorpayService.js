@@ -73,7 +73,7 @@ export async function createCustomer(driverProfile) {
   });
 }
 
-export async function createSubscription(driverId, planKey, customerId) {
+export async function createSubscription(driverId, planKey, customerId, options = {}) {
   const config = getRazorpayConfig();
   if (!config) {
     const error = new Error("Razorpay is not configured");
@@ -94,6 +94,9 @@ export async function createSubscription(driverId, planKey, customerId) {
       total_count: 12,
       customer_notify: 1,
       customer_id: customerId || undefined,
+      start_at: options.startAt
+        ? Math.floor(new Date(options.startAt).getTime() / 1000)
+        : undefined,
       notes: { driver_id: driverId, plan: planKey },
     },
   });

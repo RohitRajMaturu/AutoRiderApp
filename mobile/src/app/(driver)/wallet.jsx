@@ -1,21 +1,20 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Linking, View, Text, ScrollView, ActivityIndicator, TouchableOpacity, TextInput } from "react-native";
+import { Linking, View, Text, ScrollView, ActivityIndicator, TouchableOpacity } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Calendar,
-  ArrowUpDown,
   CheckCircle2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
   Info,
   IndianRupee,
   MapPin,
-  Search,
   Shield,
   Star,
   TrendingUp,
-  X,
   Zap,
 } from "lucide-react-native";
 import { StatusBar } from "expo-status-bar";
@@ -38,15 +37,13 @@ const DARK = "#17272B";
 const RIDE_HISTORY_PAGE_SIZE = 5;
 const RIDE_HISTORY_FILTERS = [
   { key: "all", label: "All" },
-  { key: "7d", label: "7D" },
   { key: "30d", label: "30D" },
   { key: "90d", label: "90D" },
 ];
-const RIDE_HISTORY_SORTS = [
-  { key: "newest", label: "Newest" },
-  { key: "oldest", label: "Oldest" },
-  { key: "fare_desc", label: "Fare high" },
-  { key: "distance_desc", label: "Distance" },
+const SUBSCRIPTION_PLANS = [
+  { key: "starter", label: "Starter", price: "Entry", desc: "Best for occasional ride hours" },
+  { key: "active", label: "Active", price: "Popular", desc: "Balanced access for daily drivers" },
+  { key: "pro", label: "Pro", price: "Priority", desc: "For high-frequency driver partners" },
 ];
 
 const BENEFITS = [
@@ -104,10 +101,6 @@ function formatDistance(value) {
   return Number.isFinite(distance) ? `${distance.toFixed(1)} km` : null;
 }
 
-function normalize(value) {
-  return String(value || "").toLowerCase();
-}
-
 function rideCompletedTime(ride) {
   const value = ride?.completed_at || ride?.created_at;
   const time = value ? new Date(value).getTime() : 0;
@@ -122,14 +115,11 @@ function matchesPeriod(ride, period) {
   return Date.now() - time <= days * 24 * 60 * 60 * 1000;
 }
 
-function sortRideHistory(a, b, sortKey) {
-  if (sortKey === "oldest") return rideCompletedTime(a) - rideCompletedTime(b);
-  if (sortKey === "fare_desc") return Number(b.fare || 0) - Number(a.fare || 0);
-  if (sortKey === "distance_desc") return Number(b.distance_km || 0) - Number(a.distance_km || 0);
+function sortRideHistory(a, b) {
   return rideCompletedTime(b) - rideCompletedTime(a);
 }
 
-function HistoryChip({ label, selected, onPress, icon: Icon }) {
+function HistoryChip({ label, selected, onPress }) {
   return (
     <TouchableOpacity
       activeOpacity={0.84}
@@ -146,7 +136,6 @@ function HistoryChip({ label, selected, onPress, icon: Icon }) {
         paddingVertical: 8,
       }}
     >
-      {Icon ? <Icon size={ICON.xs} color={selected ? SURFACE : TEXT_SECONDARY} /> : null}
       <Text
         style={{
           color: selected ? SURFACE : TEXT_SECONDARY,
@@ -245,10 +234,9 @@ export default function DriverWallet() {
   const insets = useSafeAreaInsets();
   const { auth } = useAuth();
   const queryClient = useQueryClient();
-  const [rideSearch, setRideSearch] = useState("");
   const [ridePeriod, setRidePeriod] = useState("all");
-  const [rideSort, setRideSort] = useState("newest");
   const [ridePage, setRidePage] = useState(1);
+  const [subscriptionDetailsOpen, setSubscriptionDetailsOpen] = useState(false);
   const authUserKey =
     auth?.user?.id || auth?.user?.email || auth?.user?.phone || "anonymous";
 
@@ -314,6 +302,37 @@ export default function DriverWallet() {
     },
   });
 
+  const changeSubscription = useMutation({
+    mutationFn: async (planKey) => {
+      const res = await fetch("/api/driver/subscription/change", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planKey }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || "Could not change subscription plan");
+      return body;
+    },
+    onSuccess: async (data) => {
+      queryClient.invalidateQueries({ queryKey: ["driverSubscription", authUserKey] });
+      const shortUrl = data?.subscription?.shortUrl;
+      if (shortUrl) {
+        await Linking.openURL(shortUrl);
+      }
+      toast(data?.mode === "queued" ? "Plan change scheduled" : "Plan change started", {
+        description:
+          data?.mode === "queued"
+            ? "Your current plan remains active. The new plan starts after this cycle ends."
+            : "Complete the payment/mandate flow to activate this plan.",
+      });
+    },
+    onError: (err) => {
+      toast("Plan change unavailable", {
+        description: err.message || "Could not schedule the selected plan.",
+      });
+    },
+  });
+
   const {
     data: rideHistoryData,
     fetchNextPage,
@@ -340,6 +359,11 @@ export default function DriverWallet() {
   const driver = driverData?.driver;
   const subscription = subscriptionData?.subscription;
   const providerConfigured = Boolean(subscriptionData?.providerConfigured);
+  const currentPlan = subscription?.plan || "starter";
+  const queuedPlan = subscription?.queuedPlan || null;
+  const queuedStartsAt = subscription?.queuedStartsAt
+    ? new Date(subscription.queuedStartsAt)
+    : null;
   const expiry = driver?.subscription_expiry
     ? new Date(driver.subscription_expiry)
     : null;
@@ -352,17 +376,10 @@ export default function DriverWallet() {
     [rideHistoryData?.pages],
   );
   const filteredRideHistory = useMemo(() => {
-    const query = normalize(rideSearch.trim());
     return rideHistory
       .filter((ride) => matchesPeriod(ride, ridePeriod))
-      .filter((ride) => {
-        if (!query) return true;
-        return [ride.pickup_address, ride.dest_address, ride.fare, ride.distance_km]
-          .map(normalize)
-          .some((value) => value.includes(query));
-      })
-      .sort((a, b) => sortRideHistory(a, b, rideSort));
-  }, [rideHistory, ridePeriod, rideSearch, rideSort]);
+      .sort((a, b) => sortRideHistory(a, b));
+  }, [rideHistory, ridePeriod]);
   const rideTotalPages = Math.max(
     Math.ceil(filteredRideHistory.length / RIDE_HISTORY_PAGE_SIZE),
     1,
@@ -382,7 +399,7 @@ export default function DriverWallet() {
 
   useEffect(() => {
     setRidePage(1);
-  }, [ridePeriod, rideSearch, rideSort]);
+  }, [ridePeriod]);
 
   useEffect(() => {
     if (ridePage > rideTotalPages) setRidePage(rideTotalPages);
@@ -574,26 +591,127 @@ export default function DriverWallet() {
               <Info size={ICON.md} color={PRIMARY} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 14, fontWeight: "700", color: TEXT }}>
-                {providerConfigured ? "Razorpay subscription" : "Admin-managed pilot access"}
-              </Text>
-              <Text style={{ fontSize: 12, color: PRIMARY, marginTop: 3 }}>
-                {subscription?.status
-                  ? `Status: ${subscription.status}${subscription.mandateStatus ? `, mandate ${subscription.mandateStatus}` : ""}`
-                  : "Pilot access is controlled by TukTukGo operations"}
-              </Text>
-              <Text
-                style={{
-                  fontSize: 13,
-                  color: TEXT_SECONDARY,
-                  lineHeight: 20,
-                  marginTop: 6,
-                }}
+              <TouchableOpacity
+                activeOpacity={0.84}
+                onPress={() => setSubscriptionDetailsOpen((value) => !value)}
+                style={{ flexDirection: "row", gap: 12, justifyContent: "space-between" }}
               >
-                {providerConfigured
-                  ? "Use Razorpay UPI AutoPay to activate or renew access. If a mandate fails, a manual payment link can be shown here."
-                  : "Subscription expiry is extended manually by the TukTukGo admin team until Razorpay credentials are connected."}
-              </Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14, fontWeight: "700", color: TEXT }}>
+                    {providerConfigured ? "Razorpay subscription" : "Admin-managed pilot access"}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: PRIMARY, marginTop: 3 }}>
+                    Current plan: {currentPlan.toUpperCase()} · {subscription?.status || "pilot"}
+                  </Text>
+                  {queuedPlan ? (
+                    <Text style={{ color: "#92400E", fontSize: 11, fontWeight: "800", marginTop: 3 }}>
+                      {queuedPlan.toUpperCase()} queued from {formatExpiry(queuedStartsAt)}
+                    </Text>
+                  ) : null}
+                </View>
+                {subscriptionDetailsOpen ? (
+                  <ChevronUp size={ICON.sm} color={TEXT_SECONDARY} />
+                ) : (
+                  <ChevronDown size={ICON.sm} color={TEXT_SECONDARY} />
+                )}
+              </TouchableOpacity>
+              {subscriptionDetailsOpen ? (
+                <>
+                  <Text style={{ fontSize: 12, color: PRIMARY, marginTop: 10 }}>
+                    {subscription?.status
+                      ? `Status: ${subscription.status}${subscription.mandateStatus ? `, mandate ${subscription.mandateStatus}` : ""}`
+                      : "Pilot access is controlled by TukTukGo operations"}
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      color: TEXT_SECONDARY,
+                      lineHeight: 20,
+                      marginTop: 6,
+                    }}
+                  >
+                    {providerConfigured
+                      ? "Use Razorpay UPI AutoPay to activate or renew access. If a mandate fails, a manual payment link can be shown here."
+                      : "Subscription expiry is extended manually by the TukTukGo admin team until Razorpay credentials are connected."}
+                  </Text>
+                  <View style={{ marginTop: 14 }}>
+                <Text style={{ color: TEXT, fontSize: 13, fontWeight: "800" }}>
+                  Change plan
+                </Text>
+                <Text style={{ color: TEXT_SECONDARY, fontSize: 12, lineHeight: 18, marginTop: 4 }}>
+                  Your current plan stays active until expiry. If you change plans midway, the selected plan is scheduled for the next cycle and the current subscription is stopped at cycle end.
+                </Text>
+                {queuedPlan ? (
+                  <View
+                    style={{
+                      backgroundColor: "#FFFBEB",
+                      borderColor: "#FDE68A",
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      marginTop: 10,
+                      padding: 10,
+                    }}
+                  >
+                    <Text style={{ color: "#92400E", fontSize: 12, fontWeight: "900" }}>
+                      {queuedPlan.toUpperCase()} starts {formatExpiry(queuedStartsAt)}
+                    </Text>
+                    <Text style={{ color: "#92400E", fontSize: 11, lineHeight: 16, marginTop: 3 }}>
+                      This queued change applies only after the current paid period ends.
+                    </Text>
+                  </View>
+                ) : null}
+                <View style={{ gap: 8, marginTop: 10 }}>
+                  {SUBSCRIPTION_PLANS.map((plan) => {
+                    const isCurrent = currentPlan === plan.key && !queuedPlan;
+                    const isQueued = queuedPlan === plan.key;
+                    const disabled =
+                      !providerConfigured ||
+                      changeSubscription.isPending ||
+                      isCurrent ||
+                      isQueued;
+                    return (
+                      <TouchableOpacity
+                        activeOpacity={0.85}
+                        disabled={disabled}
+                        key={plan.key}
+                        onPress={() => changeSubscription.mutate(plan.key)}
+                        style={{
+                          backgroundColor: isCurrent || isQueued ? PRIMARY_LIGHT : SURFACE,
+                          borderColor: isCurrent || isQueued ? PRIMARY_BORDER : BORDER,
+                          borderRadius: 12,
+                          borderWidth: 1,
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                          opacity: disabled && !(isCurrent || isQueued) ? 0.55 : 1,
+                          padding: 12,
+                        }}
+                      >
+                        <View style={{ flex: 1, paddingRight: 10 }}>
+                          <Text style={{ color: TEXT, fontSize: 13, fontWeight: "900" }}>
+                            {plan.label}
+                          </Text>
+                          <Text style={{ color: TEXT_SECONDARY, fontSize: 11, marginTop: 2 }}>
+                            {plan.desc}
+                          </Text>
+                        </View>
+                        <View style={{ alignItems: "flex-end" }}>
+                          <Text style={{ color: PRIMARY, fontSize: 11, fontWeight: "900" }}>
+                            {isQueued ? "QUEUED" : isCurrent ? "CURRENT" : plan.price}
+                          </Text>
+                          {!isCurrent && !isQueued ? (
+                            <Text style={{ color: TEXT_MUTED, fontSize: 10, marginTop: 3 }}>
+                              {isActive ? "Next cycle" : "Activate now"}
+                            </Text>
+                          ) : null}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                <Text style={{ color: TEXT_MUTED, fontSize: 11, lineHeight: 16, marginTop: 10 }}>
+                  T&C: plan changes do not refund or shorten the current billing period. The current plan remains usable until its expiry date. The new plan begins from the next cycle after successful Razorpay mandate/payment setup.
+                </Text>
+              </View>
               {subscription?.manualPaymentLink ? (
                 <TouchableOpacity
                   onPress={() => Linking.openURL(subscription.manualPaymentLink)}
@@ -630,6 +748,8 @@ export default function DriverWallet() {
                     {createSubscription.isPending ? "Opening..." : isActive ? "Manage Renewal" : "Activate Plan"}
                   </Text>
                 </TouchableOpacity>
+              ) : null}
+                </>
               ) : null}
             </View>
           </View>
@@ -724,7 +844,7 @@ export default function DriverWallet() {
                     Ride History
                   </Text>
                   <Text style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 2 }}>
-                    {rideHistory.length} loaded - {filteredRideHistory.length} matching
+                    {rideHistory.length} loaded - newest first
                   </Text>
                 </View>
                 <View
@@ -744,34 +864,6 @@ export default function DriverWallet() {
                   </Text>
                 </View>
               </View>
-              <View
-                style={{
-                  alignItems: "center",
-                  backgroundColor: BG,
-                  borderColor: BORDER,
-                  borderRadius: 12,
-                  borderWidth: 1,
-                  flexDirection: "row",
-                  gap: 8,
-                  marginTop: 12,
-                  paddingHorizontal: 12,
-                  paddingVertical: 10,
-                }}
-              >
-                <Search size={ICON.sm} color={TEXT_SECONDARY} />
-                <TextInput
-                  placeholder="Search route, fare, distance..."
-                  placeholderTextColor={TEXT_MUTED}
-                  value={rideSearch}
-                  onChangeText={setRideSearch}
-                  style={{ color: TEXT, flex: 1, fontSize: 13, fontWeight: "600", paddingVertical: 0 }}
-                />
-                {rideSearch.length > 0 ? (
-                  <TouchableOpacity accessibilityLabel="Clear driver ride search" onPress={() => setRideSearch("")}>
-                    <X size={ICON.sm} color={TEXT_SECONDARY} />
-                  </TouchableOpacity>
-                ) : null}
-              </View>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -784,22 +876,6 @@ export default function DriverWallet() {
                     label={filter.label}
                     onPress={() => setRidePeriod(filter.key)}
                     selected={ridePeriod === filter.key}
-                  />
-                ))}
-              </ScrollView>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ gap: 8, paddingRight: 14 }}
-                style={{ marginTop: 10 }}
-              >
-                {RIDE_HISTORY_SORTS.map((sort) => (
-                  <HistoryChip
-                    icon={ArrowUpDown}
-                    key={sort.key}
-                    label={sort.label}
-                    onPress={() => setRideSort(sort.key)}
-                    selected={rideSort === sort.key}
                   />
                 ))}
               </ScrollView>

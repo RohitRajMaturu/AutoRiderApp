@@ -2,6 +2,7 @@ import { useAuth } from "@/utils/auth/useAuth";
 import { AuthModal } from "@/utils/auth/useAuthModal";
 import { ThemeProvider } from "@/theme/ThemeContext";
 import { Stack, usePathname, useRootNavigationState, useRouter, useSegments } from "expo-router";
+import * as Notifications from "expo-notifications";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { ActivityIndicator, Linking, Modal, Text, TouchableOpacity, View } from "react-native";
@@ -9,12 +10,21 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { QueryClientProvider, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import queryClient from "@/utils/queryClient";
 import { Toaster } from "sonner-native";
-import { registerPushToken } from "@/utils/pushNotifications";
+import { configureRideNotificationChannel, registerPushToken } from "@/utils/pushNotifications";
 import { OfflineBanner } from "@/components/OfflineBanner";
 SplashScreen.preventAutoHideAsync();
 
 const PRIMARY = "#43B8B3";
 const PRIVACY_POLICY_URL = process.env.EXPO_PUBLIC_PRIVACY_URL ?? "#";
+
+function notificationTarget(data, auth) {
+  const type = String(data?.type || "");
+  const role = auth?.user?.role;
+  if (type.includes("ride") || type.includes("negotiation") || data?.rideId) {
+    return role === "passenger" ? "/(passenger)" : "/(driver)";
+  }
+  return null;
+}
 
 function AuthBootOverlay() {
   return (
@@ -195,7 +205,30 @@ export default function RootLayout() {
   useEffect(() => {
     if (!auth) return;
     registerPushToken().catch(() => {});
-  }, [auth?.user?.id]);
+  }, [auth]);
+
+  useEffect(() => {
+    configureRideNotificationChannel().catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!rootNavigationState?.key || !isReady || !auth) return;
+
+    const openFromResponse = (response) => {
+      const data = response?.notification?.request?.content?.data || {};
+      const target = notificationTarget(data, auth);
+      if (target) router.push(target);
+    };
+
+    Notifications.getLastNotificationResponseAsync()
+      .then((response) => {
+        if (response) openFromResponse(response);
+      })
+      .catch(() => {});
+
+    const subscription = Notifications.addNotificationResponseReceivedListener(openFromResponse);
+    return () => subscription.remove();
+  }, [auth, isReady, rootNavigationState?.key, router]);
 
   return (
     <QueryClientProvider client={queryClient}>
