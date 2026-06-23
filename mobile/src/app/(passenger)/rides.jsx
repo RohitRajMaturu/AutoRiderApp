@@ -1,9 +1,9 @@
 import React, { memo, useEffect, useMemo, useRef, useState } from "react";
-import { Animated, View, Text, TouchableOpacity, RefreshControl } from "react-native";
+import { Animated, View, Text, TouchableOpacity, RefreshControl, TextInput, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { FlashList } from "@shopify/flash-list";
-import { Clock, CheckCircle2, XCircle, MapPin, Sparkles, IndianRupee } from "lucide-react-native";
+import { ArrowUpDown, ChevronLeft, ChevronRight, Clock, CheckCircle2, Search, X, XCircle, MapPin, Sparkles, IndianRupee } from "lucide-react-native";
 import { StatusBar } from "expo-status-bar";
 import { SkeletonLoader, StatusBadge } from "@/components/ui";
 import AutoRickshawIcon from "@/components/AutoRickshawIcon";
@@ -11,11 +11,18 @@ import { useTheme } from "@/theme/ThemeContext";
 import { ICON } from "@/theme/iconScale";
 
 const FILTERS = [
+  { key: "all", label: "All" },
   { key: "pending", label: "Pending" },
   { key: "completed", label: "Completed" },
   { key: "cancelled", label: "Cancelled" },
 ];
-const PAGE_SIZE = 8;
+const SORT_OPTIONS = [
+  { key: "newest", label: "Newest" },
+  { key: "oldest", label: "Oldest" },
+  { key: "fare_desc", label: "Fare high" },
+  { key: "distance_desc", label: "Distance" },
+];
+const PAGE_SIZE = 6;
 
 function formatCurrency(value) {
   const amount = Number(value);
@@ -25,6 +32,31 @@ function formatCurrency(value) {
 
 function rideFare(ride) {
   return ride?.final_fare ?? ride?.estimated_fare ?? null;
+}
+
+function rideTime(ride) {
+  const value = ride?.completed_at || ride?.created_at;
+  const time = value ? new Date(value).getTime() : 0;
+  return Number.isFinite(time) ? time : 0;
+}
+
+function normalize(value) {
+  return String(value || "").toLowerCase();
+}
+
+function matchesStatus(ride, activeFilter) {
+  if (activeFilter === "all") return true;
+  if (activeFilter === "pending") {
+    return ["requested", "negotiating", "accepted"].includes(ride.status);
+  }
+  return ride.status === activeFilter;
+}
+
+function sortRides(a, b, sortKey) {
+  if (sortKey === "oldest") return rideTime(a) - rideTime(b);
+  if (sortKey === "fare_desc") return Number(rideFare(b) || 0) - Number(rideFare(a) || 0);
+  if (sortKey === "distance_desc") return Number(b.distance_km || 0) - Number(a.distance_km || 0);
+  return rideTime(b) - rideTime(a);
 }
 
 function formatCancellationReason(reason) {
@@ -227,11 +259,16 @@ const RideCard = memo(function RideCard({ ride }) {
   );
 });
 
-function FilterTabs({ activeFilter, onChange }) {
+function FilterTabs({ activeFilter, onChange, counts }) {
   const theme = useTheme();
 
   return (
-    <View style={{ flexDirection: "row", gap: theme.spacing[2], marginTop: theme.spacing[4] }}>
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{ gap: theme.spacing[2], paddingRight: theme.spacing[5] }}
+      style={{ marginTop: theme.spacing[4] }}
+    >
       {FILTERS.map((filter) => {
         const selected = filter.key === activeFilter;
         return (
@@ -257,11 +294,127 @@ function FilterTabs({ activeFilter, onChange }) {
                 { color: selected ? theme.surface : theme.primaryDark },
               ]}
             >
-              {filter.label}
+              {filter.label} {counts?.[filter.key] ?? 0}
             </Text>
           </TouchableOpacity>
         );
       })}
+    </ScrollView>
+  );
+}
+
+function SortTabs({ activeSort, onChange }) {
+  const theme = useTheme();
+
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{ gap: theme.spacing[2], paddingRight: theme.spacing[5] }}
+      style={{ marginTop: theme.spacing[3] }}
+    >
+      {SORT_OPTIONS.map((option) => {
+        const selected = option.key === activeSort;
+        return (
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityState={{ selected }}
+            activeOpacity={0.86}
+            key={option.key}
+            onPress={() => onChange(option.key)}
+            style={{
+              alignItems: "center",
+              backgroundColor: selected ? theme.dark : theme.surface,
+              borderColor: selected ? theme.dark : theme.border,
+              borderRadius: theme.radii.pill,
+              borderWidth: 1,
+              flexDirection: "row",
+              gap: theme.spacing[1],
+              paddingHorizontal: theme.spacing[3],
+              paddingVertical: theme.spacing[2],
+            }}
+          >
+            <ArrowUpDown size={ICON.xs} color={selected ? theme.surface : theme.textSecondary} />
+            <Text style={[theme.typography.micro, { color: selected ? theme.surface : theme.textSecondary }]}>
+              {option.label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </ScrollView>
+  );
+}
+
+function PaginationBar({ page, totalPages, totalCount, start, end, onPrevious, onNext }) {
+  const theme = useTheme();
+  const disabledPrevious = page <= 1;
+  const disabledNext = page >= totalPages;
+
+  if (totalCount === 0) return null;
+
+  return (
+    <View
+      style={{
+        backgroundColor: theme.surface,
+        borderColor: theme.border,
+        borderRadius: theme.radii.lg,
+        borderWidth: 1,
+        marginTop: theme.spacing[2],
+        padding: theme.spacing[3],
+      }}
+    >
+      <View style={{ alignItems: "center", flexDirection: "row", justifyContent: "space-between" }}>
+        <Text style={[theme.typography.micro, { color: theme.textSecondary }]}>
+          Showing {start}-{end} of {totalCount}
+        </Text>
+        <Text style={[theme.typography.micro, { color: theme.text }]}>
+          Page {page}/{totalPages}
+        </Text>
+      </View>
+      <View style={{ flexDirection: "row", gap: theme.spacing[2], marginTop: theme.spacing[3] }}>
+        <TouchableOpacity
+          activeOpacity={0.85}
+          disabled={disabledPrevious}
+          onPress={onPrevious}
+          style={{
+            alignItems: "center",
+            backgroundColor: disabledPrevious ? theme.mutedSurface : theme.surface,
+            borderColor: theme.border,
+            borderRadius: theme.radii.md,
+            borderWidth: 1,
+            flex: 1,
+            flexDirection: "row",
+            gap: theme.spacing[1],
+            justifyContent: "center",
+            opacity: disabledPrevious ? 0.5 : 1,
+            paddingVertical: theme.spacing[3],
+          }}
+        >
+          <ChevronLeft size={ICON.sm} color={theme.textSecondary} />
+          <Text style={[theme.typography.caption, { color: theme.textSecondary }]}>Previous</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          activeOpacity={0.85}
+          disabled={disabledNext}
+          onPress={onNext}
+          style={{
+            alignItems: "center",
+            backgroundColor: disabledNext ? theme.mutedSurface : theme.primary,
+            borderColor: disabledNext ? theme.border : theme.primary,
+            borderRadius: theme.radii.md,
+            borderWidth: 1,
+            flex: 1,
+            flexDirection: "row",
+            gap: theme.spacing[1],
+            justifyContent: "center",
+            opacity: disabledNext ? 0.5 : 1,
+            paddingVertical: theme.spacing[3],
+          }}
+        >
+          <Text style={[theme.typography.caption, { color: disabledNext ? theme.textSecondary : theme.surface }]}>Next</Text>
+          <ChevronRight size={ICON.sm} color={disabledNext ? theme.textSecondary : theme.surface} />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -535,8 +688,10 @@ function RidesEmptyState({ title, description }) {
 export default function PassengerRides() {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
-  const [activeFilter, setActiveFilter] = useState("pending");
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [activeFilter, setActiveFilter] = useState("all");
+  const [sortKey, setSortKey] = useState("newest");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["passengerRides"],
     queryFn: async () => {
@@ -548,25 +703,52 @@ export default function PassengerRides() {
   });
 
   const rides = useMemo(() => data?.rides || [], [data?.rides]);
+  const filterCounts = useMemo(
+    () =>
+      FILTERS.reduce((acc, filter) => {
+        acc[filter.key] = rides.filter((ride) => matchesStatus(ride, filter.key)).length;
+        return acc;
+      }, {}),
+    [rides],
+  );
   const filteredRides = useMemo(() => {
-    if (activeFilter === "pending") {
-      return rides.filter(
-        (ride) =>
-          ride.status === "requested" ||
-          ride.status === "negotiating" ||
-          ride.status === "accepted",
-      );
-    }
-    return rides.filter((ride) => ride.status === activeFilter);
-  }, [activeFilter, rides]);
-  const visibleRides = filteredRides.slice(0, visibleCount);
-  const hiddenRideCount = Math.max(filteredRides.length - visibleRides.length, 0);
+    const query = normalize(searchQuery.trim());
+    return rides
+      .filter((ride) => matchesStatus(ride, activeFilter))
+      .filter((ride) => {
+        if (!query) return true;
+        return [
+          ride.pickup_address,
+          ride.dest_address,
+          ride.vehicle_number,
+          ride.status,
+          ride.cancellation_reason,
+        ]
+          .map(normalize)
+          .some((value) => value.includes(query));
+      })
+      .sort((a, b) => sortRides(a, b, sortKey));
+  }, [activeFilter, rides, searchQuery, sortKey]);
+  const totalPages = Math.max(Math.ceil(filteredRides.length / PAGE_SIZE), 1);
+  const safePage = Math.min(page, totalPages);
+  const pageStart = (safePage - 1) * PAGE_SIZE;
+  const visibleRides = filteredRides.slice(pageStart, pageStart + PAGE_SIZE);
+  const visibleStart = filteredRides.length ? pageStart + 1 : 0;
+  const visibleEnd = pageStart + visibleRides.length;
 
   useEffect(() => {
-    setVisibleCount(PAGE_SIZE);
-  }, [activeFilter]);
+    setPage(1);
+  }, [activeFilter, searchQuery, sortKey]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   const emptyCopy = {
+    all: {
+      title: "No rides yet",
+      description: "Booked trips, active rides, and completed rides will appear here.",
+    },
     pending: {
       title: "No pending rides",
       description: "Active ride requests and accepted rides will appear here.",
@@ -596,9 +778,38 @@ export default function PassengerRides() {
       >
         <Text style={[theme.typography.heading, { color: theme.text }]}>My Rides</Text>
         <Text style={[theme.typography.caption, { color: theme.textSecondary, marginTop: theme.spacing[1] }]}>
-          {rides.length} trip{rides.length !== 1 ? "s" : ""} total
+          {rides.length} total trips - {filteredRides.length} in view
         </Text>
-        <FilterTabs activeFilter={activeFilter} onChange={setActiveFilter} />
+        <View
+          style={{
+            alignItems: "center",
+            backgroundColor: theme.background,
+            borderColor: theme.border,
+            borderRadius: theme.radii.md,
+            borderWidth: 1,
+            flexDirection: "row",
+            gap: theme.spacing[2],
+            marginTop: theme.spacing[4],
+            paddingHorizontal: theme.spacing[3],
+            paddingVertical: theme.spacing[2],
+          }}
+        >
+          <Search size={ICON.sm} color={theme.textSecondary} />
+          <TextInput
+            placeholder="Search route, vehicle, status..."
+            placeholderTextColor={theme.textMuted}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            style={[theme.typography.caption, { color: theme.text, flex: 1, paddingVertical: 0 }]}
+          />
+          {searchQuery.length > 0 ? (
+            <TouchableOpacity accessibilityLabel="Clear ride search" onPress={() => setSearchQuery("")}>
+              <X size={ICON.sm} color={theme.textSecondary} />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+        <FilterTabs activeFilter={activeFilter} counts={filterCounts} onChange={setActiveFilter} />
+        <SortTabs activeSort={sortKey} onChange={setSortKey} />
       </View>
 
       {isLoading ? (
@@ -627,25 +838,15 @@ export default function PassengerRides() {
             />
           }
           ListFooterComponent={
-            hiddenRideCount > 0 ? (
-              <TouchableOpacity
-                activeOpacity={0.85}
-                onPress={() => setVisibleCount((count) => count + PAGE_SIZE)}
-                style={{
-                  alignItems: "center",
-                  backgroundColor: theme.surface,
-                  borderColor: theme.border,
-                  borderRadius: theme.radii.lg,
-                  borderWidth: 1,
-                  marginTop: theme.spacing[1],
-                  paddingVertical: theme.spacing[4],
-                }}
-              >
-                <Text style={[theme.typography.caption, { color: theme.primaryDark }]}>
-                  Show {Math.min(hiddenRideCount, PAGE_SIZE)} More Trips
-                </Text>
-              </TouchableOpacity>
-            ) : null
+            <PaginationBar
+              end={visibleEnd}
+              onNext={() => setPage((value) => Math.min(value + 1, totalPages))}
+              onPrevious={() => setPage((value) => Math.max(value - 1, 1))}
+              page={safePage}
+              start={visibleStart}
+              totalCount={filteredRides.length}
+              totalPages={totalPages}
+            />
           }
           renderItem={({ item }) => <RideCard ride={item} />}
           showsVerticalScrollIndicator={false}

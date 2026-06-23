@@ -1,16 +1,21 @@
-import React from "react";
-import { Linking, View, Text, ScrollView, ActivityIndicator, TouchableOpacity } from "react-native";
+import React, { useEffect, useMemo, useState } from "react";
+import { Linking, View, Text, ScrollView, ActivityIndicator, TouchableOpacity, TextInput } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Calendar,
+  ArrowUpDown,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Info,
   IndianRupee,
   MapPin,
+  Search,
   Shield,
   Star,
   TrendingUp,
+  X,
   Zap,
 } from "lucide-react-native";
 import { StatusBar } from "expo-status-bar";
@@ -30,6 +35,19 @@ const TEXT_SECONDARY = "#586C70";
 const TEXT_MUTED = "#647678";
 const SUCCESS = "#16A34A";
 const DARK = "#17272B";
+const RIDE_HISTORY_PAGE_SIZE = 5;
+const RIDE_HISTORY_FILTERS = [
+  { key: "all", label: "All" },
+  { key: "7d", label: "7D" },
+  { key: "30d", label: "30D" },
+  { key: "90d", label: "90D" },
+];
+const RIDE_HISTORY_SORTS = [
+  { key: "newest", label: "Newest" },
+  { key: "oldest", label: "Oldest" },
+  { key: "fare_desc", label: "Fare high" },
+  { key: "distance_desc", label: "Distance" },
+];
 
 const BENEFITS = [
   {
@@ -86,10 +104,151 @@ function formatDistance(value) {
   return Number.isFinite(distance) ? `${distance.toFixed(1)} km` : null;
 }
 
+function normalize(value) {
+  return String(value || "").toLowerCase();
+}
+
+function rideCompletedTime(ride) {
+  const value = ride?.completed_at || ride?.created_at;
+  const time = value ? new Date(value).getTime() : 0;
+  return Number.isFinite(time) ? time : 0;
+}
+
+function matchesPeriod(ride, period) {
+  if (period === "all") return true;
+  const days = Number(period.replace("d", ""));
+  const time = rideCompletedTime(ride);
+  if (!Number.isFinite(days) || !time) return false;
+  return Date.now() - time <= days * 24 * 60 * 60 * 1000;
+}
+
+function sortRideHistory(a, b, sortKey) {
+  if (sortKey === "oldest") return rideCompletedTime(a) - rideCompletedTime(b);
+  if (sortKey === "fare_desc") return Number(b.fare || 0) - Number(a.fare || 0);
+  if (sortKey === "distance_desc") return Number(b.distance_km || 0) - Number(a.distance_km || 0);
+  return rideCompletedTime(b) - rideCompletedTime(a);
+}
+
+function HistoryChip({ label, selected, onPress, icon: Icon }) {
+  return (
+    <TouchableOpacity
+      activeOpacity={0.84}
+      onPress={onPress}
+      style={{
+        alignItems: "center",
+        backgroundColor: selected ? DARK : SURFACE,
+        borderColor: selected ? DARK : BORDER,
+        borderRadius: 999,
+        borderWidth: 1,
+        flexDirection: "row",
+        gap: 5,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+      }}
+    >
+      {Icon ? <Icon size={ICON.xs} color={selected ? SURFACE : TEXT_SECONDARY} /> : null}
+      <Text
+        style={{
+          color: selected ? SURFACE : TEXT_SECONDARY,
+          fontSize: 11,
+          fontWeight: "800",
+        }}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
+function HistoryPager({
+  canGoBack,
+  canGoForward,
+  currentPage,
+  end,
+  isFetchingNextPage,
+  onNext,
+  onPrevious,
+  start,
+  total,
+}) {
+  if (total === 0) return null;
+
+  return (
+    <View
+      style={{
+        borderTopColor: "#F5F5F4",
+        borderTopWidth: 1,
+        padding: 14,
+      }}
+    >
+      <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+        <Text style={{ color: TEXT_MUTED, fontSize: 11, fontWeight: "800" }}>
+          Showing {start}-{end} of {total}
+        </Text>
+        <Text style={{ color: TEXT, fontSize: 11, fontWeight: "900" }}>
+          Page {currentPage}
+        </Text>
+      </View>
+      <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
+        <TouchableOpacity
+          activeOpacity={0.84}
+          disabled={!canGoBack}
+          onPress={onPrevious}
+          style={{
+            alignItems: "center",
+            backgroundColor: canGoBack ? SURFACE : "#F5F5F4",
+            borderColor: BORDER,
+            borderRadius: 12,
+            borderWidth: 1,
+            flex: 1,
+            flexDirection: "row",
+            gap: 5,
+            justifyContent: "center",
+            opacity: canGoBack ? 1 : 0.55,
+            paddingVertical: 11,
+          }}
+        >
+          <ChevronLeft size={ICON.sm} color={TEXT_SECONDARY} />
+          <Text style={{ color: TEXT_SECONDARY, fontSize: 12, fontWeight: "900" }}>
+            Previous
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          activeOpacity={0.84}
+          disabled={!canGoForward || isFetchingNextPage}
+          onPress={onNext}
+          style={{
+            alignItems: "center",
+            backgroundColor: canGoForward ? PRIMARY : "#F5F5F4",
+            borderColor: canGoForward ? PRIMARY : BORDER,
+            borderRadius: 12,
+            borderWidth: 1,
+            flex: 1,
+            flexDirection: "row",
+            gap: 5,
+            justifyContent: "center",
+            opacity: canGoForward && !isFetchingNextPage ? 1 : 0.55,
+            paddingVertical: 11,
+          }}
+        >
+          <Text style={{ color: canGoForward ? SURFACE : TEXT_SECONDARY, fontSize: 12, fontWeight: "900" }}>
+            {isFetchingNextPage ? "Loading" : "Next"}
+          </Text>
+          <ChevronRight size={ICON.sm} color={canGoForward ? SURFACE : TEXT_SECONDARY} />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
 export default function DriverWallet() {
   const insets = useSafeAreaInsets();
   const { auth } = useAuth();
   const queryClient = useQueryClient();
+  const [rideSearch, setRideSearch] = useState("");
+  const [ridePeriod, setRidePeriod] = useState("all");
+  const [rideSort, setRideSort] = useState("newest");
+  const [ridePage, setRidePage] = useState(1);
   const authUserKey =
     auth?.user?.id || auth?.user?.email || auth?.user?.phone || "anonymous";
 
@@ -178,6 +337,68 @@ export default function DriverWallet() {
     staleTime: 30000,
   });
 
+  const driver = driverData?.driver;
+  const subscription = subscriptionData?.subscription;
+  const providerConfigured = Boolean(subscriptionData?.providerConfigured);
+  const expiry = driver?.subscription_expiry
+    ? new Date(driver.subscription_expiry)
+    : null;
+  const isActive = expiry && expiry > new Date();
+  const daysLeft = isActive
+    ? Math.ceil((expiry - new Date()) / (1000 * 60 * 60 * 24))
+    : 0;
+  const rideHistory = useMemo(
+    () => rideHistoryData?.pages.flatMap((page) => page.rides || []) || [],
+    [rideHistoryData?.pages],
+  );
+  const filteredRideHistory = useMemo(() => {
+    const query = normalize(rideSearch.trim());
+    return rideHistory
+      .filter((ride) => matchesPeriod(ride, ridePeriod))
+      .filter((ride) => {
+        if (!query) return true;
+        return [ride.pickup_address, ride.dest_address, ride.fare, ride.distance_km]
+          .map(normalize)
+          .some((value) => value.includes(query));
+      })
+      .sort((a, b) => sortRideHistory(a, b, rideSort));
+  }, [rideHistory, ridePeriod, rideSearch, rideSort]);
+  const rideTotalPages = Math.max(
+    Math.ceil(filteredRideHistory.length / RIDE_HISTORY_PAGE_SIZE),
+    1,
+  );
+  const safeRidePage = Math.min(ridePage, rideTotalPages);
+  const rideStartIndex = (safeRidePage - 1) * RIDE_HISTORY_PAGE_SIZE;
+  const visibleRideHistory = filteredRideHistory.slice(
+    rideStartIndex,
+    rideStartIndex + RIDE_HISTORY_PAGE_SIZE,
+  );
+  const visibleRideStart = filteredRideHistory.length ? rideStartIndex + 1 : 0;
+  const visibleRideEnd = rideStartIndex + visibleRideHistory.length;
+  const canGoBack = safeRidePage > 1;
+  const canGoForward =
+    safeRidePage < rideTotalPages ||
+    Boolean(hasNextPage && filteredRideHistory.length === rideHistory.length);
+
+  useEffect(() => {
+    setRidePage(1);
+  }, [ridePeriod, rideSearch, rideSort]);
+
+  useEffect(() => {
+    if (ridePage > rideTotalPages) setRidePage(rideTotalPages);
+  }, [ridePage, rideTotalPages]);
+
+  const goToNextRidePage = async () => {
+    if (safeRidePage < rideTotalPages) {
+      setRidePage((value) => value + 1);
+      return;
+    }
+    if (hasNextPage) {
+      await fetchNextPage();
+      setRidePage((value) => value + 1);
+    }
+  };
+
   if (isLoading) {
     return (
       <View
@@ -192,18 +413,6 @@ export default function DriverWallet() {
       </View>
     );
   }
-
-  const driver = driverData?.driver;
-  const subscription = subscriptionData?.subscription;
-  const providerConfigured = Boolean(subscriptionData?.providerConfigured);
-  const expiry = driver?.subscription_expiry
-    ? new Date(driver.subscription_expiry)
-    : null;
-  const isActive = expiry && expiry > new Date();
-  const daysLeft = isActive
-    ? Math.ceil((expiry - new Date()) / (1000 * 60 * 60 * 24))
-    : 0;
-  const rideHistory = rideHistoryData?.pages.flatMap((page) => page.rides || []) || [];
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
@@ -509,12 +718,91 @@ export default function DriverWallet() {
                 borderBottomColor: "#F5F5F4",
               }}
             >
-              <Text style={{ fontSize: 13, fontWeight: "800", color: TEXT }}>
-                Ride History
-              </Text>
-              <Text style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 2 }}>
-                Loaded in pages of 10
-              </Text>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 12 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 13, fontWeight: "800", color: TEXT }}>
+                    Ride History
+                  </Text>
+                  <Text style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 2 }}>
+                    {rideHistory.length} loaded - {filteredRideHistory.length} matching
+                  </Text>
+                </View>
+                <View
+                  style={{
+                    alignItems: "center",
+                    backgroundColor: PRIMARY_LIGHT,
+                    borderColor: PRIMARY_BORDER,
+                    borderRadius: 999,
+                    borderWidth: 1,
+                    justifyContent: "center",
+                    paddingHorizontal: 10,
+                    paddingVertical: 5,
+                  }}
+                >
+                  <Text style={{ color: PRIMARY, fontSize: 10, fontWeight: "900" }}>
+                    {RIDE_HISTORY_PAGE_SIZE}/page
+                  </Text>
+                </View>
+              </View>
+              <View
+                style={{
+                  alignItems: "center",
+                  backgroundColor: BG,
+                  borderColor: BORDER,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  flexDirection: "row",
+                  gap: 8,
+                  marginTop: 12,
+                  paddingHorizontal: 12,
+                  paddingVertical: 10,
+                }}
+              >
+                <Search size={ICON.sm} color={TEXT_SECONDARY} />
+                <TextInput
+                  placeholder="Search route, fare, distance..."
+                  placeholderTextColor={TEXT_MUTED}
+                  value={rideSearch}
+                  onChangeText={setRideSearch}
+                  style={{ color: TEXT, flex: 1, fontSize: 13, fontWeight: "600", paddingVertical: 0 }}
+                />
+                {rideSearch.length > 0 ? (
+                  <TouchableOpacity accessibilityLabel="Clear driver ride search" onPress={() => setRideSearch("")}>
+                    <X size={ICON.sm} color={TEXT_SECONDARY} />
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 8, paddingRight: 14 }}
+                style={{ marginTop: 12 }}
+              >
+                {RIDE_HISTORY_FILTERS.map((filter) => (
+                  <HistoryChip
+                    key={filter.key}
+                    label={filter.label}
+                    onPress={() => setRidePeriod(filter.key)}
+                    selected={ridePeriod === filter.key}
+                  />
+                ))}
+              </ScrollView>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 8, paddingRight: 14 }}
+                style={{ marginTop: 10 }}
+              >
+                {RIDE_HISTORY_SORTS.map((sort) => (
+                  <HistoryChip
+                    icon={ArrowUpDown}
+                    key={sort.key}
+                    label={sort.label}
+                    onPress={() => setRideSort(sort.key)}
+                    selected={rideSort === sort.key}
+                  />
+                ))}
+              </ScrollView>
             </View>
             {rideHistoryLoading ? (
               <Text
@@ -538,15 +826,26 @@ export default function DriverWallet() {
               >
                 Completed ride earnings will appear here.
               </Text>
+            ) : filteredRideHistory.length === 0 ? (
+              <Text
+                style={{
+                  padding: 16,
+                  fontSize: 12,
+                  color: TEXT_SECONDARY,
+                  textAlign: "center",
+                }}
+              >
+                No rides match the current filters.
+              </Text>
             ) : (
               <>
-                {rideHistory.map((ride, index) => (
+                {visibleRideHistory.map((ride, index) => (
                   <View
                     key={ride.id}
                     style={{
                       paddingHorizontal: 14,
                       paddingVertical: 12,
-                      borderBottomWidth: index < rideHistory.length - 1 || hasNextPage ? 1 : 0,
+                      borderBottomWidth: index < visibleRideHistory.length - 1 ? 1 : 0,
                       borderBottomColor: "#F5F5F4",
                       flexDirection: "row",
                       alignItems: "center",
@@ -614,20 +913,17 @@ export default function DriverWallet() {
                     </View>
                   </View>
                 ))}
-                {hasNextPage && (
-                  <TouchableOpacity
-                    onPress={() => fetchNextPage()}
-                    disabled={isFetchingNextPage}
-                    style={{
-                      alignItems: "center",
-                      padding: 14,
-                    }}
-                  >
-                    <Text style={{ color: PRIMARY, fontSize: 13, fontWeight: "800" }}>
-                      {isFetchingNextPage ? "Loading..." : "Load More Rides"}
-                    </Text>
-                  </TouchableOpacity>
-                )}
+                <HistoryPager
+                  canGoBack={canGoBack}
+                  canGoForward={canGoForward}
+                  currentPage={safeRidePage}
+                  end={visibleRideEnd}
+                  isFetchingNextPage={isFetchingNextPage}
+                  onNext={goToNextRidePage}
+                  onPrevious={() => setRidePage((value) => Math.max(value - 1, 1))}
+                  start={visibleRideStart}
+                  total={filteredRideHistory.length}
+                />
               </>
             )}
           </View>
