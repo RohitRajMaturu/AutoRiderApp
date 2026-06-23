@@ -14,7 +14,18 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { ChevronDown, ChevronUp, Search, Users } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  Download,
+  ExternalLink,
+  IndianRupee,
+  Route,
+  Search,
+  Star,
+  Users,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import AdminShell from "@/components/AdminShell";
 import StatusBadge, { statusForDriver as driverStatusKey } from "@/components/ui/StatusBadge";
@@ -142,8 +153,7 @@ const Card = forwardRef(function Card({ children, className = "" }, ref) {
   return (
     <section
       ref={ref}
-      className={`rounded-lg border p-5 shadow-sm ${className}`}
-      style={{ borderColor: "var(--ar-border)", background: "var(--ar-s2)" }}
+      className={`ar-card ${className}`}
     >
       {children}
     </section>
@@ -286,15 +296,45 @@ function MetricCards({ snapshot }) {
     : 0;
   const completionColor =
     completionRate > 70 ? "var(--ar-ok)" : completionRate < 50 ? "var(--ar-err)" : "var(--ar-warn)";
+  const trendColor = completionPct > 70 ? "var(--ar-ok)" : completionPct < 50 ? "var(--ar-err)" : "var(--ar-warn)";
+  const TrendChip = ({ value }) =>
+    value ? (
+      <span
+        className="mt-3 inline-flex rounded-full px-2.5 py-1 text-xs font-bold"
+        style={{
+          background: `color-mix(in srgb, ${trendColor} 14%, transparent)`,
+          color: trendColor,
+        }}
+      >
+        +{value}%
+      </span>
+    ) : null;
+  const MetricIcon = ({ Icon, tone }) => (
+    <div
+      className="flex h-10 w-10 items-center justify-center rounded-lg"
+      style={{
+        background: `color-mix(in srgb, ${tone} 12%, transparent)`,
+        color: tone,
+      }}
+    >
+      <Icon size={ICON.lg} />
+    </div>
+  );
 
   return (
-    <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
-      <Card>
-        <p className="text-xs font-medium uppercase tracking-widest" style={{ color: "var(--ar-t2)" }}>
-          Active Rides
-        </p>
-        <div className="mt-3 text-4xl font-semibold tracking-tight" style={{ color: "var(--ar-t1)" }}>
-          {liveRides}
+    <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+      <section className="ar-metric-card">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: "var(--ar-t3)" }}>
+              Active Rides
+            </p>
+            <div className="mt-3 text-4xl font-extrabold tracking-[-0.02em]" style={{ color: "var(--ar-t1)" }}>
+              {liveRides}
+            </div>
+            <TrendChip value={completionPct} />
+          </div>
+          <MetricIcon Icon={Route} tone="var(--ar-accent)" />
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
           <StatusBadge status="requested" label={`${snapshot.requestedRides} waiting`} />
@@ -308,58 +348,74 @@ function MetricCards({ snapshot }) {
             ? `Attention: ${snapshot.demandSupplyGap} unmet requests`
             : "Supply adequate"}
         </p>
-      </Card>
+      </section>
 
-      <Card>
+      <section className="ar-metric-card">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-medium uppercase tracking-widest" style={{ color: "var(--ar-t2)" }}>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: "var(--ar-t3)" }}>
               Drivers Online
             </p>
-            <div className="mt-3 text-4xl font-semibold tracking-tight" style={{ color: "var(--ar-t1)" }}>
+            <div className="mt-3 text-4xl font-extrabold tracking-[-0.02em]" style={{ color: "var(--ar-t1)" }}>
               {onlineDrivers}
             </div>
-            <p className="mt-3 text-sm font-normal" style={{ color: "var(--ar-t2)" }}>
+            <TrendChip value={completionPct} />
+            <p className="mt-3 text-xs font-normal" style={{ color: "var(--ar-t3)" }}>
               {idle} idle / {Math.max(online - idle, 0)} on trip
             </p>
           </div>
-          <FleetDonut idle={idle} online={online} />
+          <div className="flex flex-col items-end gap-3">
+            <MetricIcon Icon={Users} tone="var(--ar-ok)" />
+            <FleetDonut idle={idle} online={online} />
+          </div>
         </div>
         {snapshot.staleDriverCount > 0 ? (
           <p className="mt-4 text-xs font-medium" style={{ color: "var(--ar-warn)" }}>
             {snapshot.staleDriverCount} may be ghost online
           </p>
         ) : null}
-      </Card>
+      </section>
 
-      <Card>
-        <p className="text-xs font-medium uppercase tracking-widest" style={{ color: "var(--ar-t2)" }}>
-          Today's Fare Value
-        </p>
-        <div className="mt-3 text-4xl font-semibold tracking-tight" style={{ color: "var(--ar-t1)" }}>
-          {formatCurrency(todayFare)}
+      <section className="ar-metric-card">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: "var(--ar-t3)" }}>
+              Today's Fare Value
+            </p>
+            <div className="mt-3 text-4xl font-extrabold tracking-[-0.02em]" style={{ color: "var(--ar-t1)" }}>
+              {formatCurrency(todayFare)}
+            </div>
+            <TrendChip value={completionPct} />
+          </div>
+          <MetricIcon Icon={IndianRupee} tone="var(--ar-accent)" />
         </div>
-        <p className="mt-3 text-sm font-normal" style={{ color: "var(--ar-t2)" }}>
+        <p className="mt-3 text-xs font-normal" style={{ color: "var(--ar-t3)" }}>
           {completedToday} completed / {cancelledToday} cancelled today
         </p>
-        <div className="mt-4 h-1 overflow-hidden rounded-full" style={{ background: "var(--ar-s3)" }}>
+        <div className="ar-progress-track mt-4">
           <div
-            className="h-full rounded-full"
+            className="ar-progress-fill"
             style={{ width: `${completionPct}%`, backgroundColor: "var(--ar-accent)" }}
           />
         </div>
-      </Card>
+      </section>
 
-      <Card>
-        <p className="text-xs font-medium uppercase tracking-widest" style={{ color: "var(--ar-t2)" }}>
-          Avg Driver Rating (24h)
-        </p>
-        <div className="mt-3 text-4xl font-semibold tracking-tight" style={{ color: "var(--ar-t1)" }}>
-          {avgRating === null || avgRating === undefined
-            ? "-"
-            : `${(animatedRating / 10).toFixed(1)} rating`}
+      <section className="ar-metric-card">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: "var(--ar-t3)" }}>
+              Avg Driver Rating (24h)
+            </p>
+            <div className="mt-3 text-4xl font-extrabold tracking-[-0.02em]" style={{ color: "var(--ar-t1)" }}>
+              {avgRating === null || avgRating === undefined
+                ? "-"
+                : `${(animatedRating / 10).toFixed(1)} rating`}
+            </div>
+            <TrendChip value={completionPct} />
+          </div>
+          <MetricIcon Icon={Star} tone="var(--ar-warn)" />
         </div>
-        <p className="mt-3 text-sm font-normal" style={{ color: "var(--ar-t2)" }}>
+        <p className="mt-3 text-xs font-normal" style={{ color: "var(--ar-t3)" }}>
           Avg accept time: {funnel.avg_accept_minutes ?? "-"} min /{" "}
           {funnel.total_created ?? 0} rides created
         </p>
@@ -369,7 +425,7 @@ function MetricCards({ snapshot }) {
         >
           {completionRate}% completed
         </span>
-      </Card>
+      </section>
     </div>
   );
 }
@@ -418,65 +474,71 @@ function Timeline({ snapshot, sectionRef }) {
 
   return (
     <Card className="min-h-[312px]" ref={sectionRef}>
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+      <div className="ar-section-header">
         <h2 className="text-base font-semibold" style={{ color: "var(--ar-t1)" }}>
           Ride Volume & Revenue
         </h2>
         <div className="flex flex-wrap gap-2 text-xs font-semibold">
-          {[
-            ["today", "Today (hourly)"],
-            ["week", "This Week (daily)"],
-          ].map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setRange(id)}
-              className="rounded-full border px-3 py-1.5"
-              style={{
-                borderColor: range === id ? "var(--ar-accent)" : "var(--ar-border)",
-                backgroundColor: range === id ? "var(--ar-accent)" : "transparent",
-                color: range === id ? "var(--ar-bg)" : "var(--ar-t2)",
-              }}
-            >
-              <span className="mr-1 inline-block h-2 w-2 rounded-full bg-current" />
-              {label}
-            </button>
-          ))}
-          {[
-            ["rides", "Rides"],
-            ["fare", "Fare"],
-          ].map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setMetric(id)}
-              className="rounded-full border px-3 py-1.5"
-              style={{
-                borderColor: metric === id ? "var(--ar-info)" : "var(--ar-border)",
-                backgroundColor: metric === id ? "var(--ar-info)" : "transparent",
-                color: metric === id ? "var(--ar-bg)" : "var(--ar-t2)",
-              }}
-            >
-              <span className="mr-1 inline-block h-2 w-2 rounded-full bg-current" />
-              {label}
-            </button>
-          ))}
+          <div
+            className="flex rounded-lg border p-0.5"
+            style={{ borderColor: "var(--ar-border)", background: "var(--ar-s1)" }}
+            role="group"
+            aria-label="Time range"
+          >
+            {[["today", "Today"], ["week", "This Week"]].map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setRange(id)}
+                className="rounded-md px-3 py-1.5 text-xs font-semibold transition"
+                style={{
+                  background: range === id ? "var(--ar-s3)" : "transparent",
+                  color: range === id ? "var(--ar-t1)" : "var(--ar-t3)",
+                  boxShadow: range === id ? "var(--ar-shadow-sm)" : "none",
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div
+            className="flex rounded-lg border p-0.5"
+            style={{ borderColor: "var(--ar-border)", background: "var(--ar-s1)" }}
+            role="group"
+            aria-label="Chart metric"
+          >
+            {[["rides", "Rides"], ["fare", "Fare (Rs.)"]].map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setMetric(id)}
+                className="rounded-md px-3 py-1.5 text-xs font-semibold transition"
+                style={{
+                  background: metric === id ? "var(--ar-s3)" : "transparent",
+                  color: metric === id ? "var(--ar-t1)" : "var(--ar-t3)",
+                  boxShadow: metric === id ? "var(--ar-shadow-sm)" : "none",
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
-      <ResponsiveContainer width="100%" height={220}>
+      <ResponsiveContainer width="100%" height={260}>
         <ComposedChart data={data}>
-          <CartesianGrid stroke={"var(--ar-border)"} vertical={false} strokeDasharray="4 4" />
+          <CartesianGrid stroke="var(--ar-border)" vertical={false} strokeDasharray="4 4" />
           <XAxis dataKey="label" tick={{ fill: "var(--ar-t2)", fontSize: 11 }} axisLine={false} tickLine={false} />
           <YAxis yAxisId="rides" tick={{ fill: "var(--ar-t2)", fontSize: 11 }} axisLine={false} tickLine={false} />
           <YAxis yAxisId="fare" orientation="right" hide />
           <Tooltip content={<ChartTooltip />} />
-          <Bar yAxisId="rides" dataKey="total" fill={"var(--ar-s3)"} radius={[4, 4, 0, 0]} />
-          <Bar yAxisId="rides" dataKey="completed" fill={"var(--ar-accent)"} radius={[4, 4, 0, 0]} />
+          <Bar yAxisId="rides" dataKey="total" fill="var(--ar-s3)" radius={[4, 4, 0, 0]} />
+          <Bar yAxisId="rides" dataKey="completed" fill="var(--ar-accent)" radius={[4, 4, 0, 0]} />
           <Line
             yAxisId="fare"
             type="monotone"
             dataKey="fare"
-            stroke={"var(--ar-info)"}
+            stroke="var(--ar-info)"
             strokeWidth={2}
             dot={false}
           />
@@ -743,64 +805,84 @@ function DriverTable({ drivers, sectionRef }) {
     <Card ref={sectionRef}>
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold" style={{ color: "var(--ar-t1)" }}>
+          <h2 className="ar-section-title">
             Driver Fleet
           </h2>
-          <p className="mt-1 text-xs font-bold" style={{ color: "var(--ar-t2)" }}>
+          <p className="ar-section-meta">
             Showing {start}–{end} of {filtered.length} drivers
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <label className="flex h-9 items-center gap-2 rounded-lg border px-3" style={{ borderColor: "var(--ar-border)", background: "var(--ar-s3)" }}>
-            <Search size={ICON.sm} color={"var(--ar-t2)"} />
+          <button
+            type="button"
+            onClick={() => toast("Export coming soon")}
+            className="ar-filter-btn flex items-center gap-1.5"
+          >
+            <Download size={12} />
+            Export
+          </button>
+          <label className="ar-search">
+            <Search size={14} color="var(--ar-t3)" />
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search vehicle or phone"
-              aria-label="Search drivers by vehicle or phone"
-              className="h-full bg-transparent text-sm font-medium"
-              style={{ color: "var(--ar-t1)" }}
+              aria-label="Search drivers"
             />
+            {search ? (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                style={{ color: "var(--ar-t3)", cursor: "pointer" }}
+                aria-label="Clear search"
+              >
+                <X size={12} />
+              </button>
+            ) : null}
           </label>
           {[
-            ["all", "All"],
-            ["online", "Online"],
-            ["on_trip", "On Trip"],
-            ["idle", "Idle"],
-            ["offline", "Offline"],
-            ["pending", "Pending"],
-          ].map(([id, label]) => (
+            ["all", "All", drivers.length],
+            ["online", "Online", drivers.filter((driver) => driver.is_online).length],
+            ["on_trip", "On Trip", drivers.filter((driver) => driver.is_online && driver.on_trip).length],
+            ["idle", "Idle", drivers.filter((driver) => driver.is_online && !driver.on_trip).length],
+            ["offline", "Offline", drivers.filter((driver) => !driver.is_online && driver.is_approved).length],
+            ["pending", "Pending KYC", drivers.filter((driver) => !driver.is_approved).length],
+          ].map(([id, label, count]) => (
             <button
               key={id}
               type="button"
               onClick={() => setFilter(id)}
               aria-pressed={filter === id}
-              className="rounded-lg border px-3 py-2 text-xs font-semibold"
-              style={{
-                borderColor: filter === id ? "var(--ar-accent)" : "var(--ar-border)",
-                backgroundColor: filter === id ? "var(--ar-accent)" : "var(--ar-s2)",
-                color: filter === id ? "var(--ar-bg)" : "var(--ar-t2)",
-              }}
+              className="ar-filter-btn"
             >
               {label}
+              <span
+                className="ml-1.5 inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-bold"
+                style={{
+                  background: filter === id ? "rgba(245,166,35,0.2)" : "var(--ar-s3)",
+                  color: filter === id ? "var(--ar-accent)" : "var(--ar-t3)",
+                }}
+              >
+                {count}
+              </span>
             </button>
           ))}
         </div>
       </div>
       <div className="hidden md:block">
         <div className="overflow-x-auto">
-          <div className="max-h-[520px] overflow-y-auto">
+          <div className="max-h-[560px] overflow-y-auto">
             <table className="min-w-full border-separate border-spacing-0 text-sm">
           <thead>
             <tr>
-              <th scope="col" className="sticky top-0 z-10 border-b px-3 py-2" style={{ background: "var(--ar-s2)" }}>{header("vehicle_number", "Vehicle #")}</th>
-              <th scope="col" className="sticky top-0 z-10 border-b px-3 py-2" style={{ background: "var(--ar-s2)" }}>{header("zone_name", "Zone")}</th>
-              <th scope="col" className="sticky top-0 z-10 border-b px-3 py-2" style={{ background: "var(--ar-s2)" }}>{header("is_online", "Status")}</th>
-              <th scope="col" className="sticky top-0 z-10 border-b px-3 py-2" style={{ background: "var(--ar-s2)" }}>{header("today_trips", "Today Trips")}</th>
-              <th scope="col" className="sticky top-0 z-10 border-b px-3 py-2" style={{ background: "var(--ar-s2)" }}>{header("completed_30d", "30d Trips")}</th>
-              <th scope="col" className="sticky top-0 z-10 border-b px-3 py-2" style={{ background: "var(--ar-s2)" }}>{header("avg_rating_30d", "Rating")}</th>
-              <th scope="col" className="sticky top-0 z-10 border-b px-3 py-2" style={{ background: "var(--ar-s2)" }}>{header("last_ride_at", "Last Active")}</th>
-              <th scope="col" className="sticky top-0 z-10 border-b px-3 py-2 text-left text-xs font-medium uppercase tracking-widest" style={{ color: "var(--ar-t2)", background: "var(--ar-s2)" }}>
+              <th scope="col" className="ar-th">{header("vehicle_number", "Vehicle #")}</th>
+              <th scope="col" className="ar-th">{header("zone_name", "Zone")}</th>
+              <th scope="col" className="ar-th">{header("is_online", "Status")}</th>
+              <th scope="col" className="ar-th">{header("today_trips", "Today Trips")}</th>
+              <th scope="col" className="ar-th">{header("completed_30d", "30d Trips")}</th>
+              <th scope="col" className="ar-th">{header("avg_rating_30d", "Rating")}</th>
+              <th scope="col" className="ar-th">{header("last_ride_at", "Last Active")}</th>
+              <th scope="col" className="ar-th">
                 Actions
               </th>
             </tr>
@@ -810,34 +892,53 @@ function DriverTable({ drivers, sectionRef }) {
               const status = driverStatusKey(driver);
               const ghost = isGhostDriver(driver);
               return (
-                <tr key={driver.id} className="group align-middle transition hover:bg-[var(--ar-s3)]">
-                  <td className="border-b px-3 py-2 text-sm font-semibold" style={{ borderColor: "var(--ar-border)", color: "var(--ar-t1)" }}>
-                    {driver.vehicle_number || "-"}
-                    <div className="text-xs font-normal" style={{ color: "var(--ar-t2)" }}>
-                      {driver.phone || driver.email || "-"}
+                <tr key={driver.id} className="ar-tr ar-fade-in">
+                  <td className="ar-td">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold"
+                        style={{ background: "var(--ar-accent-dim)", color: "var(--ar-accent)" }}
+                      >
+                        {(driver.vehicle_number || "?")[0].toUpperCase()}
+                      </div>
+                      <div>
+                        <div className="font-semibold" style={{ color: "var(--ar-t1)" }}>
+                          {driver.vehicle_number || "-"}
+                        </div>
+                        <div className="text-xs" style={{ color: "var(--ar-t3)" }}>
+                          {driver.phone || driver.email || "-"}
+                        </div>
+                      </div>
                     </div>
                   </td>
-                  <td className="border-b px-3 py-2 text-sm font-normal" style={{ borderColor: "var(--ar-border)", color: "var(--ar-t2)" }}>
+                  <td className="ar-td" style={{ color: "var(--ar-t2)" }}>
                     {driver.zone_name || "Unzoned"}
                   </td>
-                  <td className="border-b px-3 py-2" style={{ borderColor: "var(--ar-border)" }}>
+                  <td className="ar-td">
                     <StatusBadge status={status} />
                     {ghost ? <GhostDriverBadge /> : null}
                   </td>
-                  <td className="border-b px-3 py-2 text-sm font-semibold" style={{ borderColor: "var(--ar-border)", color: "var(--ar-t1)" }}>
+                  <td className="ar-td font-semibold" style={{ color: "var(--ar-t1)" }}>
                     {driver.today_trips}
                   </td>
-                  <td className="border-b px-3 py-2 text-sm font-semibold" style={{ borderColor: "var(--ar-border)", color: "var(--ar-t1)" }}>
+                  <td className="ar-td font-semibold" style={{ color: "var(--ar-t1)" }}>
                     {driver.completed_30d}
                   </td>
-                  <td className="border-b px-3 py-2 text-sm font-semibold" style={{ borderColor: "var(--ar-border)", color: "var(--ar-warn)" }}>
-                    {driver.avg_rating_30d ? `${driver.avg_rating_30d} rating` : "-"}
+                  <td className="ar-td">
+                    {driver.avg_rating_30d ? (
+                      <span className="flex items-center gap-1" style={{ color: "var(--ar-warn)" }}>
+                        <Star size={12} fill="currentColor" />
+                        <span className="font-semibold">{driver.avg_rating_30d}</span>
+                      </span>
+                    ) : (
+                      <span style={{ color: "var(--ar-t3)" }}>-</span>
+                    )}
                   </td>
-                  <td className="border-b px-3 py-2 text-sm font-normal" style={{ borderColor: "var(--ar-border)", color: "var(--ar-t2)" }}>
+                  <td className="ar-td" style={{ color: "var(--ar-t2)" }}>
                     {driver.on_trip ? "On trip now" : relativeTime(driver.last_ride_at)}
                   </td>
-                  <td className="border-b px-3 py-2" style={{ borderColor: "var(--ar-border)" }}>
-                    <div className="flex flex-wrap gap-2 opacity-100 transition md:opacity-60 md:group-hover:opacity-100 md:focus-within:opacity-100">
+                  <td className="ar-td">
+                    <div className="flex items-center gap-1.5">
                       {!driver.is_approved ? (
                         <button
                           type="button"
@@ -847,8 +948,8 @@ function DriverTable({ drivers, sectionRef }) {
                               payload: { is_approved: true, subscription_days: 30 },
                             })
                           }
-                          className="rounded-lg px-3 py-1.5 text-xs font-semibold"
-                          style={{ backgroundColor: "var(--ar-accent)", color: "var(--ar-bg)" }}
+                          className="ar-filter-btn"
+                          style={{ color: "var(--ar-ok)", borderColor: "var(--ar-ok)" }}
                         >
                           Approve
                         </button>
@@ -862,7 +963,7 @@ function DriverTable({ drivers, sectionRef }) {
                               payload: { force_offline: true },
                             })
                           }
-                          className="rounded-lg border px-3 py-1.5 text-xs font-semibold"
+                          className="ar-filter-btn"
                           style={{ borderColor: "var(--ar-err)", color: "var(--ar-err)" }}
                         >
                           Force Offline
@@ -871,11 +972,11 @@ function DriverTable({ drivers, sectionRef }) {
                       <button
                         type="button"
                         onClick={() => toast("Open the mobile admin app to view full driver profile")}
-                        className="rounded-lg border px-2 py-1.5 text-xs font-semibold"
-                        style={{ borderColor: "var(--ar-border)", color: "var(--ar-t2)" }}
+                        className="ar-filter-btn flex items-center gap-1"
                         aria-label={`View ${driver.vehicle_number || "driver"} profile`}
                         title="View"
                       >
+                        <ExternalLink size={11} />
                         View
                       </button>
                     </div>
@@ -883,6 +984,13 @@ function DriverTable({ drivers, sectionRef }) {
                 </tr>
               );
             })}
+            {visible.length === 0 ? (
+              <tr>
+                <td colSpan="8" className="ar-td py-10 text-center" style={{ color: "var(--ar-t3)" }}>
+                  No drivers match this filter
+                </td>
+              </tr>
+            ) : null}
           </tbody>
             </table>
           </div>
@@ -986,29 +1094,37 @@ function DriverTable({ drivers, sectionRef }) {
           </div>
         ) : null}
       </div>
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-bold" style={{ color: "var(--ar-t2)" }}>
-          Page {safePage + 1} of {totalPages}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-4" style={{ borderColor: "var(--ar-border)" }}>
+        <p className="text-xs font-medium" style={{ color: "var(--ar-t3)" }}>
+          Showing {start}-{end} of {filtered.length} drivers
         </p>
-        <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setPage((current) => Math.max(current - 1, 0))}
-          disabled={safePage === 0}
-          className="rounded-lg border px-3 py-2 text-xs font-semibold disabled:opacity-40"
-          style={{ borderColor: "var(--ar-border)", color: "var(--ar-t1)" }}
-        >
-          Prev
-        </button>
-        <button
-          type="button"
-          onClick={() => setPage((current) => Math.min(current + 1, totalPages - 1))}
-          disabled={safePage >= totalPages - 1}
-          className="rounded-lg border px-3 py-2 text-xs font-semibold disabled:opacity-40"
-          style={{ borderColor: "var(--ar-border)", color: "var(--ar-t1)" }}
-        >
-          Next
-        </button>
+        <div className="flex items-center gap-1">
+          <button type="button" className="ar-page-btn" onClick={() => setPage(0)} disabled={safePage === 0} aria-label="First page">
+            «
+          </button>
+          <button type="button" className="ar-page-btn" onClick={() => setPage((current) => Math.max(current - 1, 0))} disabled={safePage === 0} aria-label="Previous page">
+            ‹
+          </button>
+          {Array.from({ length: totalPages }, (_, index) => index)
+            .filter((index) => Math.abs(index - safePage) <= 2)
+            .map((index) => (
+              <button
+                key={index}
+                type="button"
+                className={`ar-page-btn ${index === safePage ? "active" : ""}`}
+                onClick={() => setPage(index)}
+                aria-label={`Page ${index + 1}`}
+                aria-current={index === safePage ? "page" : undefined}
+              >
+                {index + 1}
+              </button>
+            ))}
+          <button type="button" className="ar-page-btn" onClick={() => setPage((current) => Math.min(current + 1, totalPages - 1))} disabled={safePage >= totalPages - 1} aria-label="Next page">
+            ›
+          </button>
+          <button type="button" className="ar-page-btn" onClick={() => setPage(totalPages - 1)} disabled={safePage >= totalPages - 1} aria-label="Last page">
+            »
+          </button>
         </div>
       </div>
     </Card>
@@ -1048,7 +1164,10 @@ function AuditLog({ snapshot, sectionRef }) {
                   {item.target_type} {String(item.target_id || "").slice(0, 8)}
                 </td>
                 <td className="border-b px-3 py-3" style={{ borderColor: "var(--ar-border)" }}>
-                  <code className="rounded px-2 py-1 text-xs" style={{ background: "var(--ar-s3)", color: "var(--ar-t2)" }}>
+                  <code
+                    className="rounded px-2 py-1 font-mono text-xs"
+                    style={{ background: "var(--ar-s1)", color: "var(--ar-t2)", border: "1px solid var(--ar-border)" }}
+                  >
                     {formatMetadata(item.metadata)}
                   </code>
                 </td>
@@ -1093,9 +1212,9 @@ function CancellationBreakdown({ snapshot }) {
                   {item.count}
                 </span>
               </div>
-              <div className="h-2 overflow-hidden rounded-full" style={{ background: "var(--ar-s3)" }}>
+              <div className="ar-progress-track">
                 <div
-                  className="h-full rounded-full"
+                  className="ar-progress-fill"
                   style={{
                     width: `${(numberValue(item.count) / max) * 100}%`,
                     backgroundColor: "var(--ar-err)",

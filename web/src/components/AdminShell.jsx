@@ -7,6 +7,7 @@ import {
   FileCheck2,
   LayoutDashboard,
   LogOut,
+  RefreshCw,
 } from "lucide-react";
 import { ICON } from "@/lib/iconScale";
 
@@ -55,7 +56,8 @@ export default function AdminShell({
     };
   }, []);
 
-  const sidebarWidth = collapsed ? 64 : 220;
+  const sidebarWidth = collapsed ? 68 : 232;
+  const isOpsPage = location.pathname === "/admin-ops";
   const activeLabel = useMemo(
     () =>
       navItems.find((item) => location.pathname === item.route)?.label ||
@@ -69,7 +71,7 @@ export default function AdminShell({
       style={{ background: "var(--ar-bg)", color: "var(--ar-t1)" }}
     >
       <aside
-        className="fixed left-0 top-0 z-50 flex h-screen flex-col border-r"
+        className="fixed left-0 top-0 z-50 flex h-screen flex-col overflow-hidden border-r"
         style={{
           width: sidebarWidth,
           background: "var(--ar-s1)",
@@ -78,13 +80,23 @@ export default function AdminShell({
         }}
       >
         <div className="flex h-16 items-center gap-3 px-4">
-          <img
-            src="/tuktukGo.png"
-            alt=""
-            className="h-8 w-8 shrink-0 rounded-lg object-cover"
-          />
+          <div
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+            style={{ background: "var(--ar-gradient-amber)", boxShadow: "var(--ar-shadow-glow)" }}
+          >
+            <img
+              src="/tuktukGo.png"
+              alt=""
+              className="h-8 w-8 rounded-lg object-cover"
+            />
+          </div>
           {!collapsed ? (
-            <span className="truncate text-sm font-semibold">TukTukGo</span>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold leading-tight">TukTukGo</p>
+              <p className="truncate text-xs font-medium" style={{ color: "var(--ar-t3)" }}>
+                Operations
+              </p>
+            </div>
           ) : null}
         </div>
 
@@ -95,16 +107,21 @@ export default function AdminShell({
               <Link
                 key={route}
                 to={route}
-                className="group flex h-10 items-center gap-3 rounded-lg border-l-2 px-3 text-sm font-medium transition"
+                className="group flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium transition"
                 style={{
-                  borderLeftColor: active ? "var(--ar-accent)" : "transparent",
                   background: active ? "var(--ar-accent-dim)" : "transparent",
                   color: active ? "var(--ar-accent)" : "var(--ar-t2)",
                 }}
                 title={collapsed ? label : undefined}
               >
-                <Icon size={ICON.md} />
-                {!collapsed ? <span className="truncate">{label}</span> : null}
+                <span className="flex h-[18px] w-[18px] shrink-0 items-center justify-center">
+                  <Icon size={ICON.md} />
+                </span>
+                {!collapsed ? (
+                  <span className="truncate transition duration-200 group-hover:translate-x-0.5">
+                    {label}
+                  </span>
+                ) : null}
               </Link>
             );
           })}
@@ -120,10 +137,10 @@ export default function AdminShell({
           >
             {collapsed ? <ChevronRight size={ICON.md} /> : <ChevronLeft size={ICON.md} />}
           </button>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 rounded-lg px-1 py-1.5">
             <div
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold"
-              style={{ background: "var(--ar-s3)", color: "var(--ar-t1)" }}
+              style={{ background: "var(--ar-accent-dim)", color: "var(--ar-accent)" }}
             >
               AD
             </div>
@@ -131,15 +148,15 @@ export default function AdminShell({
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold">Admin</p>
                 <p className="text-xs" style={{ color: "var(--ar-t2)" }}>
-                  Operations
+                  Operations Team
                 </p>
               </div>
             ) : null}
           </div>
           <a
             href="/account/logout?role=admin"
-            className="flex h-9 items-center justify-center gap-2 rounded-lg text-xs font-semibold"
-            style={{ color: "var(--ar-t2)" }}
+            className="flex h-9 items-center justify-center gap-2 rounded-lg text-xs font-semibold transition"
+            style={{ background: "var(--ar-err-dim)", color: "var(--ar-err)" }}
             title={collapsed ? "Sign out" : undefined}
           >
             <LogOut size={ICON.md} />
@@ -168,8 +185,17 @@ export default function AdminShell({
             </p>
             <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
           </div>
+          {isOpsPage ? (
+            <div
+              className="hidden items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold md:flex"
+              style={{ background: "var(--ar-ok-dim)", color: "var(--ar-ok)" }}
+            >
+              <span className="ar-live-dot" />
+              LIVE
+            </div>
+          ) : null}
           <div className="flex flex-wrap items-center gap-3 text-xs font-medium" style={{ color: "var(--ar-t2)" }}>
-            {refreshText ? (
+            {isOpsPage && refreshText ? (
               <span
                 className="rounded-lg px-3 py-2"
                 style={{ background: "var(--ar-accent-dim)", color: "var(--ar-accent)" }}
@@ -177,6 +203,16 @@ export default function AdminShell({
                 {refreshText}
               </span>
             ) : null}
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="flex h-8 w-8 items-center justify-center rounded-full border"
+              style={{ borderColor: "var(--ar-border)", color: "var(--ar-t2)" }}
+              aria-label="Refresh page"
+              title="Refresh"
+            >
+              <RefreshCw size={14} />
+            </button>
             <span>{formatIstTime(new Date(now))} IST</span>
           </div>
         </header>

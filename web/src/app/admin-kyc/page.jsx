@@ -89,10 +89,7 @@ export default function AdminKycPage() {
       refreshText={`${drivers.length} pending`}
     >
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(360px,0.8fr)_minmax(0,1.2fr)]">
-        <section
-          className="rounded-lg border"
-          style={{ background: "var(--ar-s2)", borderColor: "var(--ar-border)" }}
-        >
+        <section className="ar-card p-0">
           <div className="border-b p-4" style={{ borderColor: "var(--ar-border)" }}>
             <div className="flex items-center gap-2">
               <FileCheck2 size={ICON.lg} color="var(--ar-accent)" />
@@ -105,8 +102,10 @@ export default function AdminKycPage() {
                 Loading queue...
               </div>
             ) : drivers.length === 0 ? (
-              <div className="p-8 text-center text-sm" style={{ color: "var(--ar-t2)" }}>
-                No KYC reviews pending
+              <div className="flex flex-col items-center gap-2 p-10 text-center text-sm" style={{ color: "var(--ar-t2)" }}>
+                <FileCheck2 size={ICON.xxl} color="var(--ar-t3)" />
+                <p className="font-semibold" style={{ color: "var(--ar-t1)" }}>No KYC reviews pending</p>
+                <p className="text-xs" style={{ color: "var(--ar-t3)" }}>New driver documents will appear here.</p>
               </div>
             ) : (
               drivers.map((driver) => (
@@ -136,10 +135,7 @@ export default function AdminKycPage() {
           </div>
         </section>
 
-        <section
-          className="rounded-lg border p-5"
-          style={{ background: "var(--ar-s2)", borderColor: "var(--ar-border)" }}
-        >
+        <section className="ar-card">
           {!selected ? (
             <div className="py-16 text-center text-sm" style={{ color: "var(--ar-t2)" }}>
               Select a driver to review
@@ -208,8 +204,8 @@ export default function AdminKycPage() {
                   type="button"
                   disabled={busyId === selected.id}
                   onClick={() => review(selected.id, "approve")}
-                  className="inline-flex h-11 items-center gap-2 rounded-lg px-4 text-sm font-semibold"
-                  style={{ background: "var(--ar-ok)", color: "var(--ar-bg)" }}
+                  className="inline-flex h-11 items-center gap-2 rounded-lg px-4 text-sm font-bold"
+                  style={{ background: "var(--ar-ok)", color: "#000" }}
                 >
                   <CheckCircle2 size={ICON.md} />
                   Approve
@@ -218,8 +214,8 @@ export default function AdminKycPage() {
                   type="button"
                   disabled={busyId === selected.id}
                   onClick={() => review(selected.id, "reject")}
-                  className="inline-flex h-11 items-center gap-2 rounded-lg px-4 text-sm font-semibold"
-                  style={{ background: "var(--ar-err)", color: "white" }}
+                  className="inline-flex h-11 items-center gap-2 rounded-lg border px-4 text-sm font-bold"
+                  style={{ borderColor: "var(--ar-err)", color: "var(--ar-err)", background: "transparent" }}
                 >
                   <XCircle size={ICON.md} />
                   Reject
@@ -235,7 +231,7 @@ export default function AdminKycPage() {
 
 function Info({ label, value }) {
   return (
-    <div className="rounded-lg border p-3" style={{ borderColor: "var(--ar-border)", background: "var(--ar-s1)" }}>
+    <div className="ar-card p-3" style={{ background: "var(--ar-s1)" }}>
       <p className="text-xs font-medium uppercase tracking-widest" style={{ color: "var(--ar-t3)" }}>{label}</p>
       <p className="mt-2 text-sm font-semibold">{value || "-"}</p>
     </div>
@@ -248,8 +244,8 @@ function DocumentLink({ label, href }) {
       href={href || "#"}
       target="_blank"
       rel="noreferrer"
-      className="inline-flex items-center justify-between rounded-lg border p-3 text-sm font-semibold"
-      style={{ borderColor: "var(--ar-border)", background: "var(--ar-s1)", color: href ? "var(--ar-accent)" : "var(--ar-t3)" }}
+      className="ar-card inline-flex items-center justify-between p-3 text-sm font-semibold"
+      style={{ background: "var(--ar-s1)", color: href ? "var(--ar-accent)" : "var(--ar-t3)" }}
     >
       {label}
       <ExternalLink size={ICON.sm} />

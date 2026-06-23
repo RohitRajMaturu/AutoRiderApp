@@ -29,13 +29,13 @@ function maskPhone(value) {
 
 function Metric({ label, value, tone, Icon }) {
   return (
-    <div className="rounded-lg border p-5 shadow-sm" style={{ borderColor: "var(--ar-border)", background: "var(--ar-s2)" }}>
+    <div className="ar-metric-card">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-xs font-medium uppercase tracking-widest" style={{ color: "var(--ar-t2)" }}>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: "var(--ar-t3)" }}>
             {label}
           </p>
-          <p className="mt-3 text-3xl font-semibold tracking-tight" style={{ color: "var(--ar-t1)" }}>
+          <p className="mt-3 text-3xl font-extrabold tracking-[-0.02em]" style={{ color: "var(--ar-t1)" }}>
             {value}
           </p>
         </div>
@@ -189,46 +189,49 @@ export default function AdminPage() {
         </section>
 
         <section className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_420px]">
-          <div className="rounded-lg border p-5 shadow-sm" style={{ borderColor: "var(--ar-border)", background: "var(--ar-s2)" }}>
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <h2 className="text-base font-semibold">Live Ride Queue</h2>
+          <div className="ar-card">
+            <div className="ar-section-header">
+              <h2 className="ar-section-title">Live Ride Queue</h2>
               <StatusBadge status={liveRides.length ? "accepted" : "offline"} label={`${liveRides.length} live`} />
             </div>
-            <div className="overflow-x-auto">
+            <div className="max-h-[400px] overflow-auto">
               <table className="min-w-full text-sm">
                 <thead>
-                  <tr className="text-left text-xs font-medium uppercase tracking-widest" style={{ color: "var(--ar-t2)" }}>
-                    <th className="border-b px-3 py-3" style={{ borderColor: "var(--ar-border)" }}>Ride</th>
-                    <th className="border-b px-3 py-3" style={{ borderColor: "var(--ar-border)" }}>Status</th>
-                    <th className="border-b px-3 py-3" style={{ borderColor: "var(--ar-border)" }}>Passenger</th>
-                    <th className="border-b px-3 py-3" style={{ borderColor: "var(--ar-border)" }}>Driver</th>
-                    <th className="border-b px-3 py-3" style={{ borderColor: "var(--ar-border)" }}>Fare</th>
+                  <tr>
+                    <th className="ar-th">Ride</th>
+                    <th className="ar-th">Status</th>
+                    <th className="ar-th">Passenger</th>
+                    <th className="ar-th">Driver</th>
+                    <th className="ar-th">Fare</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {(liveRides.length ? liveRides : rides.slice(0, 8)).map((ride) => (
-                    <tr key={ride.id}>
-                      <td className="border-b px-3 py-3 text-sm font-normal" style={{ borderColor: "var(--ar-border)" }}>
+                  {liveRides.map((ride) => (
+                    <tr key={ride.id} className="ar-tr">
+                      <td className="ar-td">
                         {String(ride.id).slice(0, 8)}
                       </td>
-                      <td className="border-b px-3 py-3" style={{ borderColor: "var(--ar-border)" }}>
+                      <td className="ar-td">
                         <StatusBadge status={ride.status} />
                       </td>
-                      <td className="border-b px-3 py-3 text-sm font-normal" style={{ borderColor: "var(--ar-border)", color: "var(--ar-t2)" }}>
+                      <td className="ar-td" style={{ color: "var(--ar-t2)" }}>
                         {ride.passenger_phone ? maskPhone(ride.passenger_phone) : ride.passenger_email || "-"}
                       </td>
-                      <td className="border-b px-3 py-3 text-sm font-normal" style={{ borderColor: "var(--ar-border)", color: "var(--ar-t2)" }}>
+                      <td className="ar-td" style={{ color: "var(--ar-t2)" }}>
                         {ride.vehicle_number || "-"}
                       </td>
-                      <td className="border-b px-3 py-3 text-sm font-semibold" style={{ borderColor: "var(--ar-border)" }}>
+                      <td className="ar-td font-semibold">
                         {ride.estimated_fare ? formatCurrency(ride.estimated_fare) : "-"}
                       </td>
                     </tr>
                   ))}
-                  {!rides.length ? (
+                  {!liveRides.length ? (
                     <tr>
-                      <td colSpan="5" className="px-3 py-8 text-center text-sm font-bold" style={{ color: "var(--ar-t2)" }}>
-                        No ride data yet
+                      <td colSpan={5} className="ar-td py-12 text-center">
+                        <div className="flex flex-col items-center gap-2">
+                          <Route size={24} style={{ color: "var(--ar-t3)" }} />
+                          <span style={{ color: "var(--ar-t3)", fontSize: 13 }}>No active rides right now</span>
+                        </div>
                       </td>
                     </tr>
                   ) : null}
@@ -238,28 +241,54 @@ export default function AdminPage() {
           </div>
 
           <div className="space-y-5">
-            <div className="rounded-lg border p-5 shadow-sm" style={{ borderColor: "var(--ar-border)", background: "var(--ar-s2)" }}>
-              <div className="mb-4 flex items-center gap-2">
+            <div className="ar-card">
+              <div className="ar-section-header">
+                <div className="flex items-center gap-2">
                 <Users size={ICON.lg} color={"var(--ar-accent)"} />
-                <h2 className="text-base font-semibold">Top Drivers</h2>
+                <h2 className="ar-section-title">Top Drivers</h2>
+                </div>
               </div>
-              <div className="space-y-3">
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr>
+                      <th className="ar-th">Driver</th>
+                      <th className="ar-th">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
                 {topDrivers.map((driver) => (
-                  <div key={driver.id} className="flex items-center justify-between gap-3 border-b pb-3 last:border-0 last:pb-0" style={{ borderColor: "var(--ar-border)" }}>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold">{driver.vehicle_number || "Unassigned"}</p>
-                      <p className="truncate text-xs font-normal" style={{ color: "var(--ar-t2)" }}>
-                        {driver.phone || driver.email || "-"}
-                      </p>
-                    </div>
-                    <StatusBadge status={driver.is_online ? "online" : "offline"} label={`${numberValue(driver.completed_rides_30d)} rides`} />
-                  </div>
+                  <tr key={driver.id} className="ar-tr">
+                    <td className="ar-td">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold"
+                          style={{ background: "var(--ar-accent-dim)", color: "var(--ar-accent)" }}
+                        >
+                          {(driver.vehicle_number || "?")[0].toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold">{driver.vehicle_number || "Unassigned"}</p>
+                          <p className="truncate text-xs font-normal" style={{ color: "var(--ar-t2)" }}>
+                            {driver.phone || driver.email || "-"}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="ar-td">
+                      <StatusBadge status={driver.is_online ? "online" : "offline"} label={`${numberValue(driver.completed_rides_30d)} rides`} />
+                    </td>
+                  </tr>
                 ))}
                 {!topDrivers.length ? (
-                  <p className="py-8 text-center text-sm font-bold" style={{ color: "var(--ar-t2)" }}>
-                    No drivers yet
-                  </p>
+                  <tr>
+                    <td colSpan={2} className="ar-td py-8 text-center" style={{ color: "var(--ar-t3)" }}>
+                      No drivers yet
+                    </td>
+                  </tr>
                 ) : null}
+                  </tbody>
+                </table>
               </div>
             </div>
 
