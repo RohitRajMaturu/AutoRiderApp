@@ -208,7 +208,7 @@ function RolePickerModal({ visible, onClose, onSelect }) {
 }
 
 export default function Index() {
-  const { auth, signIn, signUp, isReady } = useAuth();
+  const { auth, signIn, signUp, isReady, isSigningOut } = useAuth();
   const insets = useSafeAreaInsets();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(40)).current;
@@ -269,7 +269,7 @@ export default function Index() {
     staleTime: 0,
   });
 
-  if (!testModeLoaded || !isReady || (auth && isLoading)) {
+  if (!testModeLoaded || !isReady || (auth && isLoading && !isSigningOut)) {
     return (
       <View
         style={{
@@ -286,13 +286,13 @@ export default function Index() {
     );
   }
 
-  if (testMode && testRole) {
+  if (!isSigningOut && testMode && testRole) {
     if (testRole === "admin") return <Redirect href="/(admin)" />;
     if (testRole === "driver") return <Redirect href="/(driver)" />;
     return <Redirect href="/(passenger)" />;
   }
 
-  if (auth) {
+  if (auth && !isSigningOut) {
     const role = data?.user?.role || auth?.user?.role || "passenger";
     if (role === "admin") return <Redirect href="/(admin)" />;
     if (role === "driver") return <Redirect href="/(driver)" />;
