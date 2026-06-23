@@ -32,7 +32,7 @@ import * as Location from "expo-location";
 import { toast } from "sonner-native";
 import TukTukGoLoader from "@/components/TukTukGoLoader";
 import AutoRickshawIcon from "@/components/AutoRickshawIcon";
-import { Button } from "@/components/ui";
+import { Button, RIDE_STATUS_CONFIG, StatusBadge } from "@/components/ui";
 import { ICON } from "@/theme/iconScale";
 import { useAuth } from "@/utils/auth/useAuth";
 import { createRidePusher } from "@/utils/pusher";
@@ -110,39 +110,6 @@ function buildMapRegion(points) {
     latitudeDelta: Math.max((maxLat - minLat) * 2.5, 0.025),
     longitudeDelta: Math.max((maxLng - minLng) * 2.5, 0.025),
   };
-}
-
-function StatusBadge({ status }) {
-  const configs = {
-    requested: { bg: "#FEF3C7", text: "#B88700", label: "Finding Driver" },
-    negotiating: { bg: "#E0F2FE", text: "#0369A1", label: "Negotiating" },
-    accepted: { bg: SUCCESS_LIGHT, text: SUCCESS, label: "Accepted" },
-    completed: { bg: "#DBEAFE", text: "#2563EB", label: "Completed" },
-    cancelled: { bg: "#FEE2E2", text: "#DC2626", label: "Cancelled" },
-  };
-  const c = configs[status] || configs.requested;
-  return (
-    <View
-      style={{
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 99,
-        backgroundColor: c.bg,
-      }}
-    >
-      <Text
-        style={{
-          fontSize: 11,
-          fontWeight: "700",
-          color: c.text,
-          textTransform: "uppercase",
-          letterSpacing: 0.5,
-        }}
-      >
-        {c.label}
-      </Text>
-    </View>
-  );
 }
 
 function buildTripStatusMessage(ride) {
@@ -1125,7 +1092,7 @@ export default function PassengerHome() {
                         : "Driver is on the way!"}
                   </Text>
                 </View>
-                <StatusBadge status={activeRide.status} />
+                <StatusBadge status={activeRide.status} config={RIDE_STATUS_CONFIG} />
               </View>
 
               {Platform.OS !== "web" && activeRideMapRegion && (

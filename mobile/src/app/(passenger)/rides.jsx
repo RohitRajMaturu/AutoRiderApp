@@ -3,7 +3,7 @@ import { Animated, View, Text, TouchableOpacity, RefreshControl, ScrollView } fr
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { FlashList } from "@shopify/flash-list";
-import { ChevronLeft, ChevronRight, Clock, CheckCircle2, XCircle, MapPin, Sparkles, IndianRupee } from "lucide-react-native";
+import { ChevronLeft, ChevronRight, Clock, CheckCircle2, XCircle, MapPin, IndianRupee } from "lucide-react-native";
 import { StatusBar } from "expo-status-bar";
 import { SkeletonLoader, StatusBadge } from "@/components/ui";
 import AutoRickshawIcon from "@/components/AutoRickshawIcon";
@@ -28,24 +28,6 @@ function rideFare(ride) {
   return ride?.final_fare ?? ride?.estimated_fare ?? null;
 }
 
-function rideTime(ride) {
-  const value = ride?.completed_at || ride?.created_at;
-  const time = value ? new Date(value).getTime() : 0;
-  return Number.isFinite(time) ? time : 0;
-}
-
-function matchesStatus(ride, activeFilter) {
-  if (activeFilter === "all") return true;
-  if (activeFilter === "pending") {
-    return ["requested", "negotiating", "accepted"].includes(ride.status);
-  }
-  return ride.status === activeFilter;
-}
-
-function sortRides(a, b) {
-  return rideTime(b) - rideTime(a);
-}
-
 function formatCancellationReason(reason) {
   if (!reason) return null;
   return String(reason)
@@ -60,28 +42,30 @@ function createStatusConfig(theme) {
       text: theme.warning,
       Icon: Clock,
       label: "Searching",
-      accent: theme.warning,
     },
     accepted: {
       bg: theme.primaryLight,
       text: theme.primaryDark,
       Icon: AutoRickshawIcon,
       label: "Accepted",
-      accent: theme.primary,
+    },
+    negotiating: {
+      bg: "#E0F2FE",
+      text: "#0369A1",
+      Icon: Clock,
+      label: "Negotiating",
     },
     completed: {
       bg: theme.successLight,
       text: theme.success,
       Icon: CheckCircle2,
       label: "Completed",
-      accent: theme.success,
     },
     cancelled: {
       bg: theme.errorLight,
       text: theme.error,
       Icon: XCircle,
       label: "Cancelled",
-      accent: theme.error,
     },
   };
 }
@@ -111,14 +95,20 @@ const RideCard = memo(function RideCard({ ride }) {
       label: config.label,
     },
   };
+  const rating = Number(ride.driver_rating);
+  const safeRating = Number.isInteger(rating) ? Math.min(Math.max(rating, 0), 5) : 0;
+  const titleText =
+    ride.status === "completed"
+      ? "Trip completed"
+      : ride.status === "cancelled"
+        ? "Trip cancelled"
+        : "Trip in progress";
 
   return (
     <View
       style={{
         backgroundColor: theme.surface,
         borderColor: theme.border,
-        borderLeftColor: config.accent,
-        borderLeftWidth: 3,
         borderRadius: theme.radii.lg,
         borderWidth: 1,
         marginBottom: theme.spacing[2],
@@ -148,7 +138,7 @@ const RideCard = memo(function RideCard({ ride }) {
           </View>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={[theme.typography.caption, { color: theme.text, fontWeight: "800" }]} numberOfLines={1}>
-              {ride.status === "completed" ? "Trip completed" : ride.status === "cancelled" ? "Trip cancelled" : "Trip in progress"}
+              {titleText}
             </Text>
             <Text style={[theme.typography.micro, { color: theme.textMuted, marginTop: 2 }]} numberOfLines={1}>
               {formattedDate} - {formattedTime}
@@ -160,7 +150,7 @@ const RideCard = memo(function RideCard({ ride }) {
 
       <View style={{ marginTop: theme.spacing[3], gap: theme.spacing[1] }}>
         <View style={{ alignItems: "flex-start", flexDirection: "row", gap: theme.spacing[2] }}>
-          <MapPin size={ICON.sm} color={theme.success} />
+          <MapPin size={ICON.sm} color={theme.textMuted} />
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={[theme.typography.caption, { color: theme.text }]} numberOfLines={1}>
               {ride.dest_address}
@@ -187,7 +177,7 @@ const RideCard = memo(function RideCard({ ride }) {
           <View
             style={{
               alignItems: "center",
-              backgroundColor: theme.primaryLight,
+              backgroundColor: theme.mutedSurface,
               borderRadius: theme.radii.pill,
               flexDirection: "row",
               gap: theme.spacing[2],
@@ -195,8 +185,8 @@ const RideCard = memo(function RideCard({ ride }) {
               paddingVertical: theme.spacing[2],
             }}
           >
-            <AutoRickshawIcon size={ICON.sm} color={theme.primaryDark} />
-            <Text style={[theme.typography.micro, { color: theme.primaryDark, fontWeight: "800" }]}>
+            <AutoRickshawIcon size={ICON.sm} color={theme.textSecondary} />
+            <Text style={[theme.typography.micro, { color: theme.textSecondary, fontWeight: "800" }]}>
               {ride.vehicle_number}
             </Text>
           </View>
@@ -206,7 +196,7 @@ const RideCard = memo(function RideCard({ ride }) {
           <View
             style={{
               alignItems: "center",
-              backgroundColor: theme.successLight,
+              backgroundColor: theme.mutedSurface,
               borderRadius: theme.radii.pill,
               flexDirection: "row",
               gap: theme.spacing[1],
@@ -214,14 +204,14 @@ const RideCard = memo(function RideCard({ ride }) {
               paddingVertical: theme.spacing[2],
             }}
           >
-            <IndianRupee size={ICON.xs} color={theme.success} />
-            <Text style={[theme.typography.micro, { color: theme.success, fontWeight: "800" }]}>
+            <IndianRupee size={ICON.xs} color={theme.textSecondary} />
+            <Text style={[theme.typography.micro, { color: theme.textSecondary, fontWeight: "800" }]}>
               {fare}
             </Text>
           </View>
         ) : null}
 
-        {Number.isFinite(distance) ? (
+        {Number.isFinite(distance) && distance > 0 ? (
           <View
             style={{
               backgroundColor: theme.mutedSurface,
@@ -232,6 +222,22 @@ const RideCard = memo(function RideCard({ ride }) {
           >
             <Text style={[theme.typography.micro, { color: theme.textSecondary, fontWeight: "800" }]}>
               {distance.toFixed(1)} km
+            </Text>
+          </View>
+        ) : null}
+
+        {safeRating > 0 ? (
+          <View
+            style={{
+              backgroundColor: theme.mutedSurface,
+              borderRadius: theme.radii.pill,
+              paddingHorizontal: theme.spacing[3],
+              paddingVertical: theme.spacing[2],
+            }}
+          >
+            <Text style={[theme.typography.micro, { color: theme.textSecondary, fontWeight: "800" }]}>
+              {"★".repeat(safeRating)}
+              {"☆".repeat(5 - safeRating)}
             </Text>
           </View>
         ) : null}
@@ -364,89 +370,22 @@ function PaginationBar({ page, totalPages, totalCount, start, end, onPrevious, o
   );
 }
 
-function PassengerRideBadge() {
-  return (
-    <View
-      style={{
-        alignItems: "center",
-        backgroundColor: "#FFFFFF",
-        borderColor: "#FFFFFF",
-        borderRadius: 999,
-        borderWidth: 3,
-        elevation: 4,
-        flexDirection: "row",
-        gap: 8,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.12,
-        shadowRadius: 14,
-      }}
-    >
-      <Text style={{ color: "#238B86", fontSize: 24, fontWeight: "900" }}>
-        🛺
-      </Text>
-    </View>
-  );
-}
-
 function RidesEmptyState({ title, description }) {
   const theme = useTheme();
   const floatAnim = useRef(new Animated.Value(0)).current;
-  const pulseAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const floatLoop = Animated.loop(
+    const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(floatAnim, {
-          toValue: 1,
-          duration: 1400,
-          useNativeDriver: true,
-        }),
-        Animated.timing(floatAnim, {
-          toValue: 0,
-          duration: 1400,
-          useNativeDriver: true,
-        }),
+        Animated.timing(floatAnim, { toValue: 1, duration: 1600, useNativeDriver: true }),
+        Animated.timing(floatAnim, { toValue: 0, duration: 1600, useNativeDriver: true }),
       ]),
     );
-    const pulseLoop = Animated.loop(
-      Animated.timing(pulseAnim, {
-        toValue: 1,
-        duration: 2200,
-        useNativeDriver: true,
-      }),
-    );
+    loop.start();
+    return () => loop.stop();
+  }, [floatAnim]);
 
-    floatLoop.start();
-    pulseLoop.start();
-    return () => {
-      floatLoop.stop();
-      pulseLoop.stop();
-    };
-  }, [floatAnim, pulseAnim]);
-
-  const autoTranslateY = floatAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, -7],
-  });
-  const autoRotate = floatAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ["0deg", "-3deg"],
-  });
-  const pulseScale = pulseAnim.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: [0.88, 1.1, 0.88],
-  });
-  const pulseOpacity = pulseAnim.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: [0.5, 1, 0.5],
-  });
-  const sparkleRotate = pulseAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ["0deg", "360deg"],
-  });
+  const translateY = floatAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -6] });
 
   return (
     <View
@@ -456,161 +395,21 @@ function RidesEmptyState({ title, description }) {
         paddingVertical: theme.spacing[10],
       }}
     >
-      <View
-        style={{
-          alignItems: "center",
-          backgroundColor: theme.surface,
-          borderColor: theme.primaryBorder,
-          borderRadius: 24,
-          borderWidth: 1,
-          height: 158,
-          justifyContent: "center",
-          marginBottom: theme.spacing[5],
-          overflow: "hidden",
-          width: 232,
-        }}
-      >
+      <Animated.View style={{ transform: [{ translateY }], marginBottom: theme.spacing[5] }}>
         <View
           style={{
+            alignItems: "center",
             backgroundColor: theme.primaryLight,
-            borderRadius: 999,
-            height: 190,
-            opacity: 0.92,
-            position: "absolute",
-            right: -72,
-            top: -82,
-            width: 190,
-          }}
-        />
-        <View
-          style={{
-            backgroundColor: theme.warningLight,
-            borderRadius: 999,
-            bottom: -42,
-            height: 112,
-            left: -34,
-            opacity: 0.78,
-            position: "absolute",
-            width: 112,
-          }}
-        />
-        <View
-          style={{
-            borderColor: theme.primaryBorder,
-            borderRadius: 22,
-            borderStyle: "dashed",
-            borderWidth: 2,
-            height: 66,
-            left: 54,
-            position: "absolute",
-            top: 45,
-            transform: [{ rotate: "-10deg" }],
-            width: 126,
-          }}
-        />
-        <View
-          style={{
-            alignItems: "center",
-            backgroundColor: theme.surface,
-            borderColor: theme.border,
-            borderRadius: 18,
-            borderWidth: 1,
-            elevation: 3,
-            flexDirection: "row",
-            gap: theme.spacing[2],
-            left: 26,
-            paddingHorizontal: 10,
-            paddingVertical: 9,
-            position: "absolute",
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 8 },
-            shadowOpacity: 0.1,
-            shadowRadius: 16,
-            top: 22,
+            borderRadius: theme.radii.xl,
+            height: 96,
+            justifyContent: "center",
+            width: 96,
           }}
         >
-          <MapPin size={ICON.sm} color={theme.primary} />
-          <View>
-            <View style={{ backgroundColor: theme.text, borderRadius: 999, height: 5, width: 58 }} />
-            <View
-              style={{
-                backgroundColor: theme.border,
-                borderRadius: 999,
-                height: 5,
-                marginTop: 6,
-                width: 38,
-              }}
-            />
-          </View>
+          <AutoRickshawIcon size={44} color={theme.primary} />
         </View>
-        <Animated.View
-          style={{
-            alignItems: "center",
-            height: 56,
-            justifyContent: "center",
-            position: "absolute",
-            right: 18,
-            top: 64,
-            transform: [{ translateY: autoTranslateY }, { rotate: autoRotate }],
-            width: 136,
-          }}
-        >
-          <PassengerRideBadge />
-        </Animated.View>
-        <View
-          style={{
-            alignItems: "center",
-            backgroundColor: theme.successLight,
-            borderColor: theme.surface,
-            borderRadius: 999,
-            borderWidth: 3,
-            bottom: 24,
-            height: 38,
-            justifyContent: "center",
-            left: 58,
-            position: "absolute",
-            width: 38,
-          }}
-        >
-          <Animated.View
-            style={{
-              backgroundColor: theme.successLight,
-              borderRadius: 999,
-              height: 50,
-              opacity: pulseOpacity,
-              position: "absolute",
-              transform: [{ scale: pulseScale }],
-              width: 50,
-            }}
-          />
-          <MapPin size={ICON.sm} color={theme.success} />
-        </View>
-        <Animated.View
-          style={{
-            alignItems: "center",
-            backgroundColor: theme.warning,
-            borderRadius: 999,
-            height: 30,
-            justifyContent: "center",
-            position: "absolute",
-            right: 22,
-            top: 20,
-            transform: [{ rotate: sparkleRotate }],
-            width: 30,
-          }}
-        >
-          <Sparkles size={ICON.xs} color={theme.surface} />
-        </Animated.View>
-      </View>
-      <Text
-        style={[
-          theme.typography.heading,
-          {
-            color: theme.text,
-            textAlign: "center",
-          },
-        ]}
-      >
+      </Animated.View>
+      <Text style={[theme.typography.heading, { color: theme.text, textAlign: "center" }]}>
         {title}
       </Text>
       <Text
@@ -636,35 +435,29 @@ export default function PassengerRides() {
   const [activeFilter, setActiveFilter] = useState("all");
   const [page, setPage] = useState(1);
   const { data, isLoading, refetch, isRefetching } = useQuery({
-    queryKey: ["passengerRides"],
+    queryKey: ["passengerRides", activeFilter, page],
     queryFn: async () => {
-      const res = await fetch("/api/rides");
+      const params = new URLSearchParams({
+        filter: activeFilter,
+        offset: String((page - 1) * PAGE_SIZE),
+        pageSize: String(PAGE_SIZE),
+      });
+      const res = await fetch(`/api/rides?${params}`);
       if (!res.ok) throw new Error("Failed to fetch rides");
       return res.json();
     },
-    refetchInterval: 10000,
+    staleTime: 60000,
+    refetchOnWindowFocus: true,
   });
 
   const rides = useMemo(() => data?.rides || [], [data?.rides]);
-  const filterCounts = useMemo(
-    () =>
-      FILTERS.reduce((acc, filter) => {
-        acc[filter.key] = rides.filter((ride) => matchesStatus(ride, filter.key)).length;
-        return acc;
-      }, {}),
-    [rides],
-  );
-  const filteredRides = useMemo(() => {
-    return rides
-      .filter((ride) => matchesStatus(ride, activeFilter))
-      .sort((a, b) => sortRides(a, b));
-  }, [activeFilter, rides]);
-  const totalPages = Math.max(Math.ceil(filteredRides.length / PAGE_SIZE), 1);
+  const filterCounts = data?.counts || {};
+  const totalCount = data?.total ?? 0;
+  const totalPages = Math.max(Math.ceil(totalCount / PAGE_SIZE), 1);
   const safePage = Math.min(page, totalPages);
   const pageStart = (safePage - 1) * PAGE_SIZE;
-  const visibleRides = filteredRides.slice(pageStart, pageStart + PAGE_SIZE);
-  const visibleStart = filteredRides.length ? pageStart + 1 : 0;
-  const visibleEnd = pageStart + visibleRides.length;
+  const visibleStart = totalCount ? pageStart + 1 : 0;
+  const visibleEnd = pageStart + rides.length;
 
   useEffect(() => {
     setPage(1);
@@ -708,7 +501,7 @@ export default function PassengerRides() {
       >
         <Text style={[theme.typography.heading, { color: theme.text }]}>My Rides</Text>
         <Text style={[theme.typography.caption, { color: theme.textSecondary, marginTop: theme.spacing[1] }]}>
-          {rides.length} total trips - newest first
+          {filterCounts.all ?? totalCount} total trips - newest first
         </Text>
         <FilterTabs activeFilter={activeFilter} counts={filterCounts} onChange={setActiveFilter} />
       </View>
@@ -721,7 +514,7 @@ export default function PassengerRides() {
         </View>
       ) : (
         <FlashList
-          data={visibleRides}
+          data={rides}
           estimatedItemSize={142}
           keyExtractor={(ride) => String(ride.id)}
           refreshControl={
@@ -745,7 +538,7 @@ export default function PassengerRides() {
               onPrevious={() => setPage((value) => Math.max(value - 1, 1))}
               page={safePage}
               start={visibleStart}
-              totalCount={filteredRides.length}
+              totalCount={totalCount}
               totalPages={totalPages}
             />
           }

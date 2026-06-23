@@ -91,7 +91,7 @@ PASSENGER_POST_CANCEL_COOLDOWN_SECONDS=60
 DRIVER_HEARTBEAT_TIMEOUT_SECONDS=120
 DRIVER_RIDE_RADIUS_KM=8
 ACCEPTED_RIDE_TIMEOUT_MINUTES=45
-NO_DRIVER_REQUEST_TIMEOUT_SECONDS=0
+NO_DRIVER_REQUEST_TIMEOUT_SECONDS=300
 SUBSCRIPTION_HALT_GRACE_DAYS=5
 MAINTENANCE_INTERVAL_SECONDS=30
 VITE_ANDROID_APP_URL=https://play.google.com/store/apps/details?id=your.app.id
@@ -233,8 +233,9 @@ EXPO_PUBLIC_PUSHER_CLUSTER=ap2
 - Accepted driver ride cards now prioritize Start/Complete and Cancel actions;
   calling is icon-only and raw phone text is not displayed.
 - Passenger UI warns after 60 seconds when no driver has accepted yet. Backend
-  auto-expiry/escalation for no-driver supply still depends on the final product
-  policy for zone demand, online driver count, and dispatch-radius behavior.
+  auto-cancellation for unaccepted requests is enabled by
+  `NO_DRIVER_REQUEST_TIMEOUT_SECONDS=300` when the maintenance worker is
+  running.
 
 Pending negotiation/privacy follow-up:
 

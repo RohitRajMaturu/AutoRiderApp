@@ -32,10 +32,10 @@ decisions.
 - Set production notification retention values if defaults are not acceptable:
   - `OPERATIONAL_EVENT_RETENTION_DAYS`
   - `INACTIVE_PUSH_TOKEN_RETENTION_DAYS`
-- Set no-driver timeout if backend auto-cancellation should be enabled:
-  - `NO_DRIVER_REQUEST_TIMEOUT_SECONDS=0` keeps it disabled.
-  - A production value such as `180` or `300` enables maintenance-driven
-    cancellation of unaccepted requests.
+- Set no-driver timeout to match pilot policy:
+  - `NO_DRIVER_REQUEST_TIMEOUT_SECONDS=300` enables maintenance-driven
+    cancellation of unaccepted requests after 5 minutes.
+  - `0` keeps it disabled for local experiments only.
 - Set `SUBSCRIPTION_HALT_GRACE_DAYS` if the default 5-day Razorpay halt grace
   period should change.
 - Configure production private upload storage:

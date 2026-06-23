@@ -21,19 +21,9 @@ import { StatusBar } from "expo-status-bar";
 import { toast } from "sonner-native";
 import AutoRickshawIcon from "@/components/AutoRickshawIcon";
 import { useAuth } from "@/utils/auth/useAuth";
+import { useTheme } from "@/theme/ThemeContext";
 import { ICON } from "@/theme/iconScale";
 
-const PRIMARY = "#43B8B3";
-const PRIMARY_LIGHT = "#E7F6F4";
-const PRIMARY_BORDER = "#BFE5E0";
-const BG = "#EAF0F1";
-const SURFACE = "#FFFFFF";
-const BORDER = "#D8E4E5";
-const TEXT = "#17272B";
-const TEXT_SECONDARY = "#586C70";
-const TEXT_MUTED = "#647678";
-const SUCCESS = "#16A34A";
-const DARK = "#17272B";
 const RIDE_HISTORY_PAGE_SIZE = 5;
 const RIDE_HISTORY_FILTERS = [
   { key: "all", label: "All" },
@@ -46,32 +36,34 @@ const SUBSCRIPTION_PLANS = [
   { key: "pro", label: "Pro", price: "Priority", desc: "For high-frequency driver partners" },
 ];
 
-const BENEFITS = [
-  {
-    icon: Zap,
-    title: "Accept Unlimited Rides",
-    desc: "No cap on daily ride acceptances",
-    color: "#EAB308",
-  },
-  {
-    icon: Shield,
-    title: "Zero Platform Commission",
-    desc: "Keep 100% of your earnings",
-    color: SUCCESS,
-  },
-  {
-    icon: Star,
-    title: "Priority Listing",
-    desc: "Get seen first by nearby passengers",
-    color: PRIMARY,
-  },
-  {
-    icon: TrendingUp,
-    title: "Earnings Analytics",
-    desc: "Track your daily performance",
-    color: "#3B82F6",
-  },
-];
+function createBenefits(theme) {
+  return [
+    {
+      icon: Zap,
+      title: "Accept Unlimited Rides",
+      desc: "No cap on daily ride acceptances",
+      color: theme.warning,
+    },
+    {
+      icon: Shield,
+      title: "Zero Platform Commission",
+      desc: "Keep 100% of your earnings",
+      color: theme.success,
+    },
+    {
+      icon: Star,
+      title: "Priority Listing",
+      desc: "Get seen first by nearby passengers",
+      color: theme.primary,
+    },
+    {
+      icon: TrendingUp,
+      title: "Earnings Analytics",
+      desc: "Track your daily performance",
+      color: theme.info,
+    },
+  ];
+}
 
 function formatExpiry(expiry) {
   if (!expiry) return "Not active";
@@ -120,15 +112,17 @@ function sortRideHistory(a, b) {
 }
 
 function HistoryChip({ label, selected, onPress }) {
+  const theme = useTheme();
+
   return (
     <TouchableOpacity
       activeOpacity={0.84}
       onPress={onPress}
       style={{
         alignItems: "center",
-        backgroundColor: selected ? DARK : SURFACE,
-        borderColor: selected ? DARK : BORDER,
-        borderRadius: 999,
+        backgroundColor: selected ? theme.dark : theme.surface,
+        borderColor: selected ? theme.dark : theme.border,
+        borderRadius: theme.radii.pill,
         borderWidth: 1,
         flexDirection: "row",
         gap: 5,
@@ -138,7 +132,7 @@ function HistoryChip({ label, selected, onPress }) {
     >
       <Text
         style={{
-          color: selected ? SURFACE : TEXT_SECONDARY,
+          color: selected ? theme.surface : theme.textSecondary,
           fontSize: 11,
           fontWeight: "800",
         }}
@@ -160,21 +154,23 @@ function HistoryPager({
   start,
   total,
 }) {
+  const theme = useTheme();
+
   if (total === 0) return null;
 
   return (
     <View
       style={{
-        borderTopColor: "#F5F5F4",
+        borderTopColor: theme.mutedSurface,
         borderTopWidth: 1,
         padding: 14,
       }}
     >
       <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-        <Text style={{ color: TEXT_MUTED, fontSize: 11, fontWeight: "800" }}>
+        <Text style={{ color: theme.textMuted, fontSize: 11, fontWeight: "800" }}>
           Showing {start}-{end} of {total}
         </Text>
-        <Text style={{ color: TEXT, fontSize: 11, fontWeight: "900" }}>
+        <Text style={{ color: theme.text, fontSize: 11, fontWeight: "900" }}>
           Page {currentPage}
         </Text>
       </View>
@@ -185,8 +181,8 @@ function HistoryPager({
           onPress={onPrevious}
           style={{
             alignItems: "center",
-            backgroundColor: canGoBack ? SURFACE : "#F5F5F4",
-            borderColor: BORDER,
+            backgroundColor: canGoBack ? theme.surface : theme.mutedSurface,
+            borderColor: theme.border,
             borderRadius: 12,
             borderWidth: 1,
             flex: 1,
@@ -197,8 +193,8 @@ function HistoryPager({
             paddingVertical: 11,
           }}
         >
-          <ChevronLeft size={ICON.sm} color={TEXT_SECONDARY} />
-          <Text style={{ color: TEXT_SECONDARY, fontSize: 12, fontWeight: "900" }}>
+          <ChevronLeft size={ICON.sm} color={theme.textSecondary} />
+          <Text style={{ color: theme.textSecondary, fontSize: 12, fontWeight: "900" }}>
             Previous
           </Text>
         </TouchableOpacity>
@@ -208,8 +204,8 @@ function HistoryPager({
           onPress={onNext}
           style={{
             alignItems: "center",
-            backgroundColor: canGoForward ? PRIMARY : "#F5F5F4",
-            borderColor: canGoForward ? PRIMARY : BORDER,
+            backgroundColor: canGoForward ? theme.primary : theme.mutedSurface,
+            borderColor: canGoForward ? theme.primary : theme.border,
             borderRadius: 12,
             borderWidth: 1,
             flex: 1,
@@ -220,10 +216,10 @@ function HistoryPager({
             paddingVertical: 11,
           }}
         >
-          <Text style={{ color: canGoForward ? SURFACE : TEXT_SECONDARY, fontSize: 12, fontWeight: "900" }}>
+          <Text style={{ color: canGoForward ? theme.surface : theme.textSecondary, fontSize: 12, fontWeight: "900" }}>
             {isFetchingNextPage ? "Loading" : "Next"}
           </Text>
-          <ChevronRight size={ICON.sm} color={canGoForward ? SURFACE : TEXT_SECONDARY} />
+          <ChevronRight size={ICON.sm} color={canGoForward ? theme.surface : theme.textSecondary} />
         </TouchableOpacity>
       </View>
     </View>
@@ -232,6 +228,18 @@ function HistoryPager({
 
 export default function DriverWallet() {
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
+  const PRIMARY = theme.primary;
+  const PRIMARY_LIGHT = theme.primaryLight;
+  const PRIMARY_BORDER = theme.primaryBorder;
+  const BG = theme.background;
+  const SURFACE = theme.surface;
+  const BORDER = theme.border;
+  const TEXT = theme.text;
+  const TEXT_SECONDARY = theme.textSecondary;
+  const TEXT_MUTED = theme.textMuted;
+  const SUCCESS = theme.success;
+  const DARK = theme.dark;
   const { auth } = useAuth();
   const queryClient = useQueryClient();
   const [ridePeriod, setRidePeriod] = useState("all");
@@ -396,6 +404,7 @@ export default function DriverWallet() {
   const canGoForward =
     safeRidePage < rideTotalPages ||
     Boolean(hasNextPage && filteredRideHistory.length === rideHistory.length);
+  const benefits = useMemo(() => createBenefits(theme), [theme]);
 
   useEffect(() => {
     setRidePage(1);
@@ -1017,7 +1026,7 @@ export default function DriverWallet() {
             Included During Pilot
           </Text>
           <View style={{ gap: 10 }}>
-            {BENEFITS.map((benefit, index) => (
+            {benefits.map((benefit, index) => (
               <View
                 key={index}
                 style={{

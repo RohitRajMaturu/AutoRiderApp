@@ -17,10 +17,27 @@ import { triggerRideEvent } from "@/lib/pusher/server";
 import { sendPushToUsers } from "@/app/api/utils/push-notifications";
 
 const NEGOTIATION_WINDOW_SECONDS = 45;
+const PASSENGER_RIDE_FILTERS = new Set(["all", "pending", "completed", "cancelled"]);
 
 function readFare(value) {
   const fare = Number(value);
   return Number.isInteger(fare) && fare > 0 ? fare : null;
+}
+
+function readPageSize(value) {
+  if (value === null) return null;
+  const pageSize = Number(value);
+  if (!Number.isInteger(pageSize)) return 25;
+  return Math.min(Math.max(pageSize, 1), 50);
+}
+
+function readOffset(value) {
+  const offset = Number(value);
+  return Number.isInteger(offset) && offset > 0 ? offset : 0;
+}
+
+function readPassengerRideFilter(value) {
+  return PASSENGER_RIDE_FILTERS.has(value) ? value : "all";
 }
 
 export async function POST(request) {
@@ -232,6 +249,10 @@ export async function GET(request) {
     if (!session || !session.user?.id) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const url = new URL(request.url);
+    const pageSize = readPageSize(url.searchParams.get("pageSize"));
+    const offset = readOffset(url.searchParams.get("offset"));
+    const filter = readPassengerRideFilter(url.searchParams.get("filter"));
 
     // Determine if we're fetching as passenger or driver
     const userRows =
@@ -321,27 +342,108 @@ export async function GET(request) {
         ORDER BY r.created_at DESC
       `;
     } else {
-      rides = await sql`
+      const countsRows = await sql`
         SELECT
-          r.*,
-          d.vehicle_number,
-          d.auto_photo_url,
-          du.name as driver_name,
-          du.image as driver_image,
-          d.last_lat as driver_last_lat,
-          d.last_lng as driver_last_lng,
-          (r.status = 'accepted' AND r.driver_id IS NOT NULL) AS can_call,
-          COALESCE((
-            SELECT json_agg(o ORDER BY o.responded_at DESC)
-            FROM ride_fare_offers o
-            WHERE o.ride_id = r.id
-          ), '[]'::json) as fare_offers
-        FROM rides r
-        LEFT JOIN drivers d ON r.driver_id = d.id
-        LEFT JOIN auth_users du ON d.user_id = du.id
-        WHERE r.passenger_id = ${session.user.id}
-        ORDER BY r.created_at DESC
+          count(*)::int AS total_all,
+          count(*) FILTER (WHERE status IN ('requested', 'negotiating', 'accepted'))::int AS pending,
+          count(*) FILTER (WHERE status = 'completed')::int AS completed,
+          count(*) FILTER (WHERE status = 'cancelled')::int AS cancelled
+        FROM rides
+        WHERE passenger_id = ${session.user.id}
       `;
+      const countRow = countsRows[0] || {};
+      const counts = {
+        all: countRow.total_all || 0,
+        pending: countRow.pending || 0,
+        completed: countRow.completed || 0,
+        cancelled: countRow.cancelled || 0,
+      };
+      const total = counts[filter] ?? counts.all;
+      const limitedPageSize = pageSize ?? Math.max(total, 1);
+
+      if (filter === "pending") {
+        rides = await sql`
+          SELECT
+            r.*,
+            d.vehicle_number,
+            d.auto_photo_url,
+            du.name as driver_name,
+            du.image as driver_image,
+            d.last_lat as driver_last_lat,
+            d.last_lng as driver_last_lng,
+            (r.status = 'accepted' AND r.driver_id IS NOT NULL) AS can_call,
+            COALESCE((
+              SELECT json_agg(o ORDER BY o.responded_at DESC)
+              FROM ride_fare_offers o
+              WHERE o.ride_id = r.id
+            ), '[]'::json) as fare_offers
+          FROM rides r
+          LEFT JOIN drivers d ON r.driver_id = d.id
+          LEFT JOIN auth_users du ON d.user_id = du.id
+          WHERE r.passenger_id = ${session.user.id}
+            AND r.status IN ('requested', 'negotiating', 'accepted')
+          ORDER BY r.created_at DESC
+          LIMIT ${limitedPageSize}
+          OFFSET ${offset}
+        `;
+      } else if (filter === "completed" || filter === "cancelled") {
+        rides = await sql`
+          SELECT
+            r.*,
+            d.vehicle_number,
+            d.auto_photo_url,
+            du.name as driver_name,
+            du.image as driver_image,
+            d.last_lat as driver_last_lat,
+            d.last_lng as driver_last_lng,
+            (r.status = 'accepted' AND r.driver_id IS NOT NULL) AS can_call,
+            COALESCE((
+              SELECT json_agg(o ORDER BY o.responded_at DESC)
+              FROM ride_fare_offers o
+              WHERE o.ride_id = r.id
+            ), '[]'::json) as fare_offers
+          FROM rides r
+          LEFT JOIN drivers d ON r.driver_id = d.id
+          LEFT JOIN auth_users du ON d.user_id = du.id
+          WHERE r.passenger_id = ${session.user.id}
+            AND r.status = ${filter}
+          ORDER BY r.created_at DESC
+          LIMIT ${limitedPageSize}
+          OFFSET ${offset}
+        `;
+      } else {
+        rides = await sql`
+          SELECT
+            r.*,
+            d.vehicle_number,
+            d.auto_photo_url,
+            du.name as driver_name,
+            du.image as driver_image,
+            d.last_lat as driver_last_lat,
+            d.last_lng as driver_last_lng,
+            (r.status = 'accepted' AND r.driver_id IS NOT NULL) AS can_call,
+            COALESCE((
+              SELECT json_agg(o ORDER BY o.responded_at DESC)
+              FROM ride_fare_offers o
+              WHERE o.ride_id = r.id
+            ), '[]'::json) as fare_offers
+          FROM rides r
+          LEFT JOIN drivers d ON r.driver_id = d.id
+          LEFT JOIN auth_users du ON d.user_id = du.id
+          WHERE r.passenger_id = ${session.user.id}
+          ORDER BY r.created_at DESC
+          LIMIT ${limitedPageSize}
+          OFFSET ${offset}
+        `;
+      }
+
+      return Response.json({
+        rides,
+        counts,
+        total,
+        nextOffset: pageSize && offset + pageSize < total ? offset + pageSize : null,
+        pageSize,
+      });
     }
 
     return Response.json({ rides });

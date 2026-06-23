@@ -20,6 +20,7 @@ type StatusBadgeProps = {
 
 export const RIDE_STATUS_CONFIG = {
   requested: { bg: defaultTheme.warnDim, text: defaultTheme.warn, label: "Finding Driver" },
+  negotiating: { bg: "#E0F2FE", text: "#0369A1", label: "Negotiating" },
   accepted: { bg: defaultTheme.accentDim, text: defaultTheme.accent, label: "Accepted" },
   completed: { bg: defaultTheme.okDim, text: defaultTheme.ok, label: "Completed" },
   cancelled: { bg: defaultTheme.errDim, text: defaultTheme.err, label: "Cancelled" },
@@ -68,6 +69,7 @@ export function StatusBadge({ status, config, style }: StatusBadgeProps) {
 export function getRideStatusConfig(theme: ReturnType<typeof useTheme>): StatusConfig {
   return {
     requested: { bg: theme.warnDim, text: theme.warn, label: "Finding Driver" },
+    negotiating: { bg: "#E0F2FE", text: "#0369A1", label: "Negotiating" },
     accepted: { bg: theme.accentDim, text: theme.accent, label: "Accepted" },
     completed: { bg: theme.okDim, text: theme.ok, label: "Completed" },
     cancelled: { bg: theme.errDim, text: theme.err, label: "Cancelled" },
