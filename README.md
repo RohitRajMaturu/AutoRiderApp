@@ -146,10 +146,10 @@ Mobile passenger/driver signup intentionally uses the shared web auth page insid
 The public web landing page reads `VITE_ANDROID_APP_URL` and `VITE_IOS_APP_URL` for store buttons. If either value is blank, that button renders as a non-clickable coming-soon state instead of a placeholder link.
 
 Mobile role screens are guarded after logout. As soon as resolved auth becomes
-null, passenger, driver, and admin route groups render an immediate redirect to
-the welcome screen. Sign-out resets its progress flag without a delay, and that
-flag never gates protected-route redirects. The root layout keeps a secondary
-`router.replace("/")` fallback based only on missing auth.
+null, passenger, driver, and admin route layouts stop rendering their tab trees.
+They do not call `<Redirect>` themselves because the root navigator may be
+mid-transition. The root layout is the sole logout navigation owner and waits
+for `rootNavigationState.key` before calling `router.replace("/")`.
 
 The web admin dashboards defer Recharts rendering until the browser mounts.
 Their fixed-height placeholders keep SSR and hydration stable while preventing

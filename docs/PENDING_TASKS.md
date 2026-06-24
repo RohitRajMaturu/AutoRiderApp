@@ -126,16 +126,18 @@ Completed locally:
   wallet includes lazy paginated completed ride history.
 - Passenger trip-status sharing uses the native OS share sheet so WhatsApp and
   recent share targets appear naturally.
-- Passenger/driver/admin route groups redirect to the login/welcome screen after
-  logout instead of rendering a blank protected tab screen.
+- Passenger/driver/admin route groups stop rendering protected tab content after
+  logout while the root layout performs the guarded welcome-screen navigation.
 - Logout no longer navigates before auth is cleared, preventing role-dashboard
   redirect loops after sign-out.
 - Protected-route redirects no longer wait for `isSigningOut`, and sign-out
   resets that flag immediately without a 500 ms race window.
+- Role layouts no longer mount Expo Router `<Redirect>` during logout; the root
+  layout is the sole navigation owner and waits for the root navigation key.
 - Mobile ride and vehicle surfaces use the same shared auto icon shown in the
   admin heading instead of the previous custom rickshaw SVG.
-- Web admin, landing, and sign-in surfaces use the same shared auto icon; the
-  generated SVG and transparent rickshaw image assets were removed.
+- Compact web admin vehicle indicators use the shared auto icon. The original
+  landing and passenger/driver sign-in artwork remains unchanged.
 - Admin and admin-ops Recharts wait for browser mount before rendering, avoiding
   zero-size SSR measurements and preserving chart height during hydration.
 - Admin fare/chart queries and driver daily earnings use explicit

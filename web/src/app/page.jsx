@@ -8,7 +8,6 @@ import {
   UserRound,
   WalletCards,
 } from "lucide-react";
-import AutoRideIcon from "@/components/AutoRideIcon";
 
 const IOS_APP_URL = import.meta.env.VITE_IOS_APP_URL || "";
 const ANDROID_APP_URL = import.meta.env.VITE_ANDROID_APP_URL || "";
@@ -84,8 +83,10 @@ export default function LandingPage() {
   return (
     <main className="min-h-screen bg-[#F6FAFA] text-[#17272B]">
       <section className="relative isolate min-h-[92vh] overflow-hidden bg-[#123034]">
-        <AutoRideIcon
-          className="pointer-events-none absolute bottom-[-18px] right-[-50px] z-0 text-[260px] opacity-95 sm:right-[-10px] sm:text-[340px] lg:right-[7vw] lg:text-[430px]"
+        <img
+          src="/images/welcome-auto-rickshaw-transparent.png"
+          alt="TukTukGo auto rickshaw"
+          className="pointer-events-none absolute bottom-[-18px] right-[-90px] z-0 w-[560px] max-w-none opacity-95 sm:right-[-40px] md:w-[680px] lg:right-[4vw] lg:w-[760px]"
         />
         <div className="absolute inset-0 z-0 bg-[#123034]/72" />
         <div className="absolute inset-x-0 bottom-0 z-0 h-24 bg-[#F6FAFA]" />
