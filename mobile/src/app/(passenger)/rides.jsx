@@ -464,8 +464,8 @@ export default function PassengerRides() {
   }, [activeFilter]);
 
   useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
+    if (data && page > totalPages) setPage(totalPages);
+  }, [data, page, totalPages]);
 
   const emptyCopy = {
     all: {

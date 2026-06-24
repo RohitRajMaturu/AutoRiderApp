@@ -196,7 +196,7 @@ export default function RootLayout() {
   }, [isReady]);
 
   useEffect(() => {
-    if (!rootNavigationState?.key || !isReady) {
+    if (!isReady) {
       return;
     }
 
@@ -214,7 +214,7 @@ export default function RootLayout() {
     if (!auth && inProtectedGroup) {
       router.replace("/");
     }
-  }, [auth, firstSegment, isReady, pathname, rootNavigationState?.key, router]);
+  }, [auth, firstSegment, isReady, pathname, router]);
 
   useEffect(() => {
     if (!auth) return;
