@@ -11,6 +11,8 @@ driver account, and one passenger account on real devices.
 - The maintenance worker is running beside the web backend.
 - `FAST2SMS_API_KEY` is configured for signup/signin OTP tests.
 - At least one active service zone covers the physical test pickup location.
+- Separate web and mobile Sentry DSNs are configured when monitoring validation
+  is part of the release.
 
 ## Admin Flow
 
@@ -55,6 +57,9 @@ driver account, and one passenger account on real devices.
 ## OTP And Offline Behavior
 
 - Sign out and sign back in with phone OTP.
+- Confirm logout immediately returns to the welcome screen without rendering a
+  protected passenger, driver, or admin tab frame.
+- Press back after logout and confirm the protected role route stays inaccessible.
 - Confirm OTP send/verify works through the deployed backend.
 - Background the driver app while online.
 - Confirm the maintenance worker marks the driver offline after the heartbeat timeout.
@@ -69,6 +74,15 @@ driver account, and one passenger account on real devices.
 - Wait past accepted ride timeout.
 - Confirm maintenance auto-cancels the ghost ride.
 
+## Admin SSR And Monitoring
+
+- Cold-load the admin and admin-ops dashboards through the deployed SSR server.
+- Confirm charts reserve their height during hydration and render once mounted.
+- Confirm the browser console has no chart hydration or zero-size warnings.
+- Send one temporary Sentry event from web and one from mobile.
+- Confirm each event reaches its platform-specific project, then remove the
+  temporary test triggers.
+
 ## Pass Criteria
 
 - No blank screens or stuck loading states.
@@ -77,3 +91,6 @@ driver account, and one passenger account on real devices.
 - Polling discovery works within the expected window.
 - Phone OTP works through the configured SMS provider.
 - Driver heartbeat and subscription expiry enforcement work on real devices.
+- Logout guards prevent protected role UI from flashing after sign-out.
+- Admin charts render correctly after SSR hydration.
+- Configured Sentry projects receive web and mobile test events.

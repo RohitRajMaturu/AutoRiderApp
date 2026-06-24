@@ -97,6 +97,7 @@ MAINTENANCE_INTERVAL_SECONDS=30
 VITE_ANDROID_APP_URL=https://play.google.com/store/apps/details?id=your.app.id
 VITE_IOS_APP_URL=https://apps.apple.com/app/your-app-id
 VITE_PRIVACY_URL=https://your-privacy-url
+VITE_SENTRY_DSN=
 FAST2SMS_API_KEY=your_fast2sms_api_key
 CORS_ORIGINS=https://your-domain.com,https://your-other-domain.com
 RATE_LIMIT_MAX_REQUESTS=120
@@ -145,6 +146,10 @@ Mobile passenger/driver signup intentionally uses the shared web auth page insid
 The public web landing page reads `VITE_ANDROID_APP_URL` and `VITE_IOS_APP_URL` for store buttons. If either value is blank, that button renders as a non-clickable coming-soon state instead of a placeholder link.
 
 Mobile role screens are guarded after logout. If a user signs out and then uses the device back button, passenger, driver, and admin route groups redirect back to the welcome/login screen instead of showing the previous logged-in role UI or a blank protected tab screen. Sign-out clears auth before redirect decisions run, so the welcome screen does not bounce the user back to the previous role dashboard.
+
+The web admin dashboards defer Recharts rendering until the browser mounts.
+Their fixed-height placeholders keep SSR and hydration stable while preventing
+`ResponsiveContainer` from measuring a nonexistent server-side DOM.
 
 Backend `/api/*` routes include basic rate limiting and security headers. Set `RATE_LIMIT_MAX_REQUESTS=0` only for local debugging.
 
@@ -259,9 +264,22 @@ Implemented foundation:
   according to retention env settings.
 - `OPERATIONAL_EVENT_RETENTION_DAYS` defaults to `90`.
 - `INACTIVE_PUSH_TOKEN_RETENTION_DAYS` defaults to `180`.
+- Sentry error monitoring is initialized for the React Router web client and
+  Expo mobile app. Both integrations remain disabled when their DSN is absent.
 
 Production approach:
 
+- Create separate Sentry projects for web and mobile, then configure
+  `VITE_SENTRY_DSN` in the web environment and `EXPO_PUBLIC_SENTRY_DSN` in the
+  mobile build environment. Keep real values in ignored local `.env` files or
+  deployment/build secrets; never commit them.
+- Web Sentry is enabled outside development and samples 20% of production
+  transactions. Mobile Sentry is enabled in production with a 20% trace sample
+  rate. Mobile replay privacy options are configured, but replay sampling should
+  be enabled deliberately only when the team decides to collect recordings.
+- The Expo Sentry config plugin is installed. Configure the Sentry organization,
+  project, and authentication token in the build environment when production
+  source-map upload is required.
 - Operational events are for diagnostics and lifecycle visibility. Do not store
   secrets, full phone numbers, full Aadhaar, tokens, or precise long-lived
   location trails in event metadata.
@@ -282,6 +300,11 @@ Production approach:
   configuration.
 - `/api/health` and `/api/metrics` provide deployment health and Prometheus-style
   metrics scaffolding.
+
+To verify runtime error delivery after adding real DSNs, capture one temporary
+test message or exception in each production-like client, confirm it appears in
+the correct Sentry project, and remove the test trigger. Web and mobile should
+use separate projects so releases and alerts remain attributable.
 
 Real-device E2E checklist:
 
@@ -397,7 +420,9 @@ flowchart LR
   Pusher --> Mobile
   Api -. planned .-> Exotel[Exotel masked calls]
   Api -. planned .-> Razorpay[Razorpay subscriptions]
-  Api -. planned .-> Observability[Sentry/Grafana/OTel]
+  WebLanding --> SentryWeb[Sentry web errors]
+  Mobile --> SentryMobile[Sentry mobile errors]
+  Api -. planned .-> Metrics[Grafana/OTel metrics and logs]
   Api --> Maintenance[Maintenance worker]
   Api --> DriverHistory[Paginated driver ride history]
   Mobile --> Motion[React Native motion components]
@@ -447,6 +472,10 @@ Code-complete items that still need environment or field validation:
 - Verify mobile push-token registration on physical devices.
 - Re-verify logout/back-navigation behavior on real passenger, driver, and admin
   devices after the latest sign-out loop fix.
+- Verify the admin and admin-ops charts render after SSR hydration without
+  collapsing or producing hydration errors.
+- Configure separate web/mobile Sentry DSNs and confirm one test event reaches
+  each production project.
 
 Deferred product decisions:
 
@@ -455,8 +484,10 @@ Deferred product decisions:
 - Add toll-free/proxy calling so raw passenger and driver phone numbers are never
   exposed to mobile clients. Exotel is wired in code and still needs live
   credentials/validation.
-- Add Sentry/Grafana/OpenTelemetry SDK/exporter transport and production
-  alerting after provider projects are created.
+- Add Grafana/OpenTelemetry exporter transport and production alerting after
+  provider projects are created. Sentry web/mobile SDK initialization is already
+  implemented; project credentials, source-map upload, alerts, and live event
+  verification remain.
 - Finalize backend no-driver expiry/escalation policy. The UI now warns after
   60 seconds, but server-side cancellation/escalation thresholds still need a
   business decision.

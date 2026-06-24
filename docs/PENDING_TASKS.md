@@ -27,8 +27,11 @@ decisions.
   - `RAZORPAY_PLAN_STARTER`
   - `RAZORPAY_PLAN_ACTIVE`
   - `RAZORPAY_PLAN_PRO`
-- Add production observability SDK/exporter keys later when Sentry/Grafana/OTel
-  code is connected.
+- Set separate production Sentry DSNs:
+  - `VITE_SENTRY_DSN` for the web client.
+  - `EXPO_PUBLIC_SENTRY_DSN` for the Expo mobile app.
+- Configure Sentry organization/project metadata and an auth token in the build
+  environment when production source-map upload is enabled.
 - Set production notification retention values if defaults are not acceptable:
   - `OPERATIONAL_EVENT_RETENTION_DAYS`
   - `INACTIVE_PUSH_TOKEN_RETENTION_DAYS`
@@ -63,8 +66,8 @@ decisions.
 - Exotel account, virtual number, and masking app for phone-number privacy.
 - Razorpay account, subscription plans, webhook secret, and test/live webhook
   delivery validation.
-- Sentry project(s), Grafana Cloud stack, OpenTelemetry endpoint, and
-  UptimeRobot monitors.
+- Separate Sentry projects for web and mobile.
+- Grafana Cloud stack, OpenTelemetry endpoint, and UptimeRobot monitors.
 
 ## Real-Device Validation
 
@@ -88,6 +91,12 @@ decisions.
   - lock-out losing driver
   - expiry fallback.
 - Verify KYC submission and admin review on production-like devices.
+- Sign out from passenger, driver, and admin role groups and confirm protected
+  tab content never flashes before redirecting to the welcome screen.
+- Verify admin and admin-ops Recharts render after hydration and retain their
+  expected height.
+- Send one temporary test event from web and mobile production-like builds,
+  confirm each reaches the correct Sentry project, then remove the trigger.
 
 ## Product Or Business Decisions
 
@@ -121,6 +130,10 @@ Completed locally:
   logout instead of rendering a blank protected tab screen.
 - Logout no longer navigates before auth is cleared, preventing role-dashboard
   redirect loops after sign-out.
+- Admin and admin-ops Recharts wait for browser mount before rendering, avoiding
+  zero-size SSR measurements and preserving chart height during hydration.
+- Sentry web and React Native SDKs are installed and initialized behind optional
+  DSN environment variables. The Expo config plugin is registered.
 - `KeyboardAvoidingAnimatedView` no longer captures mutable React refs inside
   Reanimated worklets, resolving the `Tried to modify key current` warning.
 - Infrastructure env placeholders are documented in `web/.env.example` and
@@ -148,8 +161,10 @@ Completed locally:
 
 Remaining implementation work after provider choices or product decisions:
 
-- Install and initialize Sentry SDKs for backend, mobile, and web once project
-  DSNs are available.
+- Create Sentry web/mobile projects, supply real DSNs, configure source-map
+  upload credentials, define alert ownership, and verify live event delivery.
+- Decide whether backend/server error capture should also use Sentry; the current
+  integration covers the web browser and mobile clients.
 - Connect Grafana Loki/Tempo exporters or sidecar after Grafana Cloud details are
   available. `/api/metrics` is ready for scraping.
 - Tune no-driver timeout/escalation values once the business rule is finalized.

@@ -12,6 +12,8 @@ database name before starting.
 - Create at least one active service zone that covers all test devices.
 - Configure Ola Maps, Auth secret, Pusher Channels, and mobile `EXPO_PUBLIC_*`
   values for the test backend.
+- For monitoring validation, configure separate `VITE_SENTRY_DSN` and
+  `EXPO_PUBLIC_SENTRY_DSN` values for the web and mobile test builds.
 - Keep backend and maintenance worker running.
 
 ## Passenger
@@ -57,12 +59,27 @@ database name before starting.
 - Grant notification permission on both devices.
 - Confirm `user_push_tokens` receives active Expo tokens.
 - Sign out and sign back in; confirm token is refreshed rather than duplicated.
+- From each passenger, driver, and admin role group, sign out and confirm the
+  welcome screen appears without a flash of protected tab content.
+- Press the device back button after logout and confirm the protected role group
+  cannot be reopened.
 
 ## Admin
 
 - Admin reviews drivers, KYC queue, rides, zones, and audit log.
+- Open the admin dashboard and admin-ops dashboard after a cold page load.
+- Confirm both charts keep their expected height and render after hydration
+  without blank/collapsed containers or hydration warnings.
 - Confirm admin actions create audit log entries.
 - Confirm non-admin users cannot access admin routes.
+
+## Error Monitoring
+
+- Trigger one temporary handled test event in a production-like web build.
+- Confirm it appears only in the web Sentry project with the correct environment.
+- Trigger one temporary handled test event in a production-like mobile build.
+- Confirm it appears only in the mobile Sentry project with the correct environment.
+- Remove both temporary triggers after verification.
 
 ## Cleanup
 

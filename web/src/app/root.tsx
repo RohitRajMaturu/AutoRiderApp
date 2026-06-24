@@ -1,3 +1,5 @@
+import '../sentry.client';
+
 import {
   Links,
   Meta,

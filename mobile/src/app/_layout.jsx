@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/react-native";
 import { useAuth } from "@/utils/auth/useAuth";
 import { AuthModal } from "@/utils/auth/useAuthModal";
 import { ThemeProvider } from "@/theme/ThemeContext";
@@ -12,6 +13,19 @@ import queryClient from "@/utils/queryClient";
 import { Toaster } from "sonner-native";
 import { configureRideNotificationChannel, registerPushToken } from "@/utils/pushNotifications";
 import { OfflineBanner } from "@/components/OfflineBanner";
+
+const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN;
+
+if (SENTRY_DSN) {
+  Sentry.init({
+    dsn: SENTRY_DSN,
+    environment: process.env.NODE_ENV || "development",
+    enabled: process.env.NODE_ENV === "production",
+    tracesSampleRate: 0.2,
+    integrations: [Sentry.mobileReplayIntegration({ maskAllText: false })],
+  });
+}
+
 SplashScreen.preventAutoHideAsync();
 
 const PRIMARY = "#43B8B3";

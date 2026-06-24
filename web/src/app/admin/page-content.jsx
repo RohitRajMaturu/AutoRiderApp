@@ -673,10 +673,15 @@ function PaymentsPanel({ drivers }) {
 }
 
 export default function AdminPage() {
+  const [isMounted, setIsMounted] = useState(false);
   const [stats, setStats] = useState(null);
   const [drivers, setDrivers] = useState([]);
   const [rides, setRides] = useState([]);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -803,7 +808,7 @@ export default function AdminPage() {
               </span>
             </div>
             <div className="h-[250px]">
-              {chartData.length ? (
+              {!isMounted ? null : chartData.length ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <ComposedChart data={chartData} margin={{ left: -20, right: 6, top: 8, bottom: 0 }}>
                     <CartesianGrid stroke="rgba(255,255,255,0.05)" vertical={false} />

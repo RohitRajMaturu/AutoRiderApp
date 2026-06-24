@@ -446,8 +446,14 @@ function ChartTooltip({ active, payload, label }) {
 }
 
 function Timeline({ snapshot, sectionRef }) {
+  const [isMounted, setIsMounted] = useState(false);
   const [range, setRange] = useState("today");
   const [metric, setMetric] = useState("rides");
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const data = useMemo(() => {
     if (range === "today") {
       const byHour = new Map(
@@ -525,25 +531,29 @@ function Timeline({ snapshot, sectionRef }) {
           </div>
         </div>
       </div>
-      <ResponsiveContainer width="100%" height={260}>
-        <ComposedChart data={data}>
-          <CartesianGrid stroke="var(--ar-border)" vertical={false} strokeDasharray="4 4" />
-          <XAxis dataKey="label" tick={{ fill: "var(--ar-t2)", fontSize: 11 }} axisLine={false} tickLine={false} />
-          <YAxis yAxisId="rides" tick={{ fill: "var(--ar-t2)", fontSize: 11 }} axisLine={false} tickLine={false} />
-          <YAxis yAxisId="fare" orientation="right" hide />
-          <Tooltip content={<ChartTooltip />} />
-          <Bar yAxisId="rides" dataKey="total" fill="var(--ar-s3)" radius={[4, 4, 0, 0]} />
-          <Bar yAxisId="rides" dataKey="completed" fill="var(--ar-accent)" radius={[4, 4, 0, 0]} />
-          <Line
-            yAxisId="fare"
-            type="monotone"
-            dataKey="fare"
-            stroke="var(--ar-info)"
-            strokeWidth={2}
-            dot={false}
-          />
-        </ComposedChart>
-      </ResponsiveContainer>
+      {isMounted ? (
+        <ResponsiveContainer width="100%" height={260}>
+          <ComposedChart data={data}>
+            <CartesianGrid stroke="var(--ar-border)" vertical={false} strokeDasharray="4 4" />
+            <XAxis dataKey="label" tick={{ fill: "var(--ar-t2)", fontSize: 11 }} axisLine={false} tickLine={false} />
+            <YAxis yAxisId="rides" tick={{ fill: "var(--ar-t2)", fontSize: 11 }} axisLine={false} tickLine={false} />
+            <YAxis yAxisId="fare" orientation="right" hide />
+            <Tooltip content={<ChartTooltip />} />
+            <Bar yAxisId="rides" dataKey="total" fill="var(--ar-s3)" radius={[4, 4, 0, 0]} />
+            <Bar yAxisId="rides" dataKey="completed" fill="var(--ar-accent)" radius={[4, 4, 0, 0]} />
+            <Line
+              yAxisId="fare"
+              type="monotone"
+              dataKey="fare"
+              stroke="var(--ar-info)"
+              strokeWidth={2}
+              dot={false}
+            />
+          </ComposedChart>
+        </ResponsiveContainer>
+      ) : (
+        <div style={{ height: 260 }} />
+      )}
     </Card>
   );
 }
