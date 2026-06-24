@@ -14,11 +14,11 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
-  Car,
   ChevronDown,
 } from "lucide-react-native";
 import { FlashList } from "@shopify/flash-list";
 import { StatusBar } from "expo-status-bar";
+import AutoRideIcon from "@/components/AutoRideIcon";
 import { ICON } from "@/theme/iconScale";
 
 const PRIMARY = "#F5A623";
@@ -45,7 +45,7 @@ const STATUS_CONFIG = {
     Icon: Clock,
     label: "Searching",
   },
-  accepted: { bg: `${PRIMARY}20`, text: PRIMARY, Icon: Car, label: "Accepted" },
+  accepted: { bg: `${PRIMARY}20`, text: PRIMARY, Icon: AutoRideIcon, label: "Accepted" },
   completed: {
     bg: `${SUCCESS}20`,
     text: SUCCESS,

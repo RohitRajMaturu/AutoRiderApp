@@ -16,10 +16,10 @@ import {
   X,
   Search,
   ChevronDown,
-  Car,
   Calendar,
 } from "lucide-react-native";
 import { StatusBar } from "expo-status-bar";
+import AutoRideIcon from "@/components/AutoRideIcon";
 import { ICON } from "@/theme/iconScale";
 
 const PRIMARY = "#F5A623";
@@ -83,10 +83,7 @@ function DriverCard({ driver, onApprove, onReject, isUpdating }) {
                 alignItems: "center",
               }}
             >
-              <Car
-                size={ICON.lg}
-                color={driver.is_approved ? SUCCESS : TEXT_SECONDARY}
-              />
+              <AutoRideIcon size={ICON.lg} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 15, fontWeight: "700", color: TEXT }}>

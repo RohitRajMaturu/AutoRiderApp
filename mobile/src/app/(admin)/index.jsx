@@ -20,7 +20,6 @@ import {
   AlertTriangle,
   IndianRupee,
   Trophy,
-  Car,
   FlaskConical,
   LogOut,
 } from "lucide-react-native";
@@ -37,6 +36,7 @@ import { useAuth } from "@/utils/auth/useAuth";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { ICON } from "@/theme/iconScale";
+import AutoRideIcon from "@/components/AutoRideIcon";
 import useAppStore from "@/store/useAppStore";
 
 const PRIMARY = "#F5A623";
@@ -691,15 +691,18 @@ export default function AdminDashboard() {
         }}
       >
         <View>
-          <Text
-            style={{
-              fontSize: 22,
-              fontWeight: "800",
-              color: TEXT,
-            }}
-          >
-            🛺 Admin Panel
-          </Text>
+          <View style={{ alignItems: "center", flexDirection: "row", gap: 8 }}>
+            <AutoRideIcon size={24} />
+            <Text
+              style={{
+                fontSize: 22,
+                fontWeight: "800",
+                color: TEXT,
+              }}
+            >
+              Admin Panel
+            </Text>
+          </View>
           <Text style={{ fontSize: 13, color: TEXT_SECONDARY, marginTop: 2 }}>
             TukTukGo Command Center
           </Text>
@@ -1272,7 +1275,7 @@ export default function AdminDashboard() {
                         alignItems: "center",
                       }}
                     >
-                      <Car size={ICON.md} color={SUCCESS} />
+                      <AutoRideIcon size={ICON.md} />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text

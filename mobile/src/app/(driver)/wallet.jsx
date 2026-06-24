@@ -19,7 +19,7 @@ import {
 } from "lucide-react-native";
 import { StatusBar } from "expo-status-bar";
 import { toast } from "sonner-native";
-import AutoRickshawIcon from "@/components/AutoRickshawIcon";
+import AutoRideIcon from "@/components/AutoRideIcon";
 import { useAuth } from "@/utils/auth/useAuth";
 import { useTheme } from "@/theme/ThemeContext";
 import { ICON } from "@/theme/iconScale";
@@ -949,7 +949,7 @@ export default function DriverWallet() {
                         justifyContent: "center",
                       }}
                     >
-                      <AutoRickshawIcon size={ICON.sm} color={PRIMARY} />
+                      <AutoRideIcon size={ICON.sm} />
                     </View>
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <Text

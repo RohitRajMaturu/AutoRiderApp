@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import AdminShell from "@/components/AdminShell";
+import AutoRideIcon from "@/components/AutoRideIcon";
 import StatusBadge, { statusForDriver as driverStatusKey } from "@/components/ui/StatusBadge";
 import { ICON } from "@/lib/iconScale";
 
@@ -909,7 +910,7 @@ function DriverTable({ drivers, sectionRef }) {
                         className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold"
                         style={{ background: "var(--ar-accent-dim)", color: "var(--ar-accent)" }}
                       >
-                        {(driver.vehicle_number || "?")[0].toUpperCase()}
+                        <AutoRideIcon size={ICON.md} />
                       </div>
                       <div>
                         <div className="font-semibold" style={{ color: "var(--ar-t1)" }}>
@@ -1017,13 +1018,16 @@ function DriverTable({ drivers, sectionRef }) {
               style={{ borderColor: "var(--ar-border)", background: "var(--ar-s2)" }}
             >
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h3 className="truncate text-sm font-semibold" style={{ color: "var(--ar-t1)" }}>
-                    {driver.vehicle_number || "Unassigned vehicle"}
-                  </h3>
-                  <p className="mt-1 truncate text-xs font-bold" style={{ color: "var(--ar-t2)" }}>
-                    {driver.phone || driver.email || "-"}
-                  </p>
+                <div className="flex min-w-0 items-start gap-2">
+                  <AutoRideIcon className="mt-0.5 shrink-0" size={ICON.md} />
+                  <div className="min-w-0">
+                    <h3 className="truncate text-sm font-semibold" style={{ color: "var(--ar-t1)" }}>
+                      {driver.vehicle_number || "Unassigned vehicle"}
+                    </h3>
+                    <p className="mt-1 truncate text-xs font-bold" style={{ color: "var(--ar-t2)" }}>
+                      {driver.phone || driver.email || "-"}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex shrink-0 flex-wrap items-center justify-end">
                   <StatusBadge status={status} />

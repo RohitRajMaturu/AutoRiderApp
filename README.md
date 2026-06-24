@@ -145,11 +145,20 @@ Mobile passenger/driver signup intentionally uses the shared web auth page insid
 
 The public web landing page reads `VITE_ANDROID_APP_URL` and `VITE_IOS_APP_URL` for store buttons. If either value is blank, that button renders as a non-clickable coming-soon state instead of a placeholder link.
 
-Mobile role screens are guarded after logout. If a user signs out and then uses the device back button, passenger, driver, and admin route groups redirect back to the welcome/login screen instead of showing the previous logged-in role UI or a blank protected tab screen. Sign-out clears auth before redirect decisions run, so the welcome screen does not bounce the user back to the previous role dashboard.
+Mobile role screens are guarded after logout. As soon as resolved auth becomes
+null, passenger, driver, and admin route groups render an immediate redirect to
+the welcome screen. Sign-out resets its progress flag without a delay, and that
+flag never gates protected-route redirects. The root layout keeps a secondary
+`router.replace("/")` fallback based only on missing auth.
 
 The web admin dashboards defer Recharts rendering until the browser mounts.
 Their fixed-height placeholders keep SSR and hydration stable while preventing
 `ResponsiveContainer` from measuring a nonexistent server-side DOM.
+
+Admin fare totals, ride charts, driver "today" trip counts, and driver earnings
+use `Asia/Kolkata` calendar boundaries. Ride volume is bucketed by request time,
+revenue/completions by completion time, and cancellations by cancellation time;
+database session timezone does not determine the displayed day.
 
 Backend `/api/*` routes include basic rate limiting and security headers. Set `RATE_LIMIT_MAX_REQUESTS=0` only for local debugging.
 

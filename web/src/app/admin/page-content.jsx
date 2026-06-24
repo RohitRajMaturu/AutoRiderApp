@@ -26,7 +26,7 @@ import {
   YAxis,
 } from "recharts";
 import AdminShell from "@/components/AdminShell";
-import AutoRickshawIcon from "@/components/AutoRickshawIcon";
+import AutoRideIcon from "@/components/AutoRideIcon";
 import StatusBadge, { statusForDriver as driverStatusKey } from "@/components/ui/StatusBadge";
 import { ICON } from "@/lib/iconScale";
 
@@ -71,6 +71,12 @@ function formatShortDate(value, options = {}) {
 }
 
 function formatHour(value) {
+  const numericHour = Number(value);
+  if (Number.isInteger(numericHour) && numericHour >= 0 && numericHour <= 23) {
+    const suffix = numericHour >= 12 ? "PM" : "AM";
+    const hour = numericHour % 12 || 12;
+    return `${hour}${suffix}`;
+  }
   if (!value) return "--";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "--";
@@ -213,7 +219,7 @@ function AdminLoadingState() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl" style={{ background: "var(--ar-accent-dim)" }}>
-            <AutoRickshawIcon size={ICON.xl} color="var(--ar-accent)" />
+            <AutoRideIcon size={ICON.xl} />
           </div>
           <div>
             <p className="text-sm font-semibold" style={{ color: "var(--ar-t1)" }}>
@@ -287,7 +293,7 @@ function LiveRideQueue({ rides }) {
                 </td>
                 <td className="ar-td">
                   <div className="flex items-center gap-2">
-                    <AutoRickshawIcon size={ICON.sm} color="var(--ar-accent)" />
+                    <AutoRideIcon size={ICON.sm} />
                     <span style={{ color: "var(--ar-t2)" }}>{ride.vehicle_number || "Unassigned"}</span>
                   </div>
                 </td>
@@ -404,7 +410,7 @@ function FleetTable({ drivers }) {
                         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
                         style={{ background: "var(--ar-accent-dim)", color: "var(--ar-accent)" }}
                       >
-                        <AutoRickshawIcon size={ICON.md} color="currentColor" />
+                        <AutoRideIcon size={ICON.md} />
                       </div>
                       <div className="min-w-0">
                         <p className="truncate font-mono text-xs font-semibold" style={{ color: "var(--ar-t1)" }}>
@@ -636,7 +642,7 @@ function PaymentsPanel({ drivers }) {
             >
               <div className="flex min-w-0 items-center gap-3">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ background: "var(--ar-accent-dim)", color: "var(--ar-accent)" }}>
-                  <AutoRickshawIcon size={ICON.md} color="currentColor" />
+                  <AutoRideIcon size={ICON.md} />
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold">{driver.vehicle_number || "Unassigned"}</p>
@@ -775,7 +781,7 @@ export default function AdminPage() {
             value={stats ? numberValue(stats.activeDrivers) : "..."}
             helper={`${onlineDrivers}/${numberValue(stats?.totalDrivers)} approved online`}
             tone="green"
-            Icon={AutoRickshawIcon}
+            Icon={AutoRideIcon}
             progress={numberValue(stats?.totalDrivers) ? Math.round((onlineDrivers / numberValue(stats?.totalDrivers)) * 100) : 0}
           />
           <Metric
@@ -900,7 +906,7 @@ export default function AdminPage() {
                 <div key={driver.id} className="flex items-center justify-between gap-3 rounded-lg border p-3" style={{ borderColor: "var(--ar-border)", background: "var(--ar-s1)" }}>
                   <div className="flex min-w-0 items-center gap-3">
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ background: "var(--ar-accent-dim)", color: "var(--ar-accent)" }}>
-                      <AutoRickshawIcon size={ICON.md} color="currentColor" />
+                      <AutoRideIcon size={ICON.md} />
                     </div>
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold">{driver.vehicle_number || "Unassigned"}</p>

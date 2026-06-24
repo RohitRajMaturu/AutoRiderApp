@@ -28,9 +28,20 @@ export async function GET(request) {
     const [totals, recentRides] = await Promise.all([
       sql`
         SELECT
-          COALESCE(SUM(COALESCE(final_fare, estimated_fare)) FILTER (WHERE completed_at >= CURRENT_DATE), 0) AS today,
-          COALESCE(SUM(COALESCE(final_fare, estimated_fare)) FILTER (WHERE completed_at >= CURRENT_DATE - INTERVAL '6 days'), 0) AS week,
-          COALESCE(SUM(COALESCE(final_fare, estimated_fare)) FILTER (WHERE completed_at >= CURRENT_DATE - INTERVAL '29 days'), 0) AS month
+          COALESCE(SUM(COALESCE(final_fare, estimated_fare)) FILTER (
+            WHERE completed_at >= date_trunc('day', NOW() AT TIME ZONE 'Asia/Kolkata')
+              AT TIME ZONE 'Asia/Kolkata'
+          ), 0) AS today,
+          COALESCE(SUM(COALESCE(final_fare, estimated_fare)) FILTER (
+            WHERE completed_at >= (
+              date_trunc('day', NOW() AT TIME ZONE 'Asia/Kolkata') - INTERVAL '6 days'
+            ) AT TIME ZONE 'Asia/Kolkata'
+          ), 0) AS week,
+          COALESCE(SUM(COALESCE(final_fare, estimated_fare)) FILTER (
+            WHERE completed_at >= (
+              date_trunc('day', NOW() AT TIME ZONE 'Asia/Kolkata') - INTERVAL '29 days'
+            ) AT TIME ZONE 'Asia/Kolkata'
+          ), 0) AS month
         FROM rides
         WHERE driver_id = ${driverId}
           AND status = 'completed'

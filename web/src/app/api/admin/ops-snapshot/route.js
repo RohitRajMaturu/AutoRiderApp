@@ -48,45 +48,108 @@ export async function GET(request) {
           )
       `,
       sql`
-        SELECT COALESCE(SUM(estimated_fare), 0) as total
+        SELECT COALESCE(SUM(COALESCE(final_fare, estimated_fare)), 0) as total
         FROM rides
         WHERE status = 'completed'
-          AND completed_at >= CURRENT_DATE AT TIME ZONE 'Asia/Kolkata'
+          AND completed_at >= date_trunc('day', NOW() AT TIME ZONE 'Asia/Kolkata')
+            AT TIME ZONE 'Asia/Kolkata'
       `,
       sql`
         SELECT COUNT(*) as count
         FROM rides
         WHERE status = 'completed'
-          AND completed_at >= CURRENT_DATE AT TIME ZONE 'Asia/Kolkata'
+          AND completed_at >= date_trunc('day', NOW() AT TIME ZONE 'Asia/Kolkata')
+            AT TIME ZONE 'Asia/Kolkata'
       `,
       sql`
         SELECT COUNT(*) as count
         FROM rides
         WHERE status = 'cancelled'
-          AND cancelled_at >= CURRENT_DATE AT TIME ZONE 'Asia/Kolkata'
+          AND cancelled_at >= date_trunc('day', NOW() AT TIME ZONE 'Asia/Kolkata')
+            AT TIME ZONE 'Asia/Kolkata'
       `,
       sql`
+        WITH created AS (
+          SELECT
+            to_char(created_at AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD') as day,
+            COUNT(*) as total
+          FROM rides
+          WHERE created_at >= (
+            date_trunc('day', NOW() AT TIME ZONE 'Asia/Kolkata') - INTERVAL '6 days'
+          ) AT TIME ZONE 'Asia/Kolkata'
+          GROUP BY 1
+        ),
+        completed AS (
+          SELECT
+            to_char(completed_at AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD') as day,
+            COUNT(*) as completed,
+            SUM(COALESCE(final_fare, estimated_fare)) as fare
+          FROM rides
+          WHERE status = 'completed'
+            AND completed_at >= (
+              date_trunc('day', NOW() AT TIME ZONE 'Asia/Kolkata') - INTERVAL '6 days'
+            ) AT TIME ZONE 'Asia/Kolkata'
+          GROUP BY 1
+        ),
+        cancelled AS (
+          SELECT
+            to_char(cancelled_at AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD') as day,
+            COUNT(*) as cancelled
+          FROM rides
+          WHERE status = 'cancelled'
+            AND cancelled_at >= (
+              date_trunc('day', NOW() AT TIME ZONE 'Asia/Kolkata') - INTERVAL '6 days'
+            ) AT TIME ZONE 'Asia/Kolkata'
+          GROUP BY 1
+        ),
+        days AS (
+          SELECT day FROM created
+          UNION
+          SELECT day FROM completed
+          UNION
+          SELECT day FROM cancelled
+        )
         SELECT
-          date_trunc('day', created_at) AT TIME ZONE 'Asia/Kolkata' as day,
-          COUNT(*) FILTER (WHERE status = 'completed') as completed,
-          COUNT(*) FILTER (WHERE status = 'cancelled') as cancelled,
-          COUNT(*) as total,
-          COALESCE(SUM(estimated_fare) FILTER (WHERE status = 'completed'), 0) as fare
-        FROM rides
-        WHERE created_at >= CURRENT_DATE - INTERVAL '6 days'
-        GROUP BY 1
-        ORDER BY 1
+          days.day,
+          COALESCE(completed.completed, 0) as completed,
+          COALESCE(cancelled.cancelled, 0) as cancelled,
+          COALESCE(created.total, 0) as total,
+          COALESCE(completed.fare, 0) as fare
+        FROM days
+        LEFT JOIN created USING (day)
+        LEFT JOIN completed USING (day)
+        LEFT JOIN cancelled USING (day)
+        ORDER BY days.day
       `,
       sql`
+        WITH created AS (
+          SELECT
+            EXTRACT(HOUR FROM created_at AT TIME ZONE 'Asia/Kolkata')::integer as hour,
+            COUNT(*) as total
+          FROM rides
+          WHERE created_at >= date_trunc('day', NOW() AT TIME ZONE 'Asia/Kolkata')
+            AT TIME ZONE 'Asia/Kolkata'
+          GROUP BY 1
+        ),
+        completed AS (
+          SELECT
+            EXTRACT(HOUR FROM completed_at AT TIME ZONE 'Asia/Kolkata')::integer as hour,
+            COUNT(*) as completed,
+            SUM(COALESCE(final_fare, estimated_fare)) as fare
+          FROM rides
+          WHERE status = 'completed'
+            AND completed_at >= date_trunc('day', NOW() AT TIME ZONE 'Asia/Kolkata')
+              AT TIME ZONE 'Asia/Kolkata'
+          GROUP BY 1
+        )
         SELECT
-          EXTRACT(HOUR FROM created_at AT TIME ZONE 'Asia/Kolkata') as hour,
-          COUNT(*) as total,
-          COUNT(*) FILTER (WHERE status = 'completed') as completed,
-          COALESCE(SUM(estimated_fare) FILTER (WHERE status = 'completed'), 0) as fare
-        FROM rides
-        WHERE created_at >= CURRENT_DATE AT TIME ZONE 'Asia/Kolkata'
-        GROUP BY 1
-        ORDER BY 1
+          COALESCE(created.hour, completed.hour) as hour,
+          COALESCE(created.total, 0) as total,
+          COALESCE(completed.completed, 0) as completed,
+          COALESCE(completed.fare, 0) as fare
+        FROM created
+        FULL OUTER JOIN completed USING (hour)
+        ORDER BY hour
       `,
       sql`
         SELECT
@@ -98,7 +161,8 @@ export async function GET(request) {
           COUNT(DISTINCT d.id) FILTER (WHERE d.is_online = true AND d.is_approved = true) as online_drivers
         FROM geo_zones gz
         LEFT JOIN rides r ON r.zone_id = gz.id
-          AND r.created_at >= CURRENT_DATE AT TIME ZONE 'Asia/Kolkata'
+          AND r.created_at >= date_trunc('day', NOW() AT TIME ZONE 'Asia/Kolkata')
+            AT TIME ZONE 'Asia/Kolkata'
         LEFT JOIN drivers d ON d.zone_id = gz.id
         WHERE gz.is_active = true
         GROUP BY gz.id, gz.name, gz.dispatch_enabled, gz.max_online_drivers
@@ -110,7 +174,9 @@ export async function GET(request) {
           COUNT(*) as count
         FROM rides
         WHERE status = 'cancelled'
-          AND cancelled_at >= CURRENT_DATE - INTERVAL '6 days'
+          AND cancelled_at >= (
+            date_trunc('day', NOW() AT TIME ZONE 'Asia/Kolkata') - INTERVAL '6 days'
+          ) AT TIME ZONE 'Asia/Kolkata'
           AND cancellation_reason IS NOT NULL
         GROUP BY 1
         ORDER BY 2 DESC

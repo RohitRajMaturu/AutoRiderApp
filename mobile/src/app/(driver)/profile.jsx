@@ -8,7 +8,6 @@ import * as ImagePicker from "expo-image-picker";
 import {
   LogOut,
   Phone,
-  Car,
   Shield,
   ChevronRight,
   HelpCircle,
@@ -20,6 +19,7 @@ import {
 import { StatusBar } from "expo-status-bar";
 import useAppStore from "@/store/useAppStore";
 import { ICON } from "@/theme/iconScale";
+import AutoRideIcon from "@/components/AutoRideIcon";
 import TukTukGoLoader from "@/components/TukTukGoLoader";
 
 const PRIMARY = "#43B8B3";
@@ -477,7 +477,7 @@ export default function DriverProfile() {
               backgroundColor: "#FFFFFF15",
             }}
           >
-            <Car size={ICON.xs} color={PRIMARY} />
+            <AutoRideIcon size={ICON.xs} />
             <Text style={{ fontSize: 12, fontWeight: "700", color: "#fff" }}>
               {testMode ? "Test Vehicle" : driver?.vehicle_number || "Registration pending"}
             </Text>
@@ -575,7 +575,7 @@ export default function DriverProfile() {
                     {driver?.auto_photo_url ? (
                       <Image source={{ uri: driver.auto_photo_url }} style={{ height: "100%", width: "100%" }} resizeMode="cover" />
                     ) : (
-                      <Car size={ICON.xl} color={TEXT_MUTED} />
+                      <AutoRideIcon size={ICON.xl} />
                     )}
                   </View>
                   <TouchableOpacity
@@ -769,7 +769,7 @@ export default function DriverProfile() {
                 {
                   label: "Vehicle Number / వాహనం / वाहन",
                   value: driver.vehicle_number,
-                  icon: Car,
+                  icon: AutoRideIcon,
                 },
                 {
                   label: "Contact Phone / ఫోన్ / फोन",

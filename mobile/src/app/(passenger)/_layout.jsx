@@ -4,9 +4,9 @@ import { ICON } from "@/theme/iconScale";
 import { useAuth } from "@/utils/auth/useAuth";
 
 export default function PassengerLayout() {
-  const { auth, isReady, isSigningOut } = useAuth();
+  const { auth, isReady } = useAuth();
 
-  if (isReady && !isSigningOut && !auth) {
+  if (isReady && !auth) {
     return <Redirect href="/" />;
   }
 

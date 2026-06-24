@@ -10,6 +10,7 @@ import {
   UserRound,
 } from "lucide-react";
 import useAuth from "@/utils/useAuth";
+import AutoRideIcon from "@/components/AutoRideIcon";
 import TukTukGoLoader from "@/components/TukTukGoLoader";
 
 export function loader({ request }) {
@@ -138,11 +139,8 @@ function AuthBackground({ title, children }) {
           ))}
 
           <div className="absolute bottom-[378px] left-1/2 z-20 h-[286px] w-[410px] -translate-x-[46%] overflow-visible sm:bottom-[418px] sm:h-[374px] sm:w-[540px]">
-            <img
-              src="/images/welcome-auto-rickshaw-transparent.png"
-              alt="Auto rickshaw"
-              className="h-full w-full object-contain drop-shadow-[0_24px_30px_rgba(23,39,43,0.18)]"
-              draggable="false"
+            <AutoRideIcon
+              className="h-full w-full text-[210px] drop-shadow-[0_24px_30px_rgba(23,39,43,0.18)] sm:text-[290px]"
             />
           </div>
 

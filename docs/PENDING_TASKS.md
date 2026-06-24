@@ -130,8 +130,17 @@ Completed locally:
   logout instead of rendering a blank protected tab screen.
 - Logout no longer navigates before auth is cleared, preventing role-dashboard
   redirect loops after sign-out.
+- Protected-route redirects no longer wait for `isSigningOut`, and sign-out
+  resets that flag immediately without a 500 ms race window.
+- Mobile ride and vehicle surfaces use the same shared auto icon shown in the
+  admin heading instead of the previous custom rickshaw SVG.
+- Web admin, landing, and sign-in surfaces use the same shared auto icon; the
+  generated SVG and transparent rickshaw image assets were removed.
 - Admin and admin-ops Recharts wait for browser mount before rendering, avoiding
   zero-size SSR measurements and preserving chart height during hydration.
+- Admin fare/chart queries and driver daily earnings use explicit
+  `Asia/Kolkata` boundaries and event-time buckets instead of database-session
+  `CURRENT_DATE`.
 - Sentry web and React Native SDKs are installed and initialized behind optional
   DSN environment variables. The Expo config plugin is registered.
 - `KeyboardAvoidingAnimatedView` no longer captures mutable React refs inside

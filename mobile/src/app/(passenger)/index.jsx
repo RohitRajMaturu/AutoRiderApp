@@ -31,7 +31,7 @@ import { StatusBar } from "expo-status-bar";
 import * as Location from "expo-location";
 import { toast } from "sonner-native";
 import TukTukGoLoader from "@/components/TukTukGoLoader";
-import AutoRickshawIcon from "@/components/AutoRickshawIcon";
+import AutoRideIcon from "@/components/AutoRideIcon";
 import { Button, RIDE_STATUS_CONFIG, StatusBadge } from "@/components/ui";
 import { ICON } from "@/theme/iconScale";
 import { useAuth } from "@/utils/auth/useAuth";
@@ -1389,7 +1389,7 @@ export default function PassengerHome() {
                               resizeMode="cover"
                             />
                           ) : (
-                            <AutoRickshawIcon size={ICON.xxl} color={PRIMARY} />
+                            <AutoRideIcon size={ICON.xxl} />
                           )}
                         </View>
                         <View style={{ flex: 1 }}>
@@ -1439,7 +1439,7 @@ export default function PassengerHome() {
                             paddingVertical: 8,
                           }}
                         >
-                          <AutoRickshawIcon size={ICON.sm} color={PRIMARY} />
+                          <AutoRideIcon size={ICON.sm} />
                           <Text style={{ color: TEXT, fontSize: 12, fontWeight: "800" }}>
                             {activeRide.vehicle_number || "Verify auto"}
                           </Text>

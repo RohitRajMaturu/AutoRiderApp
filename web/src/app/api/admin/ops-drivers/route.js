@@ -30,7 +30,8 @@ export async function GET(request) {
         COUNT(r.id) FILTER (WHERE r.status = 'completed') as total_completed,
         COUNT(r.id) FILTER (
           WHERE r.status = 'completed'
-            AND r.completed_at >= CURRENT_DATE AT TIME ZONE 'Asia/Kolkata'
+            AND r.completed_at >= date_trunc('day', NOW() AT TIME ZONE 'Asia/Kolkata')
+              AT TIME ZONE 'Asia/Kolkata'
         ) as today_trips,
         COUNT(r.id) FILTER (
           WHERE r.status = 'completed'

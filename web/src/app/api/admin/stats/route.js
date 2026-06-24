@@ -35,10 +35,31 @@ export async function GET(request) {
     sql`SELECT COUNT(*) as count FROM drivers WHERE is_online = true AND is_approved = true`,
     sql`SELECT COUNT(*) as count FROM drivers WHERE is_approved = true`,
     sql`SELECT COUNT(*) as count FROM drivers WHERE is_approved = false`,
-    sql`SELECT COUNT(*) as count FROM rides WHERE created_at >= CURRENT_DATE`,
-    sql`SELECT COUNT(*) as count FROM rides WHERE status = 'completed' AND completed_at >= CURRENT_DATE`,
-    sql`SELECT COALESCE(SUM(estimated_fare), 0) as total FROM rides WHERE status = 'completed'`,
-    sql`SELECT COALESCE(SUM(estimated_fare), 0) as total FROM rides WHERE status = 'completed' AND completed_at >= CURRENT_DATE`,
+    sql`
+      SELECT COUNT(*) as count
+      FROM rides
+      WHERE created_at >= date_trunc('day', NOW() AT TIME ZONE 'Asia/Kolkata')
+        AT TIME ZONE 'Asia/Kolkata'
+    `,
+    sql`
+      SELECT COUNT(*) as count
+      FROM rides
+      WHERE status = 'completed'
+        AND completed_at >= date_trunc('day', NOW() AT TIME ZONE 'Asia/Kolkata')
+          AT TIME ZONE 'Asia/Kolkata'
+    `,
+    sql`
+      SELECT COALESCE(SUM(COALESCE(final_fare, estimated_fare)), 0) as total
+      FROM rides
+      WHERE status = 'completed'
+    `,
+    sql`
+      SELECT COALESCE(SUM(COALESCE(final_fare, estimated_fare)), 0) as total
+      FROM rides
+      WHERE status = 'completed'
+        AND completed_at >= date_trunc('day', NOW() AT TIME ZONE 'Asia/Kolkata')
+          AT TIME ZONE 'Asia/Kolkata'
+    `,
     sql`
       SELECT cancellation_reason, COUNT(*) as count
       FROM rides
@@ -48,22 +69,62 @@ export async function GET(request) {
       LIMIT 5
     `,
     sql`
-      SELECT date_trunc('hour', created_at) AT TIME ZONE 'Asia/Kolkata' as hour,
-        COUNT(*) as rides,
-        COALESCE(SUM(estimated_fare), 0) as fare
-      FROM rides
-      WHERE created_at >= CURRENT_DATE
-      GROUP BY 1
-      ORDER BY 1
+      WITH ride_volume AS (
+        SELECT
+          EXTRACT(HOUR FROM created_at AT TIME ZONE 'Asia/Kolkata')::integer as hour,
+          COUNT(*) as rides
+        FROM rides
+        WHERE created_at >= date_trunc('day', NOW() AT TIME ZONE 'Asia/Kolkata')
+          AT TIME ZONE 'Asia/Kolkata'
+        GROUP BY 1
+      ),
+      completed_fare AS (
+        SELECT
+          EXTRACT(HOUR FROM completed_at AT TIME ZONE 'Asia/Kolkata')::integer as hour,
+          SUM(COALESCE(final_fare, estimated_fare)) as fare
+        FROM rides
+        WHERE status = 'completed'
+          AND completed_at >= date_trunc('day', NOW() AT TIME ZONE 'Asia/Kolkata')
+            AT TIME ZONE 'Asia/Kolkata'
+        GROUP BY 1
+      )
+      SELECT
+        COALESCE(ride_volume.hour, completed_fare.hour) as hour,
+        COALESCE(ride_volume.rides, 0) as rides,
+        COALESCE(completed_fare.fare, 0) as fare
+      FROM ride_volume
+      FULL OUTER JOIN completed_fare USING (hour)
+      ORDER BY hour
     `,
     sql`
-      SELECT date_trunc('day', created_at) AT TIME ZONE 'Asia/Kolkata' as day,
-        COUNT(*) as rides,
-        COALESCE(SUM(estimated_fare), 0) as fare
-      FROM rides
-      WHERE created_at >= CURRENT_DATE - INTERVAL '6 days'
-      GROUP BY 1
-      ORDER BY 1
+      WITH ride_volume AS (
+        SELECT
+          to_char(created_at AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD') as day,
+          COUNT(*) as rides
+        FROM rides
+        WHERE created_at >= (
+          date_trunc('day', NOW() AT TIME ZONE 'Asia/Kolkata') - INTERVAL '6 days'
+        ) AT TIME ZONE 'Asia/Kolkata'
+        GROUP BY 1
+      ),
+      completed_fare AS (
+        SELECT
+          to_char(completed_at AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD') as day,
+          SUM(COALESCE(final_fare, estimated_fare)) as fare
+        FROM rides
+        WHERE status = 'completed'
+          AND completed_at >= (
+            date_trunc('day', NOW() AT TIME ZONE 'Asia/Kolkata') - INTERVAL '6 days'
+          ) AT TIME ZONE 'Asia/Kolkata'
+        GROUP BY 1
+      )
+      SELECT
+        COALESCE(ride_volume.day, completed_fare.day) as day,
+        COALESCE(ride_volume.rides, 0) as rides,
+        COALESCE(completed_fare.fare, 0) as fare
+      FROM ride_volume
+      FULL OUTER JOIN completed_fare USING (day)
+      ORDER BY day
     `,
   ]);
 
@@ -85,7 +146,7 @@ export async function GET(request) {
         count: parseInt(row.count || 0),
       })),
       hourlyTimeline: hourlyTimeline.map((row) => ({
-        hour: row.hour,
+        hour: parseInt(row.hour || 0, 10),
         rides: parseInt(row.rides || 0),
         fare: Number(row.fare || 0),
       })),

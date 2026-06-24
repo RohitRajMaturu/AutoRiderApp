@@ -79,7 +79,7 @@ export const useAuth = () => {
         SecureStore.deleteItemAsync(authKey, secureStoreOptions),
       ]);
     } finally {
-      setTimeout(() => setSigningOut(false), 500);
+      setSigningOut(false);
     }
   }, [close, disableTestMode, resetSessionState, setAuth, setSigningOut]);
 

@@ -5,11 +5,11 @@ import { ICON } from "@/theme/iconScale";
 import { useAuth } from "@/utils/auth/useAuth";
 
 export default function AdminLayout() {
-  const { auth, isReady, isSigningOut } = useAuth();
+  const { auth, isReady } = useAuth();
   const theme = useTheme();
   const active = theme.accent;
 
-  if (isReady && !isSigningOut && !auth) {
+  if (isReady && !auth) {
     return <Redirect href="/" />;
   }
 

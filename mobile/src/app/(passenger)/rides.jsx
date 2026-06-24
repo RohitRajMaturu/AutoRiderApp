@@ -6,7 +6,7 @@ import { FlashList } from "@shopify/flash-list";
 import { ChevronLeft, ChevronRight, Clock, CheckCircle2, XCircle, MapPin, IndianRupee } from "lucide-react-native";
 import { StatusBar } from "expo-status-bar";
 import { SkeletonLoader, StatusBadge } from "@/components/ui";
-import AutoRickshawIcon from "@/components/AutoRickshawIcon";
+import AutoRideIcon from "@/components/AutoRideIcon";
 import { useTheme } from "@/theme/ThemeContext";
 import { ICON } from "@/theme/iconScale";
 
@@ -46,7 +46,7 @@ function createStatusConfig(theme) {
     accepted: {
       bg: theme.primaryLight,
       text: theme.primaryDark,
-      Icon: AutoRickshawIcon,
+      Icon: AutoRideIcon,
       label: "Accepted",
     },
     negotiating: {
@@ -185,7 +185,7 @@ const RideCard = memo(function RideCard({ ride }) {
               paddingVertical: theme.spacing[2],
             }}
           >
-            <AutoRickshawIcon size={ICON.sm} color={theme.textSecondary} />
+            <AutoRideIcon size={ICON.sm} />
             <Text style={[theme.typography.micro, { color: theme.textSecondary, fontWeight: "800" }]}>
               {ride.vehicle_number}
             </Text>
@@ -406,7 +406,7 @@ function RidesEmptyState({ title, description }) {
             width: 96,
           }}
         >
-          <AutoRickshawIcon size={44} color={theme.primary} />
+          <AutoRideIcon size={44} />
         </View>
       </Animated.View>
       <Text style={[theme.typography.heading, { color: theme.text, textAlign: "center" }]}>
