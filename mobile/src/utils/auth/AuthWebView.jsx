@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Platform, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Animated, Platform, Text, TouchableOpacity, View } from 'react-native';
 import { WebView } from 'react-native-webview';
+import * as Contacts from 'expo-contacts';
 import { ArrowLeft } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthModal, useAuthStore } from './store';
@@ -9,6 +10,18 @@ import TukTukGoLoader from '@/components/TukTukGoLoader';
 const callbackUrl = '/api/auth/token';
 const onboardingUrl = '/onboarding';
 const MOBILE_SIGNUP_ROLES = new Set(['passenger', 'driver']);
+
+function contactDisplayName(contact) {
+  return (
+    contact?.name?.trim() ||
+    [contact?.firstName, contact?.middleName, contact?.lastName]
+      .filter(Boolean)
+      .join(' ')
+      .trim() ||
+    contact?.nickname?.trim() ||
+    ''
+  );
+}
 
 function normalizeAuthParams(mode, params = {}) {
   if (mode !== 'signup') {
@@ -61,6 +74,7 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
   const { close, isOpen } = useAuthModal();
   const isAuthenticated = isReady ? !!auth : null;
   const iframeRef = useRef(null);
+  const nativeWebViewRef = useRef(null);
   useEffect(() => {
     if (isSigningOut) {
       return;
@@ -212,6 +226,37 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
       </View>
     );
   }
+
+  const handleNativeMessage = async (event) => {
+    let message;
+    try {
+      message = JSON.parse(event.nativeEvent?.data || '{}');
+    } catch {
+      return;
+    }
+    if (message?.type !== 'PICK_EMERGENCY_CONTACT') return;
+
+    try {
+      const permission = await Contacts.requestPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Contacts Permission', 'Allow contacts access to choose an emergency contact.');
+        return;
+      }
+      const contact = await Contacts.presentContactPickerAsync();
+      if (!contact) return;
+      const phone = contact.phoneNumbers?.find((item) => item.number)?.number || '';
+      const detail = JSON.stringify({ name: contactDisplayName(contact), phone });
+      nativeWebViewRef.current?.injectJavaScript(`
+        window.dispatchEvent(new CustomEvent('TUKTUKGO_CONTACT_SELECTED', {
+          detail: ${detail}
+        }));
+        true;
+      `);
+    } catch {
+      Alert.alert('Contact Picker Unavailable', 'Please enter the emergency contact manually.');
+    }
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: '#EAF0F1' }}>
       <TouchableOpacity
@@ -239,6 +284,7 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
       {!isPageReady && loadingView}
       <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
         <WebView
+          ref={nativeWebViewRef}
           sharedCookiesEnabled
           automaticallyAdjustContentInsets={false}
           contentInsetAdjustmentBehavior="never"
@@ -270,6 +316,7 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
             setIsPageReady(true);
             fadeAnim.setValue(1);
           }}
+          onMessage={handleNativeMessage}
           onShouldStartLoadWithRequest={(request) => {
             const requestPath = (() => {
               try {

@@ -517,18 +517,11 @@ ALTER TABLE drivers
   ADD COLUMN IF NOT EXISTS trial_ends_at timestamptz,
   ADD COLUMN IF NOT EXISTS subscription_halted_at timestamptz,
   ADD COLUMN IF NOT EXISTS subscription_failure_count integer NOT NULL DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS manual_payment_link text,
-  ADD COLUMN IF NOT EXISTS queued_subscription_plan text CHECK (queued_subscription_plan IN ('starter', 'active', 'pro')),
-  ADD COLUMN IF NOT EXISTS queued_subscription_starts_at timestamptz,
-  ADD COLUMN IF NOT EXISTS queued_subscription_requested_at timestamptz,
-  ADD COLUMN IF NOT EXISTS queued_razorpay_subscription_id text;
+  ADD COLUMN IF NOT EXISTS manual_payment_link text;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_drivers_razorpay_subscription_id
   ON drivers(razorpay_subscription_id)
   WHERE razorpay_subscription_id IS NOT NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS idx_drivers_queued_razorpay_subscription_id
-  ON drivers(queued_razorpay_subscription_id)
-  WHERE queued_razorpay_subscription_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS subscription_events (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -544,3 +537,60 @@ CREATE INDEX IF NOT EXISTS idx_subscription_events_driver_created_at
 CREATE UNIQUE INDEX IF NOT EXISTS idx_subscription_events_razorpay_event_id
   ON subscription_events(razorpay_event_id)
   WHERE razorpay_event_id IS NOT NULL;
+
+-- =========================================================================
+-- 017_queued_subscription_changes.sql
+-- =========================================================================
+ALTER TABLE drivers
+  ADD COLUMN IF NOT EXISTS queued_subscription_plan text CHECK (queued_subscription_plan IN ('starter', 'active', 'pro')),
+  ADD COLUMN IF NOT EXISTS queued_subscription_starts_at timestamptz,
+  ADD COLUMN IF NOT EXISTS queued_subscription_requested_at timestamptz,
+  ADD COLUMN IF NOT EXISTS queued_razorpay_subscription_id text;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_drivers_queued_razorpay_subscription_id
+  ON drivers(queued_razorpay_subscription_id)
+  WHERE queued_razorpay_subscription_id IS NOT NULL;
+
+-- =========================================================================
+-- 018_passenger_profiles.sql
+-- =========================================================================
+ALTER TABLE auth_users
+  ADD COLUMN IF NOT EXISTS date_of_birth date,
+  ADD COLUMN IF NOT EXISTS gender_identity text,
+  ADD COLUMN IF NOT EXISTS emergency_contact_name text,
+  ADD COLUMN IF NOT EXISTS emergency_contact_phone text,
+  ADD COLUMN IF NOT EXISTS preferred_language text NOT NULL DEFAULT 'English',
+  ADD COLUMN IF NOT EXISTS accessibility_needs text,
+  ADD COLUMN IF NOT EXISTS profile_completed_at timestamptz;
+
+ALTER TABLE auth_users
+  DROP CONSTRAINT IF EXISTS auth_users_gender_identity_check;
+
+ALTER TABLE auth_users
+  ADD CONSTRAINT auth_users_gender_identity_check
+  CHECK (
+    gender_identity IS NULL
+    OR gender_identity IN ('woman', 'man', 'non_binary', 'self_described', 'prefer_not_to_say')
+  );
+
+ALTER TABLE auth_users
+  DROP CONSTRAINT IF EXISTS auth_users_preferred_language_check;
+
+ALTER TABLE auth_users
+  ADD CONSTRAINT auth_users_preferred_language_check
+  CHECK (
+    preferred_language IN (
+      'English',
+      'Hindi',
+      'Bengali',
+      'Gujarati',
+      'Kannada',
+      'Malayalam',
+      'Marathi',
+      'Odia',
+      'Punjabi',
+      'Tamil',
+      'Telugu',
+      'Urdu'
+    )
+  );

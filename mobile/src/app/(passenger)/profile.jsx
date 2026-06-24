@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, Linking, Modal, Pressable } from "react-native";
+import * as Contacts from "expo-contacts";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/utils/auth/useAuth";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -9,6 +10,11 @@ import {
   Phone,
   Shield,
   ChevronRight,
+  ChevronLeft,
+  ChevronDown,
+  Check,
+  ContactRound,
+  CalendarDays,
   HelpCircle,
   FlaskConical,
 } from "lucide-react-native";
@@ -16,6 +22,7 @@ import { StatusBar } from "expo-status-bar";
 import useAppStore from "@/store/useAppStore";
 import { ICON } from "@/theme/iconScale";
 import TukTukGoLoader from "@/components/TukTukGoLoader";
+import { toast } from "sonner-native";
 
 const PRIMARY = "#43B8B3";
 const PRIMARY_LIGHT = "#E7F6F4";
@@ -28,6 +35,121 @@ const TEXT_SECONDARY = "#586C70";
 const TEXT_MUTED = "#647678";
 const SUPPORT_WHATSAPP_URL = `https://wa.me/${process.env.EXPO_PUBLIC_SUPPORT_PHONE ?? "919999999999"}`;
 const PRIVACY_POLICY_URL = process.env.EXPO_PUBLIC_PRIVACY_URL ?? "#";
+const LANGUAGES = [
+  "English", "Hindi", "Bengali", "Gujarati", "Kannada", "Malayalam",
+  "Marathi", "Odia", "Punjabi", "Tamil", "Telugu", "Urdu",
+];
+const GENDER_OPTIONS = [
+  { value: "", label: "Select (optional)" },
+  { value: "woman", label: "Woman" },
+  { value: "man", label: "Man" },
+  { value: "non_binary", label: "Non-binary" },
+  { value: "self_described", label: "Self-described" },
+  { value: "prefer_not_to_say", label: "Prefer not to say" },
+];
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
+const CURRENT_YEAR = new Date().getFullYear();
+
+function pad2(value) {
+  return String(value).padStart(2, "0");
+}
+
+function daysInMonth(month, year) {
+  return new Date(year, month, 0).getDate();
+}
+
+function parseDisplayDate(value, fallbackYear = CURRENT_YEAR - 25) {
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value || "");
+  return match
+    ? { day: Number(match[1]), month: Number(match[2]), year: Number(match[3]) }
+    : { day: 1, month: 1, year: fallbackYear };
+}
+
+function clampDateParts(parts, minYear, maxYear) {
+  const year = Math.min(maxYear, Math.max(minYear, parts.year));
+  const month = Math.min(12, Math.max(1, parts.month));
+  const day = Math.min(daysInMonth(month, year), Math.max(1, parts.day));
+  return { day, month, year };
+}
+
+function formatDisplayDate(parts) {
+  return `${pad2(parts.day)}/${pad2(parts.month)}/${parts.year}`;
+}
+
+function formatManualDateInput(value) {
+  const digits = String(value || "").replace(/\D/g, "").slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+}
+
+function createMonthCells({ month, year }) {
+  const firstDay = new Date(year, month - 1, 1).getDay();
+  return [
+    ...Array.from({ length: firstDay }, () => null),
+    ...Array.from({ length: daysInMonth(month, year) }, (_, index) => index + 1),
+  ];
+}
+
+function isoToIndianDate(value) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value || ""));
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : value || "";
+}
+
+function contactDisplayName(contact) {
+  return (
+    contact?.name?.trim() ||
+    [contact?.firstName, contact?.middleName, contact?.lastName]
+      .filter(Boolean)
+      .join(" ")
+      .trim() ||
+    contact?.nickname?.trim() ||
+    ""
+  );
+}
+
+function parseIndianDate(dateOfBirth) {
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(dateOfBirth || "");
+  if (!match) return null;
+  const [, day, month, year] = match;
+  const isoDate = `${year}-${month}-${day}`;
+  const date = new Date(`${isoDate}T00:00:00`);
+  if (
+    Number.isNaN(date.getTime()) ||
+    date.getFullYear() !== Number(year) ||
+    date.getMonth() + 1 !== Number(month) ||
+    date.getDate() !== Number(day)
+  ) {
+    return null;
+  }
+  return { date, isoDate };
+}
+
+function calculateAge(dateOfBirth) {
+  const parsed = parseIndianDate(dateOfBirth);
+  if (!parsed) return null;
+  const birth = parsed.date;
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDelta = today.getMonth() - birth.getMonth();
+  if (monthDelta < 0 || (monthDelta === 0 && today.getDate() < birth.getDate())) age -= 1;
+  return age;
+}
+
+function indianNationalNumber(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (digits.length > 10 && digits.startsWith("91")) return digits.slice(2, 12);
+  return digits.slice(-10);
+}
+
+function indianPhonePayload(value) {
+  const nationalNumber = indianNationalNumber(value);
+  return nationalNumber ? `+91${nationalNumber}` : "";
+}
 
 function PassengerBadge() {
   return (
@@ -114,6 +236,385 @@ function MenuItem({
       </View>
       <ChevronRight size={ICON.sm} color={TEXT_MUTED} />
     </TouchableOpacity>
+  );
+}
+
+function ProfileTextField({
+  label,
+  value,
+  onChangeText,
+  editable,
+  placeholder,
+  keyboardType,
+  maxLength,
+  multiline = false,
+  helper,
+}) {
+  return (
+    <View>
+      <Text style={{ fontSize: 11, fontWeight: "700", color: TEXT_MUTED, marginBottom: 6 }}>
+        {label}
+      </Text>
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        editable={editable}
+        keyboardType={keyboardType}
+        placeholder={placeholder}
+        placeholderTextColor={TEXT_MUTED}
+        maxLength={maxLength}
+        multiline={multiline}
+        textAlignVertical={multiline ? "top" : "center"}
+        style={{
+          minHeight: multiline ? 92 : undefined,
+          borderRadius: 12,
+          borderWidth: 1,
+          borderColor: value ? PRIMARY_BORDER : BORDER,
+          backgroundColor: SURFACE,
+          paddingHorizontal: 14,
+          paddingVertical: 12,
+          color: TEXT,
+          fontSize: multiline ? 14 : 15,
+          fontWeight: multiline ? "500" : "600",
+        }}
+      />
+      {helper ? (
+        <Text style={{ color: TEXT_MUTED, fontSize: 11, marginTop: 5 }}>{helper}</Text>
+      ) : null}
+    </View>
+  );
+}
+
+function IndianPhoneField({
+  label,
+  value,
+  onChangeText,
+  editable,
+  placeholder = "10-digit mobile number",
+}) {
+  return (
+    <View>
+      <Text style={{ fontSize: 11, fontWeight: "700", color: TEXT_MUTED, marginBottom: 6 }}>
+        {label}
+      </Text>
+      <View
+        style={{
+          alignItems: "center",
+          borderColor: value ? PRIMARY_BORDER : BORDER,
+          borderRadius: 12,
+          borderWidth: 1,
+          flexDirection: "row",
+          overflow: "hidden",
+        }}
+      >
+        <View
+          style={{
+            alignItems: "center",
+            alignSelf: "stretch",
+            backgroundColor: "#F5F5F4",
+            borderRightColor: BORDER,
+            borderRightWidth: 1,
+            justifyContent: "center",
+            paddingHorizontal: 13,
+          }}
+        >
+          <Text style={{ color: TEXT, fontSize: 15, fontWeight: "800" }}>+91</Text>
+        </View>
+        <TextInput
+          value={value}
+          onChangeText={(next) => onChangeText(indianNationalNumber(next))}
+          editable={editable}
+          keyboardType="number-pad"
+          placeholder={placeholder}
+          placeholderTextColor={TEXT_MUTED}
+          maxLength={10}
+          style={{
+            backgroundColor: SURFACE,
+            color: TEXT,
+            flex: 1,
+            fontSize: 15,
+            fontWeight: "600",
+            paddingHorizontal: 14,
+            paddingVertical: 12,
+          }}
+        />
+      </View>
+    </View>
+  );
+}
+
+function CompactSelect({ label, value, options, onChange, disabled }) {
+  const [visible, setVisible] = useState(false);
+  const selected = options.find((option) => option.value === value) || options[0];
+
+  return (
+    <View>
+      <Text style={{ fontSize: 11, fontWeight: "700", color: TEXT_MUTED, marginBottom: 6 }}>
+        {label}
+      </Text>
+      <TouchableOpacity
+        disabled={disabled}
+        onPress={() => setVisible(true)}
+        activeOpacity={0.8}
+        style={{
+          alignItems: "center",
+          backgroundColor: SURFACE,
+          borderColor: BORDER,
+          borderRadius: 12,
+          borderWidth: 1,
+          flexDirection: "row",
+          justifyContent: "space-between",
+          minHeight: 48,
+          paddingHorizontal: 14,
+        }}
+      >
+        <Text style={{ color: value ? TEXT : TEXT_MUTED, fontSize: 14, fontWeight: "600" }}>
+          {selected?.label}
+        </Text>
+        <ChevronDown size={ICON.sm} color={TEXT_MUTED} />
+      </TouchableOpacity>
+      <Modal visible={visible} transparent animationType="fade" onRequestClose={() => setVisible(false)}>
+        <Pressable
+          onPress={() => setVisible(false)}
+          style={{ flex: 1, backgroundColor: "#00000066", justifyContent: "flex-end" }}
+        >
+          <Pressable
+            style={{
+              backgroundColor: SURFACE,
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              maxHeight: "70%",
+              paddingBottom: 24,
+              paddingTop: 12,
+            }}
+          >
+            <View style={{ alignSelf: "center", width: 42, height: 4, borderRadius: 2, backgroundColor: BORDER, marginBottom: 8 }} />
+            <Text style={{ color: TEXT, fontSize: 17, fontWeight: "800", padding: 16 }}>{label}</Text>
+            <ScrollView>
+              {options.map((option) => {
+                const isSelected = option.value === value;
+                return (
+                  <TouchableOpacity
+                    key={option.value}
+                    onPress={() => {
+                      onChange(option.value);
+                      setVisible(false);
+                    }}
+                    style={{
+                      alignItems: "center",
+                      borderTopColor: "#F5F5F4",
+                      borderTopWidth: 1,
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      minHeight: 50,
+                      paddingHorizontal: 18,
+                    }}
+                  >
+                    <Text style={{ color: TEXT, fontSize: 14, fontWeight: isSelected ? "800" : "500" }}>
+                      {option.label}
+                    </Text>
+                    {isSelected ? <Check size={ICON.sm} color={PRIMARY} /> : null}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </View>
+  );
+}
+
+function DatePickerField({ label, value, onChange, disabled }) {
+  const minYear = CURRENT_YEAR - 120;
+  const maxYear = CURRENT_YEAR - 13;
+  const fallbackYear = CURRENT_YEAR - 25;
+  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState("calendar");
+  const [draft, setDraft] = useState(() =>
+    clampDateParts(parseDisplayDate(value, fallbackYear), minYear, maxYear),
+  );
+  const [yearRangeStart, setYearRangeStart] = useState(() =>
+    Math.max(minYear, draft.year - (draft.year % 12)),
+  );
+  const monthCells = useMemo(() => createMonthCells(draft), [draft]);
+  const yearRange = useMemo(
+    () =>
+      Array.from({ length: 12 }, (_, index) => yearRangeStart + index).filter(
+        (year) => year >= minYear && year <= maxYear,
+      ),
+    [maxYear, minYear, yearRangeStart],
+  );
+
+  const openPicker = () => {
+    const nextDraft = clampDateParts(parseDisplayDate(value, fallbackYear), minYear, maxYear);
+    setDraft(nextDraft);
+    setYearRangeStart(Math.max(minYear, nextDraft.year - (nextDraft.year % 12)));
+    setMode("calendar");
+    setOpen(true);
+  };
+
+  const changeMonth = (delta) => {
+    setDraft((current) => {
+      const next = { ...current, month: current.month + delta };
+      if (next.month > 12) {
+        next.month = 1;
+        next.year += 1;
+      } else if (next.month < 1) {
+        next.month = 12;
+        next.year -= 1;
+      }
+      return clampDateParts(next, minYear, maxYear);
+    });
+  };
+
+  const moveYearRange = (delta) => {
+    setYearRangeStart((current) =>
+      Math.min(Math.max(minYear, maxYear - 11), Math.max(minYear, current + delta)),
+    );
+  };
+
+  return (
+    <View>
+      <Text style={{ fontSize: 11, fontWeight: "700", color: TEXT_MUTED, marginBottom: 6 }}>
+        {label}
+      </Text>
+      <View
+        style={{
+          alignItems: "center",
+          borderColor: value ? PRIMARY_BORDER : BORDER,
+          borderRadius: 12,
+          borderWidth: 1,
+          flexDirection: "row",
+          gap: 10,
+          paddingHorizontal: 14,
+          paddingVertical: 12,
+        }}
+      >
+        <CalendarDays size={ICON.md} color={PRIMARY} />
+        <TextInput
+          value={value}
+          onChangeText={(text) => onChange(formatManualDateInput(text))}
+          editable={!disabled}
+          keyboardType="number-pad"
+          placeholder="DD/MM/YYYY"
+          placeholderTextColor={TEXT_MUTED}
+          maxLength={10}
+          style={{ color: TEXT, flex: 1, fontSize: 15, fontWeight: "700", padding: 0 }}
+        />
+        <TouchableOpacity disabled={disabled} activeOpacity={0.86} onPress={openPicker}>
+          <Text style={{ color: PRIMARY, fontSize: 12, fontWeight: "800" }}>Pick</Text>
+        </TouchableOpacity>
+      </View>
+      <Text style={{ color: TEXT_MUTED, fontSize: 11, marginTop: 5 }}>
+        {calculateAge(value) !== null ? `Age: ${calculateAge(value)}` : "Select your date of birth"}
+      </Text>
+
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+        <Pressable
+          onPress={() => setOpen(false)}
+          style={{ alignItems: "center", backgroundColor: "#00000066", flex: 1, justifyContent: "center", padding: 20 }}
+        >
+          <Pressable onPress={() => {}} style={{ width: "100%" }}>
+            <View style={{ backgroundColor: SURFACE, borderRadius: 22, padding: 18 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                <View>
+                  <Text style={{ color: TEXT, fontSize: 18, fontWeight: "900" }}>{label}</Text>
+                  <Text style={{ color: TEXT_SECONDARY, fontSize: 12, marginTop: 4 }}>
+                    {formatDisplayDate(draft)}
+                  </Text>
+                </View>
+                <Text style={{ color: PRIMARY, fontSize: 12, fontWeight: "900" }}>DD/MM/YYYY</Text>
+              </View>
+
+              {mode === "calendar" ? (
+                <View style={{ marginTop: 18 }}>
+                  <View style={{ alignItems: "center", flexDirection: "row", justifyContent: "space-between" }}>
+                    <TouchableOpacity onPress={() => changeMonth(-1)} style={{ alignItems: "center", backgroundColor: "#F5F5F4", borderRadius: 12, height: 42, justifyContent: "center", width: 42 }}>
+                      <ChevronLeft size={ICON.md} color={TEXT_SECONDARY} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => setMode("years")} style={{ alignItems: "center", padding: 10 }}>
+                      <Text style={{ color: TEXT, fontSize: 18, fontWeight: "900" }}>
+                        {MONTHS[draft.month - 1]} {draft.year}
+                      </Text>
+                      <Text style={{ color: PRIMARY, fontSize: 11, fontWeight: "800" }}>Tap to change year</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => changeMonth(1)} style={{ alignItems: "center", backgroundColor: "#F5F5F4", borderRadius: 12, height: 42, justifyContent: "center", width: 42 }}>
+                      <ChevronRight size={ICON.md} color={TEXT_SECONDARY} />
+                    </TouchableOpacity>
+                  </View>
+                  <View style={{ flexDirection: "row", marginTop: 18 }}>
+                    {WEEKDAYS.map((day, index) => (
+                      <Text key={`${day}-${index}`} style={{ color: TEXT_MUTED, flex: 1, fontSize: 12, fontWeight: "900", textAlign: "center" }}>{day}</Text>
+                    ))}
+                  </View>
+                  <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 8 }}>
+                    {monthCells.map((day, index) => {
+                      const selected = day === draft.day;
+                      return (
+                        <View key={`${day || "blank"}-${index}`} style={{ alignItems: "center", height: 42, justifyContent: "center", width: `${100 / 7}%` }}>
+                          {day ? (
+                            <TouchableOpacity
+                              onPress={() => setDraft((current) => ({ ...current, day }))}
+                              style={{ alignItems: "center", backgroundColor: selected ? PRIMARY : "transparent", borderColor: selected ? PRIMARY : BORDER, borderRadius: 999, borderWidth: selected ? 0 : 1, height: 34, justifyContent: "center", width: 34 }}
+                            >
+                              <Text style={{ color: selected ? SURFACE : TEXT, fontSize: 14, fontWeight: "900" }}>{day}</Text>
+                            </TouchableOpacity>
+                          ) : null}
+                        </View>
+                      );
+                    })}
+                  </View>
+                </View>
+              ) : (
+                <View style={{ marginTop: 18 }}>
+                  <View style={{ alignItems: "center", flexDirection: "row", justifyContent: "space-between" }}>
+                    <TouchableOpacity onPress={() => moveYearRange(-12)} style={{ alignItems: "center", backgroundColor: "#F5F5F4", borderRadius: 12, height: 42, justifyContent: "center", width: 42 }}>
+                      <ChevronLeft size={ICON.md} color={TEXT_SECONDARY} />
+                    </TouchableOpacity>
+                    <Text style={{ color: TEXT, fontSize: 17, fontWeight: "900" }}>
+                      {yearRange[0]} - {yearRange[yearRange.length - 1]}
+                    </Text>
+                    <TouchableOpacity onPress={() => moveYearRange(12)} style={{ alignItems: "center", backgroundColor: "#F5F5F4", borderRadius: 12, height: 42, justifyContent: "center", width: 42 }}>
+                      <ChevronRight size={ICON.md} color={TEXT_SECONDARY} />
+                    </TouchableOpacity>
+                  </View>
+                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 16 }}>
+                    {yearRange.map((year) => (
+                      <TouchableOpacity
+                        key={year}
+                        onPress={() => {
+                          setDraft((current) => clampDateParts({ ...current, year }, minYear, maxYear));
+                          setMode("calendar");
+                        }}
+                        style={{ alignItems: "center", backgroundColor: year === draft.year ? PRIMARY : "#F7FBFA", borderColor: year === draft.year ? PRIMARY : BORDER, borderRadius: 14, borderWidth: 1, height: 48, justifyContent: "center", width: "31.6%" }}
+                      >
+                        <Text style={{ color: year === draft.year ? SURFACE : TEXT, fontSize: 15, fontWeight: "900" }}>{year}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              <View style={{ flexDirection: "row", gap: 10, marginTop: 16 }}>
+                <TouchableOpacity onPress={() => setOpen(false)} style={{ alignItems: "center", borderColor: BORDER, borderRadius: 14, borderWidth: 1, flex: 1, paddingVertical: 14 }}>
+                  <Text style={{ color: TEXT, fontWeight: "900" }}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    onChange(formatDisplayDate(draft));
+                    setOpen(false);
+                  }}
+                  style={{ alignItems: "center", backgroundColor: PRIMARY, borderRadius: 14, flex: 1, paddingVertical: 14 }}
+                >
+                  <Text style={{ color: SURFACE, fontWeight: "900" }}>Apply</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </View>
   );
 }
 
@@ -207,7 +708,14 @@ export default function PassengerProfile() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { testMode, disableTestMode } = useAppStore();
+  const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [genderIdentity, setGenderIdentity] = useState("");
+  const [preferredLanguage, setPreferredLanguage] = useState("English");
+  const [emergencyContactName, setEmergencyContactName] = useState("");
+  const [emergencyContactPhone, setEmergencyContactPhone] = useState("");
+  const [accessibilityNeeds, setAccessibilityNeeds] = useState("");
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [showSignOutSheet, setShowSignOutSheet] = useState(false);
   const authUserKey =
@@ -253,24 +761,101 @@ export default function PassengerProfile() {
   const user = profile?.user || auth?.user;
   useEffect(() => {
     if (!testMode) {
-      setPhone(user?.phone || "");
+      setName(user?.name || "");
+      setPhone(indianNationalNumber(user?.phone));
+      setDateOfBirth(isoToIndianDate(user?.date_of_birth));
+      setGenderIdentity(user?.gender_identity || "");
+      setPreferredLanguage(user?.preferred_language || "English");
+      setEmergencyContactName(user?.emergency_contact_name || "");
+      setEmergencyContactPhone(indianNationalNumber(user?.emergency_contact_phone));
+      setAccessibilityNeeds(user?.accessibility_needs || "");
     }
-  }, [testMode, user?.phone]);
+  }, [
+    testMode,
+    user?.accessibility_needs,
+    user?.date_of_birth,
+    user?.emergency_contact_name,
+    user?.emergency_contact_phone,
+    user?.gender_identity,
+    user?.name,
+    user?.phone,
+    user?.preferred_language,
+  ]);
+
+  const chooseEmergencyContact = async () => {
+    try {
+      const permission = await Contacts.requestPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert(
+          "Contacts Permission",
+          "Allow contacts access to choose an emergency contact. You can still enter it manually.",
+        );
+        return;
+      }
+
+      const contact = await Contacts.presentContactPickerAsync();
+      if (!contact) return;
+      const selectedPhone = contact.phoneNumbers?.find((item) => item.number)?.number || "";
+      const selectedName = contactDisplayName(contact);
+      setEmergencyContactName(selectedName);
+      setEmergencyContactPhone(indianNationalNumber(selectedPhone));
+      if (!selectedName) {
+        Alert.alert("Name Not Available", "Please enter a name for the selected contact.");
+      }
+      if (!selectedPhone) {
+        Alert.alert("No Phone Number", "That contact has no phone number. Please enter one manually.");
+      }
+    } catch {
+      Alert.alert(
+        "Contact Picker Unavailable",
+        "We could not open contacts on this device. Please enter the contact manually.",
+      );
+    }
+  };
 
   const updateProfile = useMutation({
     mutationFn: async () => {
+      const age = calculateAge(dateOfBirth);
+      if (!name.trim()) throw new Error("Full name is required");
+      if (phone && phone.length !== 10) throw new Error("Enter a valid 10-digit phone number");
+      if (age === null || age < 13 || age > 120) {
+        throw new Error("Enter a valid date of birth as DD/MM/YYYY");
+      }
+      if (
+        (emergencyContactName.trim() && !emergencyContactPhone.trim()) ||
+        (!emergencyContactName.trim() && emergencyContactPhone.trim())
+      ) {
+        throw new Error("Add both emergency contact name and phone, or leave both blank");
+      }
+      if (emergencyContactPhone && emergencyContactPhone.length !== 10) {
+        throw new Error("Enter a valid 10-digit emergency contact number");
+      }
       const res = await fetch("/api/user-profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: phone.trim() }),
+        body: JSON.stringify({
+          name: name.trim(),
+          phone: indianPhonePayload(phone),
+          date_of_birth: parseIndianDate(dateOfBirth)?.isoDate,
+          gender_identity: genderIdentity || null,
+          preferred_language: preferredLanguage,
+          emergency_contact_name: emergencyContactName.trim() || null,
+          emergency_contact_phone: indianPhonePayload(emergencyContactPhone) || null,
+          accessibility_needs: accessibilityNeeds.trim() || null,
+          complete_profile: true,
+        }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || "Failed to save profile");
       return body;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["userProfile", authUserKey] });
-      setIsProfileOpen(false);
+    onSuccess: async (body) => {
+      queryClient.setQueryData(["userProfile", authUserKey], body);
+      await queryClient.invalidateQueries({ queryKey: ["userProfile", authUserKey] });
+      toast.success("Profile saved", {
+        description: "Your passenger details have been updated.",
+      });
+      setTimeout(() => setIsProfileOpen(false), 500);
     },
     onError: (err) => Alert.alert("Save Failed", err.message),
   });
@@ -350,13 +935,13 @@ export default function PassengerProfile() {
             <Text style={{ fontSize: 32, fontWeight: "800", color: "#fff" }}>
               {testMode
                 ? "?"
-                : auth?.user?.email
-                  ? auth.user.email.charAt(0).toUpperCase()
+                : user?.name || auth?.user?.email
+                  ? (user?.name || auth.user.email).charAt(0).toUpperCase()
                   : "?"}
             </Text>
           </View>
           <Text style={{ fontSize: 20, fontWeight: "700", color: TEXT }}>
-            {testMode ? "Guest Passenger" : auth?.user?.email || "—"}
+            {testMode ? "Guest Passenger" : user?.name || auth?.user?.email || "—"}
           </Text>
           <PassengerBadge />
           <ProfileFetchNotice visible={!testMode && (profileLoading || ridesLoading)} />
@@ -456,7 +1041,7 @@ export default function PassengerProfile() {
                   Account Settings
                 </Text>
                 <Text style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 4 }}>
-                  Keep your contact details ready for ride updates.
+                  Manage your personal, safety, and accessibility details.
                 </Text>
               </View>
               <TouchableOpacity
@@ -476,6 +1061,15 @@ export default function PassengerProfile() {
 
             {isProfileOpen ? (
             <View style={{ marginTop: 16, gap: 12 }}>
+              <ProfileTextField
+                label="Full Name"
+                value={name}
+                onChangeText={setName}
+                editable={!testMode && !updateProfile.isPending}
+                placeholder="Your full name"
+                maxLength={120}
+              />
+
               <View>
                 <Text style={{ fontSize: 11, fontWeight: "700", color: TEXT_MUTED, marginBottom: 6 }}>
                   Email
@@ -496,30 +1090,85 @@ export default function PassengerProfile() {
                 </View>
               </View>
 
-              <View>
-                <Text style={{ fontSize: 11, fontWeight: "700", color: TEXT_MUTED, marginBottom: 6 }}>
-                  Phone Number
+              <IndianPhoneField
+                label="Phone Number"
+                value={phone}
+                onChangeText={setPhone}
+                editable={!testMode && !updateProfile.isPending}
+              />
+
+              <DatePickerField
+                label="Date of Birth"
+                value={dateOfBirth}
+                onChange={setDateOfBirth}
+                disabled={testMode || updateProfile.isPending}
+              />
+
+              <CompactSelect
+                label="Gender (Optional)"
+                value={genderIdentity}
+                options={GENDER_OPTIONS}
+                onChange={setGenderIdentity}
+                disabled={testMode || updateProfile.isPending}
+              />
+
+              <CompactSelect
+                label="Preferred Language"
+                value={preferredLanguage}
+                options={LANGUAGES.map((language) => ({ label: language, value: language }))}
+                onChange={setPreferredLanguage}
+                disabled={testMode || updateProfile.isPending}
+              />
+
+              <ProfileTextField
+                label="Emergency Contact Name"
+                value={emergencyContactName}
+                onChangeText={setEmergencyContactName}
+                editable={!testMode && !updateProfile.isPending}
+                placeholder="Trusted person"
+                maxLength={120}
+              />
+
+              <TouchableOpacity
+                onPress={chooseEmergencyContact}
+                disabled={testMode || updateProfile.isPending}
+                activeOpacity={0.82}
+                style={{
+                  alignItems: "center",
+                  alignSelf: "flex-start",
+                  backgroundColor: PRIMARY_LIGHT,
+                  borderColor: PRIMARY_BORDER,
+                  borderRadius: 999,
+                  borderWidth: 1,
+                  flexDirection: "row",
+                  gap: 7,
+                  paddingHorizontal: 13,
+                  paddingVertical: 9,
+                }}
+              >
+                <ContactRound size={ICON.sm} color={PRIMARY} />
+                <Text style={{ color: PRIMARY, fontSize: 12, fontWeight: "800" }}>
+                  Choose from contacts
                 </Text>
-                <TextInput
-                  value={phone}
-                  onChangeText={setPhone}
-                  editable={!testMode && !updateProfile.isPending}
-                  keyboardType="phone-pad"
-                  placeholder="Add phone number"
-                  placeholderTextColor={TEXT_MUTED}
-                  style={{
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: phone ? PRIMARY_BORDER : BORDER,
-                    backgroundColor: SURFACE,
-                    paddingHorizontal: 14,
-                    paddingVertical: 12,
-                    color: TEXT,
-                    fontSize: 15,
-                    fontWeight: "600",
-                  }}
-                />
-              </View>
+              </TouchableOpacity>
+
+              <IndianPhoneField
+                label="Emergency Contact Phone"
+                value={emergencyContactPhone}
+                onChangeText={setEmergencyContactPhone}
+                editable={!testMode && !updateProfile.isPending}
+              />
+
+              <ProfileTextField
+                label="Accessibility or Mobility Needs"
+                value={accessibilityNeeds}
+                onChangeText={setAccessibilityNeeds}
+                editable={!testMode && !updateProfile.isPending}
+                placeholder="Extra boarding time, limited mobility, or communication preferences"
+                maxLength={500}
+                multiline
+                helper="Optional. Do not include medical records."
+              />
 
               <TouchableOpacity
                 onPress={() => updateProfile.mutate()}
@@ -595,7 +1244,11 @@ export default function PassengerProfile() {
                     fontWeight: "500",
                   }}
                 >
-                  {testMode ? "—" : user?.phone || "Not added yet"}
+                  {testMode
+                    ? "—"
+                    : user?.phone
+                      ? `+91 ${indianNationalNumber(user.phone)}`
+                      : "Not added yet"}
                 </Text>
               </View>
             </View>

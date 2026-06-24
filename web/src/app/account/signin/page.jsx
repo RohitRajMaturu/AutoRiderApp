@@ -49,7 +49,8 @@ function readParams() {
 
 function getCallbackUrl() {
   const params = readParams();
-  return params.get("callbackUrl") || params.get("finalCallbackUrl") || "/";
+  // Mobile signup completes onboarding before returning to the token endpoint.
+  return params.get("finalCallbackUrl") || params.get("callbackUrl") || "/";
 }
 
 function getInitialScreen() {

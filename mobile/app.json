@@ -25,6 +25,9 @@
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS"
       ],
+      "blockedPermissions": [
+        "android.permission.WRITE_CONTACTS"
+      ],
       "package": "com.autoride.app"
     },
     "plugins": [
@@ -60,6 +63,12 @@
         }
       ],
       "expo-font",
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Allow TukTukGo to open your contacts so you can choose an emergency contact."
+        }
+      ],
       "expo-notifications",
       "expo-secure-store",
       "expo-web-browser",
