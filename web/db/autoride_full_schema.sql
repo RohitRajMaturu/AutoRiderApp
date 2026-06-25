@@ -609,3 +609,52 @@ CREATE TABLE IF NOT EXISTS ride_chat_messages (
 
 CREATE INDEX IF NOT EXISTS idx_ride_chat_messages_ride_sent
   ON ride_chat_messages (ride_id, sent_at);
+
+-- =========================================================================
+-- 020_ride_vehicle_type.sql
+-- =========================================================================
+-- Store supported vehicle types on drivers and requested rides.
+ALTER TABLE drivers
+  ADD COLUMN IF NOT EXISTS vehicle_type text NOT NULL DEFAULT 'auto';
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'drivers_vehicle_type_check'
+  ) THEN
+    ALTER TABLE drivers
+      ADD CONSTRAINT drivers_vehicle_type_check CHECK (vehicle_type IN ('auto','car','truck','bus','bike'));
+  END IF;
+END$$;
+
+ALTER TABLE rides
+  ADD COLUMN IF NOT EXISTS vehicle_type text NOT NULL DEFAULT 'auto';
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'rides_vehicle_type_check'
+  ) THEN
+    ALTER TABLE rides
+      ADD CONSTRAINT rides_vehicle_type_check CHECK (vehicle_type IN ('auto','car','truck','bus','bike'));
+  END IF;
+END$$;
+
+-- =========================================================================
+-- 021_auto_only_vehicle_default.sql
+-- =========================================================================
+-- Auto-rickshaw is the only active vehicle type for the current product.
+-- Keep the column so more types can be enabled deliberately later.
+UPDATE drivers
+SET vehicle_type = 'auto'
+WHERE vehicle_type IS DISTINCT FROM 'auto';
+
+UPDATE rides
+SET vehicle_type = 'auto'
+WHERE vehicle_type IS DISTINCT FROM 'auto';
+
+ALTER TABLE drivers
+  ALTER COLUMN vehicle_type SET DEFAULT 'auto';
+
+ALTER TABLE rides
+  ALTER COLUMN vehicle_type SET DEFAULT 'auto';

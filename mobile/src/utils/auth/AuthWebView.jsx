@@ -7,7 +7,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthModal, useAuthStore } from './store';
 import TukTukGoLoader from '@/components/TukTukGoLoader';
 
-const callbackUrl = '/api/auth/token';
+const callbackUrl = '/api/auth/token?client=mobile';
+const callbackPath = '/api/auth/token';
 const onboardingUrl = '/onboarding';
 const MOBILE_SIGNUP_ROLES = new Set(['passenger', 'driver']);
 
@@ -75,6 +76,7 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
   const isAuthenticated = isReady ? !!auth : null;
   const iframeRef = useRef(null);
   const nativeWebViewRef = useRef(null);
+  const initialPageLoadedRef = useRef(false);
   useEffect(() => {
     if (isSigningOut) {
       return;
@@ -98,6 +100,7 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
     }
     setIsPageReady(false);
     setAuthError(null);
+    initialPageLoadedRef.current = false;
     fadeAnim.setValue(0);
     const nextUri = `${baseURL}${buildFreshAuthPath(mode, authParams, authCallback)}`;
     setURI(nextUri);
@@ -119,6 +122,7 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
   }, [isPageReady, isAuthenticated, currentURI, fadeAnim, isSigningOut]);
 
   const handlePageLoaded = () => {
+    initialPageLoadedRef.current = true;
     setIsPageReady(true);
     Animated.timing(fadeAnim, {
       toValue: 1,
@@ -234,6 +238,20 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
     } catch {
       return;
     }
+    if (message?.type === 'AUTH_SUCCESS') {
+      if (!message.jwt) {
+        setAuthError('Login response was incomplete. Please try again.');
+        return;
+      }
+      setAuthError(null);
+      setAuth({ jwt: message.jwt, user: message.user });
+      return;
+    }
+    if (message?.type === 'AUTH_ERROR') {
+      setAuthError(message.error || 'Login did not complete. Please try again.');
+      setIsPageReady(true);
+      return;
+    }
     if (message?.type !== 'PICK_EMERGENCY_CONTACT') return;
 
     try {
@@ -302,8 +320,13 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
             'x-createxyz-host': process.env.EXPO_PUBLIC_HOST,
           }}
           onLoadStart={() => {
-            setIsPageReady(false);
-            fadeAnim.setValue(0);
+            // Only the initial auth-page load should use the full-screen
+            // watchdog. Credential submissions and callback redirects are
+            // normal WebView navigations and must not restart that timer.
+            if (!initialPageLoadedRef.current) {
+              setIsPageReady(false);
+              fadeAnim.setValue(0);
+            }
           }}
           onLoadEnd={handlePageLoaded}
           onError={(event) => {
@@ -325,30 +348,12 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
                 return "";
               }
             })();
-            if (requestPath === callbackUrl) {
+            if (requestPath === callbackPath) {
               setAuthError(null);
-              fetch(request.url, { credentials: 'include' }).then(async (response) => {
-                if (!response.ok) {
-                  setAuthError('Login did not complete. Please try again.');
-                  setIsPageReady(true);
-                  setURI(`${baseURL}${buildFreshAuthPath(mode, authParams, authCallback)}`);
-                  return;
-                }
-                response.json().then((data) => {
-                  if (!data.jwt) {
-                    setAuthError('Login response was incomplete. Please try again.');
-                    setIsPageReady(true);
-                    setURI(`${baseURL}${buildFreshAuthPath(mode, authParams, authCallback)}`);
-                    return;
-                  }
-                  setAuth({ jwt: data.jwt, user: data.user });
-                });
-              }).catch(() => {
-                setAuthError('Login failed. Please try again.');
-                setIsPageReady(true);
-                setURI(`${baseURL}${buildFreshAuthPath(mode, authParams, authCallback)}`);
-              });
-              return false;
+              // Let the authenticated WebView open the callback. The callback
+              // posts the token through ReactNativeWebView, preserving the
+              // WebView cookie jar instead of using React Native fetch.
+              return true;
             }
             return true;
           }}

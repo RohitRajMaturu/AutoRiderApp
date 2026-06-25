@@ -21,6 +21,7 @@ import useAppStore from "@/store/useAppStore";
 import { ICON } from "@/theme/iconScale";
 import AutoRideIcon from "@/components/AutoRideIcon";
 import TukTukGoLoader from "@/components/TukTukGoLoader";
+import { getVehicleLabel } from "@/utils/vehicles";
 
 const PRIMARY = "#43B8B3";
 const PRIMARY_LIGHT = "#E7F6F4";

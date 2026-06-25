@@ -19,6 +19,9 @@ A lightweight auto-rickshaw ride connection platform for India.
 
 ## Getting Started
 
+For setup on another developer's computer or phone, follow
+[TEAM_EXPO_SETUP.md](./TEAM_EXPO_SETUP.md).
+
 Start the mobile app with the project-isolated Metro cache:
 
 ```powershell

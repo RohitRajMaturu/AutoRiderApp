@@ -17,7 +17,7 @@ import { triggerRideEvent } from "@/lib/pusher/server";
 import { sendPushToUsers } from "@/app/api/utils/push-notifications";
 
 const NEGOTIATION_WINDOW_SECONDS = 45;
-const ALLOWED_VEHICLE_TYPES = new Set(["auto", "car", "truck", "bus", "bike"]);
+const DEFAULT_VEHICLE_TYPE = "auto";
 const PASSENGER_RIDE_FILTERS = new Set(["all", "pending", "completed", "cancelled"]);
 
 function readFare(value) {
@@ -41,6 +41,20 @@ function readPassengerRideFilter(value) {
   return PASSENGER_RIDE_FILTERS.has(value) ? value : "all";
 }
 
+function rideRequestErrorResponse(error) {
+  if (error?.code === "42703" || error?.code === "42P01") {
+    return Response.json(
+      {
+        error:
+          "Database schema is out of date. Run `npm run db:migrate` from the web directory.",
+        code: "DATABASE_MIGRATION_REQUIRED",
+      },
+      { status: 503 },
+    );
+  }
+  return Response.json({ error: "Internal Server Error" }, { status: 500 });
+}
+
 export async function POST(request) {
   try {
     const session = await auth(request);
@@ -60,7 +74,6 @@ export async function POST(request) {
       negotiation_mode,
       fare_min,
       fare_max,
-    vehicle_type,
     } = await request.json();
     const pickupLat = Number(pickup_lat);
     const pickupLng = Number(pickup_lng);
@@ -73,11 +86,7 @@ export async function POST(request) {
     const negotiationMode = negotiation_mode === "negotiated" ? "negotiated" : "fixed";
     const fareMin = readFare(fare_min);
     const fareMax = readFare(fare_max);
-    const vehicleType = readBoundedString(vehicle_type, { max: 32 }) || "auto";
-
-    if (!ALLOWED_VEHICLE_TYPES.has(vehicleType)) {
-      return Response.json({ error: "Invalid vehicle type" }, { status: 400 });
-    }
+    const vehicleType = DEFAULT_VEHICLE_TYPE;
 
     if (
       !isLatitude(pickupLat) ||
@@ -248,7 +257,7 @@ export async function POST(request) {
     return Response.json({ ride: rows[0], zone, dispatchedDrivers }, { status: 202 });
   } catch (err) {
     console.error("POST /api/rides error:", err);
-    return Response.json({ error: "Internal Server Error" }, { status: 500 });
+    return rideRequestErrorResponse(err);
   }
 }
 

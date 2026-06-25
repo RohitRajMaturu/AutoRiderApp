@@ -37,7 +37,7 @@ import { Button, RIDE_STATUS_CONFIG, StatusBadge } from "@/components/ui";
 import { ICON } from "@/theme/iconScale";
 import { useAuth } from "@/utils/auth/useAuth";
 import { createRidePusher } from "@/utils/pusher";
-import { VEHICLE_OPTIONS, getVehicleLabel } from "@/utils/vehicles";
+import { getVehicleLabel } from "@/utils/vehicles";
 
 const TUKTUKGO_ICON = require("../../../assets/images/icon.png");
 const PRIMARY = "#43B8B3";
@@ -162,7 +162,6 @@ export default function PassengerHome() {
     CANCEL_REASONS[0].value,
   );
   const [otherCancelReason, setOtherCancelReason] = useState("");
-  const [vehicleType, setVehicleType] = useState("auto");
   const [negotiationMode, setNegotiationMode] = useState("fixed");
   const [fareMin, setFareMin] = useState("");
   const [fareMax, setFareMax] = useState("");
@@ -204,10 +203,10 @@ export default function PassengerHome() {
   };
 
   // ── Fetch active ride (only poll, never block UI on refetch) ──
-  const { data: activeRide, isLoading: activeRideLoading } = useQuery({
+  const { data: activeRide } = useQuery({
     queryKey: ["activeRide"],
     queryFn: async () => {
-      const res = await fetch("/api/rides");
+      const res = await withTimeout(fetch("/api/rides"), 8000);
       if (!res.ok) throw new Error("Failed to fetch rides");
       const data = await res.json();
       const ride =
@@ -632,7 +631,6 @@ export default function PassengerHome() {
           dest_lng: destinationCoords.lng,
           pickup_place_id: pickupPlaceId,
           dest_place_id: destinationPlaceId,
-          vehicle_type: vehicleType,
           negotiation_mode: negotiationMode,
           fare_min: negotiationMode === "negotiated" ? Number(fareMin) : undefined,
           fare_max: negotiationMode === "negotiated" ? Number(fareMax) : undefined,
@@ -1090,26 +1088,7 @@ export default function PassengerHome() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
-        {activeRideLoading && !displayRide ? (
-          <View style={{ margin: 16 }}>
-            <View
-              style={{
-                alignItems: "center",
-                backgroundColor: SURFACE,
-                borderColor: BORDER,
-                borderRadius: 18,
-                borderWidth: 1,
-                paddingVertical: 18,
-              }}
-            >
-              <TukTukGoLoader
-                label="Checking active rides..."
-                size={32}
-                textColor={TEXT_SECONDARY}
-              />
-            </View>
-          </View>
-        ) : displayRide ? (
+        {displayRide ? (
           /* ── Active Ride Card ── */
           <View style={{ margin: 16 }}>
             <View
@@ -2052,36 +2031,6 @@ export default function PassengerHome() {
                 })}
               </View>
 
-              <View style={{ marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: BORDER }}>
-                <Text style={{ fontSize: 11, fontWeight: "800", color: TEXT_MUTED, textTransform: "uppercase", marginBottom: 10 }}>
-                  Vehicle type
-                </Text>
-                <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
-                  {VEHICLE_OPTIONS.map((option) => {
-                    const selected = vehicleType === option.id;
-                    return (
-                      <TouchableOpacity
-                        key={option.id}
-                        onPress={() => setVehicleType(option.id)}
-                        style={{
-                          borderRadius: 10,
-                          borderWidth: 1,
-                          borderColor: selected ? PRIMARY_BORDER : BORDER,
-                          backgroundColor: selected ? PRIMARY_LIGHT : "#F5F5F4",
-                          paddingHorizontal: 12,
-                          paddingVertical: 9,
-                        }}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={{ fontSize: 12, fontWeight: "900", color: selected ? PRIMARY : TEXT_SECONDARY }}>
-                          {option.label}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </View>
-
               {(tripEstimateLoading || hasTripEstimate) && (
                 <View
                   style={{
@@ -2258,9 +2207,9 @@ export default function PassengerHome() {
               style={{
                 marginTop: 16,
               }}
-              accessibilityLabel={`Request ${getVehicleLabel(vehicleType)}`}
+              accessibilityLabel="Request ride"
             >
-              Request {getVehicleLabel(vehicleType)}
+              Request Ride
             </Button>
           </View>
         )}

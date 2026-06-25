@@ -1,6 +1,8 @@
 import sql from "@/app/api/utils/sql";
 import { getEnvNumber } from "@/app/api/utils/validation";
 
+const DEFAULT_VEHICLE_TYPE = "auto";
+
 export function getPassengerSpamCooldownSeconds() {
   return getEnvNumber("PASSENGER_REQUEST_COOLDOWN_SECONDS", 30, {
     min: 0,
@@ -79,7 +81,13 @@ export async function autoCancelGhostRides(scopedSql = sql) {
   `;
 }
 
-export async function selectZoneDrivers(zoneId, pickupLat, pickupLng, vehicleType = "auto", scopedSql = sql) { // PATCHED:
+export async function selectZoneDrivers(
+  zoneId,
+  pickupLat,
+  pickupLng,
+  vehicleType = DEFAULT_VEHICLE_TYPE,
+  scopedSql = sql,
+) {
   if (!zoneId) return [];
   const radiusMeters = getDriverRideRadiusMeters(); // PATCHED:
   const rows = await scopedSql`
@@ -109,7 +117,13 @@ export function createBackgroundTask(task) {
 }
 
 export async function dispatchRideRequest(ride, scopedSql = sql) {
-  const drivers = await selectZoneDrivers(ride.zone_id, ride.pickup_lat, ride.pickup_lng, ride.vehicle_type || "auto", scopedSql); // PATCHED:
+  const drivers = await selectZoneDrivers(
+    ride.zone_id,
+    ride.pickup_lat,
+    ride.pickup_lng,
+    DEFAULT_VEHICLE_TYPE,
+    scopedSql,
+  );
   if (drivers.length === 0) {
     return 0;
   }

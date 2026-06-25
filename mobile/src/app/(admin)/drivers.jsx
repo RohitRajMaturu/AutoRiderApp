@@ -21,6 +21,7 @@ import {
 import { StatusBar } from "expo-status-bar";
 import AutoRideIcon from "@/components/AutoRideIcon";
 import { ICON } from "@/theme/iconScale";
+import { getVehicleLabel } from "@/utils/vehicles";
 
 const PRIMARY = "#F5A623";
 const PRIMARY_LIGHT = "rgba(245,166,35,0.12)";

@@ -9,6 +9,7 @@ import { SkeletonLoader, StatusBadge } from "@/components/ui";
 import AutoRideIcon from "@/components/AutoRideIcon";
 import { useTheme } from "@/theme/ThemeContext";
 import { ICON } from "@/theme/iconScale";
+import { getVehicleLabel } from "@/utils/vehicles";
 
 const FILTERS = [
   { key: "all", label: "All" },

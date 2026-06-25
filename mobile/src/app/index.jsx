@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Redirect } from "expo-router";
 import { useAuth } from "../utils/auth/useAuth";
-import { useQuery } from "@tanstack/react-query";
 import {
   View,
   Text,
@@ -63,21 +62,7 @@ export default function Index() {
     return () => animation.stop();
   }, [logoShineAnim]);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["userProfile", auth?.user?.id || auth?.user?.email || auth?.user?.phone || "anonymous"],
-    queryFn: async () => {
-      const response = await fetch("/api/user-profile");
-      if (!response.ok) throw new Error("Failed to fetch profile");
-      return response.json();
-    },
-    enabled: !!auth,
-    staleTime: 0,
-  });
-
-  // Guard: never redirect based on stale data during or just after sign-out
-  const canRedirect = isReady && !isSigningOut && !isLoading;
-
-  if (!isReady || isSigningOut || (auth && isLoading)) {
+  if (!isReady || isSigningOut) {
     return (
       <View
         style={{
@@ -94,8 +79,8 @@ export default function Index() {
     );
   }
 
-  if (canRedirect && auth) {
-    const role = data?.user?.role || auth?.user?.role || "passenger";
+  if (auth) {
+    const role = auth.user?.role || "passenger";
     if (role === "admin") return <Redirect href="/(admin)" />;
     if (role === "driver") return <Redirect href="/(driver)" />;
     return <Redirect href="/(passenger)" />;

@@ -23,6 +23,7 @@ import {
 import { FlashList } from "@shopify/flash-list";
 import { StatusBar } from "expo-status-bar";
 import AutoRideIcon from "@/components/AutoRideIcon";
+import { getVehicleLabel } from "@/utils/vehicles";
 import { ICON } from "@/theme/iconScale";
 
 const PRIMARY = "#F5A623";

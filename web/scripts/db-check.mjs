@@ -20,6 +20,31 @@ const REQUIRED_TABLES = [
   "realtime_tokens",
   "otp_challenges",
 ];
+const REQUIRED_COLUMNS = {
+  drivers: [
+    "vehicle_type",
+    "zone_id",
+    "location",
+    "subscription_expiry",
+    "last_heartbeat_at",
+  ],
+  geo_zones: ["boundary", "is_active", "dispatch_enabled"],
+  rides: [
+    "pickup_place_id",
+    "dest_place_id",
+    "distance_km",
+    "duration_mins",
+    "estimated_fare",
+    "route_polyline",
+    "route_provider",
+    "vehicle_type",
+    "zone_id",
+    "negotiation_mode",
+    "fare_min",
+    "fare_max",
+    "negotiation_expires_at",
+  ],
+};
 
 function loadDotEnv() {
   const envPath = resolve(WEB_ROOT, ".env");
@@ -64,9 +89,52 @@ async function main() {
       `,
       [REQUIRED_TABLES],
     );
+    const columns = await pool.query(
+      `
+        SELECT table_name, column_name
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = ANY($1)
+        ORDER BY table_name, ordinal_position
+      `,
+      [Object.keys(REQUIRED_COLUMNS)],
+    );
+    const zoneReadiness = await pool.query(
+      `
+        SELECT
+          count(*)::int AS total,
+          count(*) FILTER (
+            WHERE is_active = true
+              AND dispatch_enabled = true
+              AND boundary IS NOT NULL
+          )::int AS active_dispatchable
+        FROM geo_zones
+      `,
+    );
+    const vehicleTypeReadiness = await pool.query(
+      `
+        SELECT
+          (SELECT count(*)::int FROM drivers WHERE vehicle_type IS DISTINCT FROM 'auto')
+            AS non_auto_drivers,
+          (SELECT count(*)::int FROM rides WHERE vehicle_type IS DISTINCT FROM 'auto')
+            AS non_auto_rides
+      `,
+    );
 
     const found = new Set(tables.rows.map((row) => row.table_name));
     const missing = REQUIRED_TABLES.filter((table) => !found.has(table));
+    const columnsByTable = columns.rows.reduce((result, row) => {
+      (result[row.table_name] ||= []).push(row.column_name);
+      return result;
+    }, {});
+    const missingColumns = Object.entries(REQUIRED_COLUMNS).flatMap(
+      ([table, requiredColumns]) => {
+        const existing = new Set(columnsByTable[table] || []);
+        return requiredColumns
+          .filter((column) => !existing.has(column))
+          .map((column) => `${table}.${column}`);
+      },
+    );
 
     console.log(
       JSON.stringify(
@@ -78,13 +146,21 @@ async function main() {
           requiredTables: REQUIRED_TABLES,
           existingTables: [...found].sort(),
           missingTables: missing,
+          missingColumns,
+          serviceZones: zoneReadiness.rows[0],
+          vehicleTypes: vehicleTypeReadiness.rows[0],
         },
         null,
         2,
       ),
     );
 
-    if (missing.length > 0) {
+    if (
+      missing.length > 0 ||
+      missingColumns.length > 0 ||
+      vehicleTypeReadiness.rows[0].non_auto_drivers > 0 ||
+      vehicleTypeReadiness.rows[0].non_auto_rides > 0
+    ) {
       process.exitCode = 2;
     }
   } finally {

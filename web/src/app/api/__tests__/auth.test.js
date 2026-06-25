@@ -59,3 +59,40 @@ describe("auth()", () => {
     });
   });
 });
+
+describe("mobile auth token callback", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    mocks.getToken.mockReset();
+    mocks.sql.mockReset();
+    process.env.AUTH_SECRET = "test-secret";
+  });
+
+  it("returns a React Native bridge message for an authenticated mobile client", async () => {
+    mocks.getToken
+      .mockResolvedValueOnce("raw-jwt")
+      .mockResolvedValueOnce({ sub: "user-1" });
+    mocks.sql.mockResolvedValueOnce([
+      {
+        id: "user-1",
+        email: "rider@example.com",
+        phone: "+919000000000",
+        role: "passenger",
+        name: "Rider",
+        image: null,
+      },
+    ]);
+    const { GET } = await import("@/app/api/auth/token/route");
+
+    const response = await GET(
+      new Request("http://localhost/api/auth/token?client=mobile"),
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/html");
+    expect(body).toContain("ReactNativeWebView");
+    expect(body).toContain("AUTH_SUCCESS");
+    expect(body).toContain("raw-jwt");
+  });
+});

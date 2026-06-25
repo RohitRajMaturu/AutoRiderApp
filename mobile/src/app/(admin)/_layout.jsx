@@ -1,6 +1,5 @@
 import { Tabs } from "expo-router";
 import { View } from "react-native";
-import TestModeBackButton from "@/components/TestModeBackButton";
 import { BarChart3, FileText, Map, Users, Route } from "lucide-react-native";
 import { useTheme } from "@/theme/ThemeContext";
 import { ICON } from "@/theme/iconScale";
@@ -11,7 +10,6 @@ export default function AdminLayout() {
 
   return (
     <View style={{ flex: 1 }}>
-      <TestModeBackButton variant="dark" />
       <Tabs
       screenOptions={{
         headerShown: false,
