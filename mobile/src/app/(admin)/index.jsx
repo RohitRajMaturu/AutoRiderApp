@@ -24,19 +24,12 @@ import {
   LogOut,
 } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import Svg, {
-  Circle,
-  Defs,
-  LinearGradient as SvgLinearGradient,
-  Path,
-  Polyline,
-  Stop,
-} from "react-native-svg";
 import { useAuth } from "@/utils/auth/useAuth";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { ICON } from "@/theme/iconScale";
 import AutoRideIcon from "@/components/AutoRideIcon";
+import MobileEChart from "@/components/MobileEChart";
 import useAppStore from "@/store/useAppStore";
 
 const PRIMARY = "#F5A623";
@@ -51,8 +44,6 @@ const SUCCESS = "#22C55E";
 const ERROR = "#EF4444";
 const GOLD = "#F59E0B";
 const PURPLE = "#38BDF8";
-
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 function SignOutSheet({ visible, onCancel, onConfirm }) {
   return (
@@ -231,59 +222,95 @@ function AnimatedCounter({ to, prefix = "", suffix = "", style }) {
 }
 
 function SparklineChart({ data, color, width, height }) {
-  const gradientId = useRef(`sparkFill${Math.random().toString(36).slice(2)}`).current;
-  const values = data.map(numberValue);
-  const max = Math.max(...values, 1);
-  const min = Math.min(...values, 0);
-  const range = Math.max(max - min, 1);
-  const points = values.map((value, index) => {
-    const x = values.length <= 1 ? width : (index / (values.length - 1)) * width;
-    const y = height - ((value - min) / range) * (height - 6) - 3;
-    return { x, y };
-  });
-  const linePoints = points.map((point) => `${point.x},${point.y}`).join(" ");
-  const areaPath =
-    points.length > 0
-      ? `M0,${height} L${points.map((point) => `${point.x},${point.y}`).join(" L")} L${width},${height} Z`
-      : "";
-
-  return (
-    <Svg width={width} height={height}>
-      <Defs>
-        <SvgLinearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor={color} stopOpacity="0.3" />
-          <Stop offset="1" stopColor={color} stopOpacity="0" />
-        </SvgLinearGradient>
-      </Defs>
-      {areaPath ? <Path d={areaPath} fill={`url(#${gradientId})`} /> : null}
-      {linePoints ? (
-        <Polyline
-          points={linePoints}
-          fill="none"
-          stroke={color}
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      ) : null}
-    </Svg>
+  const option = useMemo(
+    () => {
+      const values = data.map(numberValue);
+      return {
+        animationDurationUpdate: 500,
+        grid: { left: 1, right: 1, top: 3, bottom: 3 },
+        xAxis: { type: "category", show: false, data: values.map((_, index) => index) },
+        yAxis: { type: "value", show: false, scale: true },
+        series: [{
+          type: "line",
+          data: values,
+          smooth: true,
+          symbol: "none",
+          lineStyle: { color, width: 2.5 },
+          areaStyle: {
+            color: {
+              type: "linear",
+              x: 0,
+              y: 0,
+              x2: 0,
+              y2: 1,
+              colorStops: [
+                { offset: 0, color: `${color}55` },
+                { offset: 1, color: `${color}00` },
+              ],
+            },
+          },
+        }],
+      };
+    },
+    [color, data],
   );
+
+  return <MobileEChart option={option} width={width} height={height} />;
 }
 
 function TimelineBarChart({ data, xKey, metric, color }) {
-  const [activeIndex, setActiveIndex] = useState(null);
-  const tooltipScale = useRef(new Animated.Value(0)).current;
-  const values = data.map((item) => numberValue(item[metric]));
-  const max = Math.max(...values, 1);
-
-  useEffect(() => {
-    Animated.spring(tooltipScale, {
-      toValue: activeIndex === null ? 0 : 1,
-      friction: 7,
-      tension: 90,
-      useNativeDriver: true,
-    }).start();
-  }, [activeIndex, tooltipScale]);
+  const option = useMemo(
+    () => {
+      const values = data.map((item) => numberValue(item[metric]));
+      return {
+      backgroundColor: "transparent",
+      animationDurationUpdate: 500,
+      tooltip: {
+        trigger: "axis",
+        backgroundColor: "#2A2A2A",
+        borderColor: PRIMARY,
+        textStyle: { color: TEXT },
+      },
+      grid: { left: 8, right: 8, top: 12, bottom: 24 },
+      xAxis: {
+        type: "category",
+        data: data.map((item) => item[xKey]),
+        axisLine: { lineStyle: { color: BORDER } },
+        axisTick: { show: false },
+        axisLabel: { color: TEXT_SECONDARY, fontSize: 9 },
+      },
+      yAxis: { type: "value", show: false },
+      series: metric === "fare"
+        ? [{
+            type: "line",
+            data: values,
+            smooth: true,
+            symbol: "none",
+            lineStyle: { color, width: 3 },
+            areaStyle: {
+              color: {
+                type: "linear",
+                x: 0,
+                y: 0,
+                x2: 0,
+                y2: 1,
+                colorStops: [
+                  { offset: 0, color: `${color}55` },
+                  { offset: 1, color: `${color}00` },
+                ],
+              },
+            },
+          }]
+        : [{
+            type: "bar",
+            data: values,
+            barMaxWidth: 20,
+            itemStyle: { color, borderRadius: [8, 8, 0, 0] },
+          }],
+      };
+    },
+    [color, data, metric, xKey],
+  );
 
   if (data.length === 0) {
     return (
@@ -303,135 +330,40 @@ function TimelineBarChart({ data, xKey, metric, color }) {
     );
   }
 
-  return (
-    <View style={{ height: 112, paddingTop: 18 }}>
-      <View
-        style={{
-          height: 90,
-          flexDirection: "row",
-          alignItems: "flex-end",
-          gap: 6,
-        }}
-      >
-        {data.map((item, index) => {
-          const value = numberValue(item[metric]);
-          const heightPct = Math.max((value / max) * 100, value > 0 ? 8 : 3);
-          const isActive = activeIndex === index;
-          return (
-            <TouchableOpacity
-              key={`${item[xKey]}-${index}`}
-              onPress={() => setActiveIndex(isActive ? null : index)}
-              activeOpacity={0.8}
-              style={{ flex: 1, height: 90, justifyContent: "flex-end" }}
-            >
-              {isActive && (
-                <Animated.View
-                  style={{
-                    position: "absolute",
-                    top: -16,
-                    alignSelf: "center",
-                    paddingHorizontal: 6,
-                    paddingVertical: 3,
-                    borderRadius: 6,
-                    backgroundColor: TEXT,
-                    transform: [{ scale: tooltipScale }],
-                    zIndex: 2,
-                  }}
-                >
-                  <Text
-                    style={{ fontSize: 9, color: SURFACE, fontWeight: "800" }}
-                  >
-                    {metric === "fare" ? formatCurrency(value) : value}
-                  </Text>
-                </Animated.View>
-              )}
-              <View
-                style={{
-                  height: `${heightPct}%`,
-                  borderRadius: 5,
-                  backgroundColor: isActive ? color : `${color}60`,
-                }}
-              />
-              <Text
-                numberOfLines={1}
-                style={{
-                  position: "absolute",
-                  bottom: -18,
-                  alignSelf: "center",
-                  fontSize: 9,
-                  color: TEXT_SECONDARY,
-                  fontWeight: "700",
-                }}
-              >
-                {item[xKey]}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-    </View>
-  );
+  return <MobileEChart option={option} height={120} />;
 }
 
 function DonutChart({ segments, size }) {
-  const progress = useRef(new Animated.Value(0)).current;
-  const strokeWidth = 12;
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
   const largest = segments.reduce(
     (best, segment) => (segment.pct > best.pct ? segment : best),
     segments[0] || { pct: 0 },
   );
-
-  useEffect(() => {
-    progress.setValue(0);
-    Animated.timing(progress, {
-      toValue: 1,
-      duration: 1000,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: false,
-    }).start();
-  }, [progress, segments]);
-
-  let offset = 0;
+  const option = useMemo(
+    () => ({
+      animationDurationUpdate: 500,
+      series: [{
+        type: "pie",
+        radius: ["68%", "88%"],
+        center: ["50%", "50%"],
+        silent: true,
+        label: { show: false },
+        data: segments.map((segment) => ({
+          name: segment.label,
+          value: Math.max(segment.pct, 0),
+          itemStyle: {
+            color: segment.color,
+            borderColor: SURFACE,
+            borderWidth: 2,
+          },
+        })),
+      }],
+    }),
+    [segments],
+  );
 
   return (
     <View style={{ width: size, height: size, alignItems: "center" }}>
-      <Svg width={size} height={size}>
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke={BORDER}
-          strokeWidth={strokeWidth}
-          fill="none"
-        />
-        {segments.map((segment) => {
-          const dash = (circumference * segment.pct) / 100;
-          const circle = (
-            <AnimatedCircle
-              key={segment.label}
-              cx={size / 2}
-              cy={size / 2}
-              r={radius}
-              stroke={segment.color}
-              strokeWidth={strokeWidth}
-              fill="none"
-              strokeDasharray={progress.interpolate({
-                inputRange: [0, 1],
-                outputRange: [`0 ${circumference}`, `${dash} ${circumference}`],
-              })}
-              strokeDashoffset={-offset}
-              strokeLinecap="round"
-              originX={size / 2}
-              originY={size / 2}
-              rotation="-90"
-            />
-          );
-          offset += dash;
-          return circle;
-        })}
-      </Svg>
+      <MobileEChart option={option} width={size} height={size} />
       <View
         style={{
           position: "absolute",

@@ -15,18 +15,15 @@ import {
   Users,
   X,
 } from "lucide-react";
-import {
-  Bar,
-  CartesianGrid,
-  ComposedChart,
-  Line,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 import AdminShell from "@/components/AdminShell";
 import AutoRideIcon from "@/components/AutoRideIcon";
+import {
+  ChartSkeleton,
+  RevenueAreaChart,
+  RideVolumeChart,
+  Sparkline,
+  useCountUp,
+} from "@/components/AdminECharts";
 import StatusBadge, { statusForDriver as driverStatusKey } from "@/components/ui/StatusBadge";
 import { ICON } from "@/lib/iconScale";
 
@@ -134,39 +131,19 @@ function metricTone(tone) {
   }[tone] || "var(--ar-accent)";
 }
 
-function ChartTooltip({ active, payload, label }) {
-  if (!active || !payload?.length) return null;
-  const labels = { rides: "Rides", fare: "Revenue" };
-  return (
-    <div
-      className="rounded-lg border px-3 py-2 text-xs shadow-xl"
-      style={{
-        background: "rgba(13,15,18,0.94)",
-        borderColor: "var(--ar-border)",
-        color: "var(--ar-t1)",
-      }}
-    >
-      <p className="mb-1 font-semibold" style={{ color: "var(--ar-t3)" }}>
-        {label}
-      </p>
-      {payload.map((entry) => (
-        <div key={entry.dataKey} className="flex items-center gap-2">
-          <span
-            className="h-1.5 w-1.5 rounded-full"
-            style={{ background: entry.color }}
-          />
-          <span style={{ color: entry.color }}>
-            {labels[entry.dataKey] || entry.name}:{" "}
-            <strong>{entry.dataKey === "fare" ? formatCurrency(entry.value) : entry.value}</strong>
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function Metric({ label, value, tone, Icon, helper, progress }) {
+function Metric({
+  label,
+  value,
+  tone,
+  Icon,
+  helper,
+  progress,
+  sparkline,
+  loading = false,
+  formatValue = (next) => Math.round(next).toLocaleString("en-IN"),
+}) {
   const color = metricTone(tone);
+  const animatedValue = useCountUp(value);
 
   return (
     <div className="ar-metric-card">
@@ -176,7 +153,7 @@ function Metric({ label, value, tone, Icon, helper, progress }) {
             {label}
           </p>
           <p className="mt-3 truncate text-3xl font-extrabold tracking-[-0.02em]" style={{ color: "var(--ar-t1)" }}>
-            {value}
+            {loading ? "..." : formatValue(animatedValue)}
           </p>
           {helper ? (
             <p className="mt-2 text-xs font-medium" style={{ color: "var(--ar-t2)" }}>
@@ -209,6 +186,9 @@ function Metric({ label, value, tone, Icon, helper, progress }) {
           </div>
         </div>
       ) : null}
+      <div className="mt-3">
+        <Sparkline data={sparkline} color={color.startsWith("#") ? color : "#F5A623"} loading={loading} />
+      </div>
     </div>
   );
 }
@@ -679,15 +659,10 @@ function PaymentsPanel({ drivers }) {
 }
 
 export default function AdminPage() {
-  const [isMounted, setIsMounted] = useState(false);
   const [stats, setStats] = useState(null);
   const [drivers, setDrivers] = useState([]);
   const [rides, setRides] = useState([]);
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   useEffect(() => {
     let active = true;
@@ -770,34 +745,43 @@ export default function AdminPage() {
         <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Metric
             label="Active Rides"
-            value={stats ? numberValue(stats.activeRides) : "..."}
+            value={numberValue(stats?.activeRides)}
             helper={`${numberValue(stats?.todayRides)} rides today`}
             tone="amber"
             Icon={Route}
             progress={numberValue(stats?.todayRides) ? Math.min(numberValue(stats?.activeRides) * 20, 100) : 0}
+            sparkline={chartData.map((item) => item.rides)}
+            loading={isInitialLoading}
           />
           <Metric
             label="Online Drivers"
-            value={stats ? numberValue(stats.activeDrivers) : "..."}
+            value={numberValue(stats?.activeDrivers)}
             helper={`${onlineDrivers}/${numberValue(stats?.totalDrivers)} approved online`}
             tone="green"
             Icon={AutoRideIcon}
             progress={numberValue(stats?.totalDrivers) ? Math.round((onlineDrivers / numberValue(stats?.totalDrivers)) * 100) : 0}
+            sparkline={topDrivers.map((driver) => numberValue(driver.completed_rides_30d))}
+            loading={isInitialLoading}
           />
           <Metric
             label="Completed"
-            value={stats ? numberValue(stats.completedRides) : "..."}
+            value={numberValue(stats?.completedRides)}
             helper={`${completionProgress}% completion rate`}
             tone="cyan"
             Icon={Activity}
             progress={completionProgress}
+            sparkline={chartData.map((item) => item.rides)}
+            loading={isInitialLoading}
           />
           <Metric
             label="Today Fare"
-            value={stats ? formatCurrency(stats.todayFareValue) : "..."}
+            value={numberValue(stats?.todayFareValue)}
             helper={`${formatCurrency(stats?.totalFareValue)} lifetime fare`}
             tone="amber"
             Icon={IndianRupee}
+            sparkline={chartData.map((item) => item.fare)}
+            loading={isInitialLoading}
+            formatValue={formatCurrency}
           />
         </section>
 
@@ -814,48 +798,13 @@ export default function AdminPage() {
               </span>
             </div>
             <div className="h-[250px]">
-              {!isMounted ? null : chartData.length ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={chartData} margin={{ left: -20, right: 6, top: 8, bottom: 0 }}>
-                    <CartesianGrid stroke="rgba(255,255,255,0.05)" vertical={false} />
-                    <XAxis dataKey="label" tick={{ fill: "#565C6E", fontSize: 11 }} axisLine={false} tickLine={false} />
-                    <YAxis
-                      yAxisId="rides"
-                      tick={{ fill: "#565C6E", fontSize: 11 }}
-                      axisLine={false}
-                      tickLine={false}
-                      allowDecimals={false}
-                    />
-                    <YAxis
-                      yAxisId="fare"
-                      orientation="right"
-                      tick={{ fill: "#565C6E", fontSize: 11 }}
-                      axisLine={false}
-                      tickFormatter={(value) => `Rs.${Math.round(numberValue(value))}`}
-                      tickLine={false}
-                      width={58}
-                    />
-                    <Tooltip content={<ChartTooltip />} />
-                    <Bar
-                      yAxisId="rides"
-                      dataKey="rides"
-                      name="Rides"
-                      fill="#F5A623"
-                      fillOpacity={0.72}
-                      radius={[5, 5, 0, 0]}
-                    />
-                    <Line
-                      yAxisId="fare"
-                      type="monotone"
-                      dataKey="fare"
-                      name="Revenue"
-                      stroke="#38BDF8"
-                      strokeWidth={2.4}
-                      dot={{ r: 2.5, fill: "#38BDF8", strokeWidth: 0 }}
-                      activeDot={{ r: 4, fill: "#38BDF8", stroke: "#0D0F12", strokeWidth: 2 }}
-                    />
-                  </ComposedChart>
-                </ResponsiveContainer>
+              {isInitialLoading ? (
+                <ChartSkeleton height={250} />
+              ) : chartData.length ? (
+                <div className="grid h-full grid-cols-1 gap-3 md:grid-cols-2">
+                  <RevenueAreaChart data={chartData} height={250} />
+                  <RideVolumeChart data={chartData} height={250} />
+                </div>
               ) : (
                 <div className="flex h-full flex-col items-center justify-center rounded-lg border" style={{ borderColor: "var(--ar-border)", color: "var(--ar-t3)" }}>
                   <Clock size={24} />

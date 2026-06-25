@@ -36,8 +36,23 @@ database name before starting.
 - Driver receives nearby fixed-fare ride request.
 - Driver accepts ride.
 - Driver sees accepted ride card with call icon, Start Ride, and Cancel.
+- Trigger a driver refresh/action and confirm the animated top line appears
+  without replacing or flickering the dashboard.
 - Driver starts ride.
 - Driver completes ride.
+
+## Accepted Ride Cancellation
+
+- Passenger cancels an accepted ride:
+  - passenger sees one branded confirmation
+  - driver sees one in-app cancellation notice
+  - driver receives a push notification while backgrounded
+  - no native OS alert or duplicate dialog appears.
+- Driver cancels an accepted ride:
+  - driver sees one branded confirmation
+  - passenger sees one in-app cancellation notice
+  - passenger receives a push notification while backgrounded
+  - no native OS alert or duplicate dialog appears.
 
 ## Fare Negotiation
 
@@ -67,9 +82,11 @@ database name before starting.
 ## Admin
 
 - Admin reviews drivers, KYC queue, rides, zones, and audit log.
-- Open the admin dashboard and admin-ops dashboard after a cold page load.
-- Confirm both charts keep their expected height and render after hydration
+- Open the web admin dashboard and admin-ops dashboard after a cold page load.
+- Confirm web ECharts keep their expected height and render after hydration
   without blank/collapsed containers or hydration warnings.
+- Open the mobile admin dashboard on Android and iOS and confirm ECharts
+  sparklines, ride flow, revenue area, and ride-health donut render and update.
 - Confirm admin actions create audit log entries.
 - Confirm non-admin users cannot access admin routes.
 

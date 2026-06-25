@@ -4,6 +4,7 @@ import {
   getAcceptedRideTimeoutMinutes,
 } from "@/app/api/utils/dispatch";
 import { sendPushToUsers } from "@/app/api/utils/push-notifications";
+import { triggerRideEvent } from "@/lib/pusher/server";
 
 function readCancellationReason(value, fallback) {
   if (typeof value !== "string") return fallback;
@@ -287,9 +288,22 @@ export async function PATCH(request, { params }) {
         if (driverUserRows[0]?.user_id) notifyUserIds.push(driverUserRows[0].user_id);
       }
       await sendPushToUsers(notifyUserIds, {
-        title: "Ride cancelled",
-        body: "This ride has been cancelled.",
-        data: { type: "ride_cancelled", rideId: cancelledRide.id },
+        title: driverId ? "Driver cancelled the ride" : "Passenger cancelled the ride",
+        body: driverId
+          ? "Your driver can no longer complete this ride."
+          : "The passenger has cancelled this ride.",
+        data: {
+          type: "ride_cancelled",
+          rideId: cancelledRide.id,
+          actorRole: driverId ? "driver" : "passenger",
+          reason: actorReason,
+        },
+      });
+      await triggerRideEvent(cancelledRide.id, "ride-cancelled", {
+        rideId: cancelledRide.id,
+        actorRole: driverId ? "driver" : "passenger",
+        reason: actorReason,
+        cancelledAt: cancelledRide.cancelled_at || new Date().toISOString(),
       });
       return Response.json({ ride: result[0] });
     }

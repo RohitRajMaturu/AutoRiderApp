@@ -19,7 +19,12 @@ export default defineConfig({
   optimizeDeps: {
     // Explicitly include fast-glob, since it gets dynamically imported and we
     // don't want that to cause a re-bundle.
-    include: ['fast-glob', 'lucide-react'],
+    include: [
+      'fast-glob',
+      'lucide-react',
+      'echarts',
+      'echarts-for-react',
+    ],
     exclude: [
       '@hono/auth-js/react',
       '@hono/auth-js',

@@ -93,8 +93,14 @@ decisions.
 - Verify KYC submission and admin review on production-like devices.
 - Sign out from passenger, driver, and admin role groups and confirm protected
   tab content never flashes before redirecting to the welcome screen.
-- Verify admin and admin-ops Recharts render after hydration and retain their
-  expected height.
+- Verify web admin/admin-ops ECharts retain their expected height after
+  hydration and mobile admin ECharts render correctly on physical iOS and
+  Android devices.
+- Verify accepted-ride cancellation in both directions:
+  - the cancelling user sees one branded in-app confirmation
+  - the other party sees an in-app notice
+  - the other party receives a push notification when backgrounded
+  - no native OS alert or duplicate cancellation dialog appears.
 - Send one temporary test event from web and mobile production-like builds,
   confirm each reaches the correct Sentry project, then remove the trigger.
 
@@ -138,8 +144,16 @@ Completed locally:
   admin heading instead of the previous custom rickshaw SVG.
 - Compact web admin vehicle indicators use the shared auto icon. The original
   landing and passenger/driver sign-in artwork remains unchanged.
-- Admin and admin-ops Recharts wait for browser mount before rendering, avoiding
-  zero-size SSR measurements and preserving chart height during hydration.
+- Admin and admin-ops use ECharts with stable loading placeholders; mobile admin
+  uses the React Native ECharts SVG renderer for sparklines, ride flow, revenue,
+  and ride-health charts.
+- Accepted-ride chat messages are persisted with polling fallback, quick replies,
+  sent/read state, and automatic chat opening for incoming messages.
+- Passenger and driver ride cancellation publishes a private ride event, sends
+  an Expo push to the opposite party, and uses branded in-app notices instead of
+  native cancellation alerts.
+- Driver background loading and action progress is shown with an animated top
+  line while keeping the dashboard mounted.
 - Admin fare/chart queries and driver daily earnings use explicit
   `Asia/Kolkata` boundaries and event-time buckets instead of database-session
   `CURRENT_DATE`.

@@ -32,6 +32,7 @@ import * as Location from "expo-location";
 import { toast } from "sonner-native";
 import TukTukGoLoader from "@/components/TukTukGoLoader";
 import AutoRideIcon from "@/components/AutoRideIcon";
+import ChatDrawer from "@/components/ChatDrawer";
 import { Button, RIDE_STATUS_CONFIG, StatusBadge } from "@/components/ui";
 import { ICON } from "@/theme/iconScale";
 import { useAuth } from "@/utils/auth/useAuth";
@@ -167,6 +168,10 @@ export default function PassengerHome() {
   const [fareInputError, setFareInputError] = useState("");
   const [incomingOffers, setIncomingOffers] = useState([]);
   const [negotiationRemaining, setNegotiationRemaining] = useState(0);
+  const [activeRideChannel, setActiveRideChannel] = useState(null);
+  const lastActiveRideIdRef = useRef(null);
+  const selfCancelledRideIdsRef = useRef(new Set());
+  const notifiedCancelledRideIdsRef = useRef(new Set());
   const [dismissedRatingRideIds, setDismissedRatingRideIds] = useState(
     () => new Set(),
   );
@@ -220,6 +225,40 @@ export default function PassengerHome() {
     retry: false,
     refetchOnWindowFocus: false,
   });
+  const activeRideId = activeRide?.id;
+  const activeRideStatus = activeRide?.status;
+
+  useEffect(() => {
+    if (activeRideId) lastActiveRideIdRef.current = activeRideId;
+  }, [activeRideId]);
+
+  const { data: latestCancelledRide } = useQuery({
+    queryKey: ["latestPassengerCancelledRide"],
+    queryFn: async () => {
+      const res = await fetch("/api/rides?filter=cancelled&pageSize=1");
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.rides?.[0] || null;
+    },
+    refetchInterval: 5000,
+    staleTime: 3000,
+  });
+
+  useEffect(() => {
+    if (
+      !latestCancelledRide?.id ||
+      latestCancelledRide.id !== lastActiveRideIdRef.current ||
+      selfCancelledRideIdsRef.current.has(latestCancelledRide.id) ||
+      notifiedCancelledRideIdsRef.current.has(latestCancelledRide.id)
+    ) {
+      return;
+    }
+    notifiedCancelledRideIdsRef.current.add(latestCancelledRide.id);
+    toast("Driver cancelled the ride", {
+      description: "Please request another ride when you are ready.",
+      duration: 4000,
+    });
+  }, [latestCancelledRide]);
 
   const { data: tripEstimate, isFetching: tripEstimateLoading } = useQuery({
     queryKey: [
@@ -454,7 +493,7 @@ export default function PassengerHome() {
   useEffect(() => {
     if (!activeRide || activeRide.status !== "negotiating") return;
 
-    const pusher = createRidePusher(auth);
+    const pusher = createRidePusher({ jwt: auth?.jwt });
     if (!pusher) return;
 
     const channelName = `private-ride-${activeRide.id}`;
@@ -493,6 +532,41 @@ export default function PassengerHome() {
       pusher.disconnect();
     };
   }, [activeRide?.id, activeRide?.status, auth?.jwt, queryClient]);
+
+  useEffect(() => {
+    if (!activeRideId || activeRideStatus !== "accepted") {
+      setActiveRideChannel(null);
+      return undefined;
+    }
+
+    const pusher = createRidePusher({ jwt: auth?.jwt });
+    if (!pusher) {
+      setActiveRideChannel(null);
+      return undefined;
+    }
+
+    const channelName = `private-ride-${activeRideId}`;
+    const channel = pusher.subscribe(channelName);
+    channel.bind("ride-cancelled", (data) => {
+      if (data?.actorRole === "passenger") return;
+      if (data?.rideId) notifiedCancelledRideIdsRef.current.add(data.rideId);
+      toast("Driver cancelled the ride", {
+        description: "Please request another ride when you are ready.",
+        duration: 4000,
+      });
+      queryClient.invalidateQueries({ queryKey: ["activeRide"] });
+      queryClient.invalidateQueries({ queryKey: ["passengerRides"] });
+      queryClient.invalidateQueries({ queryKey: ["latestPassengerCancelledRide"] });
+    });
+    setActiveRideChannel(channel);
+
+    return () => {
+      setActiveRideChannel(null);
+      channel.unbind_all();
+      pusher.unsubscribe(channelName);
+      pusher.disconnect();
+    };
+  }, [activeRideId, activeRideStatus, auth?.jwt, queryClient]);
 
   const expireNegotiation = useMutation({
     mutationFn: async (rideId) => {
@@ -607,7 +681,8 @@ export default function PassengerHome() {
       if (!res.ok) throw new Error("Failed to cancel");
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      if (data?.ride?.id) selfCancelledRideIdsRef.current.add(data.ride.id);
       cancelSheetRef.current?.close();
       setShowCancelReasons(false);
       setSelectedCancelReason(CANCEL_REASONS[0].value);
@@ -615,7 +690,11 @@ export default function PassengerHome() {
       queryClient.invalidateQueries({ queryKey: ["activeRide"] });
       queryClient.invalidateQueries({ queryKey: ["passengerRides"] });
     },
-    onError: () => Alert.alert("Error", "Could not cancel the ride"),
+    onError: () =>
+      toast("Could not cancel the ride", {
+        description: "Please try again.",
+        duration: 3500,
+      }),
   });
 
   const rateRide = useMutation({
@@ -1448,27 +1527,43 @@ export default function PassengerHome() {
                           {activeRide.can_call ? "Need help? Call securely." : "Driver details confirmed."}
                         </Text>
                       </View>
-                      {activeRide.can_call && (
-                        <TouchableOpacity
-                          onPress={() => requestMaskedCall.mutate(activeRide.id)}
-                          disabled={requestMaskedCall.isPending}
-                          style={{
-                            alignSelf: "stretch",
-                            marginTop: 14,
-                            height: 46,
-                            borderRadius: 999,
-                            backgroundColor: SUCCESS,
-                            justifyContent: "center",
-                            alignItems: "center",
-                            opacity: requestMaskedCall.isPending ? 0.65 : 1,
-                          }}
-                          accessibilityLabel="Call assigned driver"
-                        >
-                          <Phone size={ICON.md} color="#fff" />
-                        </TouchableOpacity>
-                      )}
                     </View>
                   )}
+
+                {activeRide.status === "accepted" ? (
+                  <View
+                    style={{
+                      alignItems: "center",
+                      flexDirection: "row",
+                      gap: 10,
+                      marginTop: 14,
+                    }}
+                  >
+                    {activeRide.can_call ? (
+                      <TouchableOpacity
+                        onPress={() => requestMaskedCall.mutate(activeRide.id)}
+                        disabled={requestMaskedCall.isPending}
+                        style={{
+                          alignItems: "center",
+                          backgroundColor: SUCCESS,
+                          borderRadius: 999,
+                          flex: 1,
+                          height: 46,
+                          justifyContent: "center",
+                          opacity: requestMaskedCall.isPending ? 0.65 : 1,
+                        }}
+                        accessibilityLabel="Call assigned driver"
+                      >
+                        <Phone size={ICON.md} color="#fff" />
+                      </TouchableOpacity>
+                    ) : null}
+                    <ChatDrawer
+                      rideId={activeRide.id}
+                      pusherChannel={activeRideChannel}
+                      role="passenger"
+                    />
+                  </View>
+                ) : null}
 
                 {activeRide.status === "accepted" && (
                   <TouchableOpacity

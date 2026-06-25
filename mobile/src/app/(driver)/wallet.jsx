@@ -31,9 +31,9 @@ const RIDE_HISTORY_FILTERS = [
   { key: "90d", label: "90D" },
 ];
 const SUBSCRIPTION_PLANS = [
-  { key: "starter", label: "Starter", price: "Entry", desc: "Best for occasional ride hours" },
-  { key: "active", label: "Active", price: "Popular", desc: "Balanced access for daily drivers" },
-  { key: "pro", label: "Pro", price: "Priority", desc: "For high-frequency driver partners" },
+  { key: "starter", label: "Starter", price: "₹249/month", desc: "Best for occasional ride hours" },
+  { key: "active", label: "Active", price: "₹399/month", desc: "Balanced access for daily drivers" },
+  { key: "pro", label: "Pro", price: "₹549/month", desc: "For high-frequency driver partners" },
 ];
 
 function createBenefits(theme) {

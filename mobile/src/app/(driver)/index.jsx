@@ -12,6 +12,7 @@ import {
   RefreshControl,
   Image as RNImage,
   Modal,
+  useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -27,7 +28,12 @@ import {
   Image as ImageIcon,
   IndianRupee,
 } from "lucide-react-native";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useIsMutating,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { FlashList } from "@shopify/flash-list";
 import { StatusBar } from "expo-status-bar";
 import * as Location from "expo-location";
@@ -35,6 +41,7 @@ import * as ImagePicker from "expo-image-picker";
 import { Audio } from "expo-av";
 import { toast } from "sonner-native";
 import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedView";
+import ChatDrawer from "@/components/ChatDrawer";
 import { Button } from "@/components/ui";
 import { MotionPressable } from "@/components/motion";
 import { useAuth } from "@/utils/auth/useAuth";
@@ -976,7 +983,17 @@ function RideRequestCard({
         )}
 
         {isNegotiating && !isWaitingForPassenger && !hasDeclined && (
-          <MotionPressable onPress={() => onFareOffer(ride.id, { offerType: "decline" })} disabled={isOffering || isLocked} style={{ marginTop: 10 }}>
+          <MotionPressable
+            onPress={() => onFareOffer(ride.id, { offerType: "decline" })}
+            disabled={isOffering || isLocked}
+            style={{
+              alignItems: "center",
+              alignSelf: "center",
+              marginTop: 10,
+              paddingHorizontal: 20,
+              paddingVertical: 8,
+            }}
+          >
             <Text style={{ color: "#DC2626", fontSize: 13, fontWeight: "700" }}>Decline</Text>
           </MotionPressable>
         )}
@@ -1067,6 +1084,7 @@ function ActiveRideCard({
   isStarting,
   isCompleting,
   isCancelling,
+  pusherChannel,
 }) {
   const hasStarted = Boolean(ride.started_at);
   return (
@@ -1117,24 +1135,31 @@ function ActiveRideCard({
             </Text>
           </View>
           <View style={{ alignItems: "flex-end", gap: 10 }}>
-            {ride.can_call && (
-              <MotionPressable
-                onPress={() => onCall(ride.id)}
-                disabled={isCalling}
-                accessibilityLabel="Call passenger"
-                style={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: 21,
-                  backgroundColor: SUCCESS,
-                  justifyContent: "center",
-                  alignItems: "center",
-                  opacity: isCalling ? 0.65 : 1,
-                }}
-              >
-                <Phone size={ICON.md} color="#fff" />
-              </MotionPressable>
-            )}
+            <View style={{ alignItems: "center", flexDirection: "row", gap: 10 }}>
+              {ride.can_call ? (
+                <MotionPressable
+                  onPress={() => onCall(ride.id)}
+                  disabled={isCalling}
+                  accessibilityLabel="Call passenger"
+                  style={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: 21,
+                    backgroundColor: SUCCESS,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    opacity: isCalling ? 0.65 : 1,
+                  }}
+                >
+                  <Phone size={ICON.md} color="#fff" />
+                </MotionPressable>
+              ) : null}
+              <ChatDrawer
+                rideId={ride.id}
+                pusherChannel={pusherChannel}
+                role="driver"
+              />
+            </View>
             <View
               style={{
                 paddingHorizontal: 12,
@@ -1368,6 +1393,26 @@ function CompletedRideSummary({ ride, onDismiss }) {
 }
 
 function TopLineLoader({ visible }) {
+  const progress = useRef(new Animated.Value(0)).current;
+  const { width } = useWindowDimensions();
+
+  useEffect(() => {
+    if (!visible) {
+      progress.stopAnimation();
+      progress.setValue(0);
+      return undefined;
+    }
+    const animation = Animated.loop(
+      Animated.timing(progress, {
+        toValue: 1,
+        duration: 950,
+        useNativeDriver: true,
+      }),
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [progress, visible]);
+
   if (!visible) return null;
 
   return (
@@ -1383,13 +1428,21 @@ function TopLineLoader({ visible }) {
         zIndex: 10,
       }}
     >
-      <View
+      <Animated.View
         style={{
           width: "42%",
           height: "100%",
           backgroundColor: PRIMARY,
           borderTopRightRadius: 99,
           borderBottomRightRadius: 99,
+          transform: [
+            {
+              translateX: progress.interpolate({
+                inputRange: [0, 1],
+                outputRange: [-width * 0.42, width],
+              }),
+            },
+          ],
         }}
       />
     </View>
@@ -1467,12 +1520,14 @@ function ConfirmActionModal({ config, onClose }) {
 export default function DriverHome() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
+  const activeMutationCount = useIsMutating();
   const notifiedCancelledRideIds = useRef(new Set());
   const notifiedRideRequestIds = useRef(new Set());
   const [lockedRideIds, setLockedRideIds] = useState(() => new Set());
   const [completedRideSummary, setCompletedRideSummary] = useState(null);
   const [visibleRequestCount, setVisibleRequestCount] = useState(5);
   const [confirmAction, setConfirmAction] = useState(null);
+  const [activeRideChannel, setActiveRideChannel] = useState(null);
   const onlineToggleAnim = useRef(new Animated.Value(0)).current;
   const { auth } = useAuth();
   const authUserKey =
@@ -1521,6 +1576,9 @@ export default function DriverHome() {
     enabled: !!driverData?.driver,
     staleTime: 30000,
   });
+  const activeRideForChatId = (ridesData?.rides || []).find(
+    (ride) => ride.status === "accepted",
+  )?.id;
 
   useEffect(() => {
     Animated.spring(onlineToggleAnim, {
@@ -1540,8 +1598,8 @@ export default function DriverHome() {
     );
     if (!cancelledRide) return;
     notifiedCancelledRideIds.current.add(cancelledRide.id);
-    Alert.alert(
-      "Ride Cancelled",
+    showDriverNotice(
+      "Passenger cancelled the ride",
       formatCancellationReason(cancelledRide.cancellation_reason),
     );
   }, [ridesData?.rides]);
@@ -1579,7 +1637,7 @@ export default function DriverHome() {
     );
     if (negotiatingRides.length === 0) return;
 
-    const pusher = createRidePusher(auth);
+    const pusher = createRidePusher({ jwt: auth?.jwt });
     if (!pusher) return;
 
     const channels = negotiatingRides.map((ride) => {
@@ -1610,6 +1668,39 @@ export default function DriverHome() {
       pusher.disconnect();
     };
   }, [ridesData?.rides, auth?.jwt, driverData?.driver?.id, authUserKey, queryClient]);
+
+  useEffect(() => {
+    if (!activeRideForChatId) {
+      setActiveRideChannel(null);
+      return undefined;
+    }
+
+    const pusher = createRidePusher({ jwt: auth?.jwt });
+    if (!pusher) {
+      setActiveRideChannel(null);
+      return undefined;
+    }
+
+    const channelName = `private-ride-${activeRideForChatId}`;
+    const channel = pusher.subscribe(channelName);
+    channel.bind("ride-cancelled", (data) => {
+      if (data?.actorRole === "driver") return;
+      if (data?.rideId) notifiedCancelledRideIds.current.add(data.rideId);
+      showDriverNotice(
+        "Passenger cancelled the ride",
+        formatCancellationReason(data?.reason),
+      );
+      queryClient.invalidateQueries({ queryKey: ["driverRides", authUserKey] });
+    });
+    setActiveRideChannel(channel);
+
+    return () => {
+      setActiveRideChannel(null);
+      channel.unbind_all();
+      pusher.unsubscribe(channelName);
+      pusher.disconnect();
+    };
+  }, [activeRideForChatId, auth?.jwt, authUserKey, queryClient]);
 
   const toggleStatus = useMutation({
     mutationFn: async (online) => {
@@ -1797,11 +1888,12 @@ export default function DriverHome() {
       }
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      if (data?.ride?.id) notifiedCancelledRideIds.current.add(data.ride.id);
       queryClient.invalidateQueries({ queryKey: ["driverRides", authUserKey] });
-      Alert.alert("Ride Cancelled", "The ride has been cancelled.");
+      showDriverNotice("Ride cancelled", "The passenger has been notified.");
     },
-    onError: (err) => Alert.alert("Cancel Failed", err.message),
+    onError: (err) => showDriverNotice("Cancel failed", err.message),
   });
 
   if (driverLoading && !driverData) {
@@ -1910,7 +2002,9 @@ export default function DriverHome() {
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
       <StatusBar style="dark" />
-      <TopLineLoader visible={driverLoading || isRefetching} />
+      <TopLineLoader
+        visible={driverLoading || isRefetching || activeMutationCount > 0}
+      />
 
       {/* Header */}
       <View
@@ -2142,6 +2236,7 @@ export default function DriverHome() {
             isStarting={startRide.isPending}
             isCompleting={completeRide.isPending}
             isCancelling={cancelRide.isPending}
+            pusherChannel={activeRideChannel}
           />
         )}
         {!activeRide && completedRideSummary && (

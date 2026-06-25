@@ -212,6 +212,7 @@ export default function RootLayout() {
       pathname.startsWith("/admin");
 
     if (!auth && inProtectedGroup) {
+      router.dismissAll();
       router.replace("/");
     }
   }, [auth, firstSegment, isReady, pathname, router]);

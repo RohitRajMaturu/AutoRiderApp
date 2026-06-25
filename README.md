@@ -12,10 +12,23 @@ A lightweight auto-rickshaw ride connection platform for India.
 ## Core Features
 - **Passengers**: Request rides, choose fixed fare or a guided negotiated offer, adjust pickup on a native map, see driver details, share trip status through the OS share sheet, and track ride history.
 - **Drivers**: Create their account, register vehicle/license, complete KYC, toggle online/offline status, accept nearby rides, send fare counters, complete rides, and view paginated completed ride history.
-- **Admin**: Approve/Reject driver applications, manage subscriptions.
+- **Admin**: Approve/reject driver applications, manage subscriptions, and
+  monitor ride, revenue, cancellation, and driver KPIs with ECharts dashboards
+  on web and mobile.
 - **Subscription Model**: Drivers need an active subscription to go online.
 
 ## Getting Started
+
+Start the mobile app with the project-isolated Metro cache:
+
+```powershell
+cd mobile
+npm start
+```
+
+If Expo's online dependency check is unavailable, use `npm run start:offline`.
+The launcher keeps Metro cache files under `mobile/.metro-temp` instead of the
+shared Windows temporary directory, preventing `ENOTEMPTY` cache-clear races.
 
 ### 1. Database Setup
 Create the required Postgres tables from the checked-in migrations:
@@ -151,9 +164,10 @@ They do not call `<Redirect>` themselves because the root navigator may be
 mid-transition. The root layout is the sole logout navigation owner and waits
 for `rootNavigationState.key` before calling `router.replace("/")`.
 
-The web admin dashboards defer Recharts rendering until the browser mounts.
-Their fixed-height placeholders keep SSR and hydration stable while preventing
-`ResponsiveContainer` from measuring a nonexistent server-side DOM.
+The web admin dashboards use `echarts-for-react` with fixed-height shimmer
+placeholders while data loads. The mobile admin dashboard uses Apache ECharts
+through its React Native SVG renderer for area, bar, donut, and sparkline
+visualizations.
 
 Admin fare totals, ride charts, driver "today" trip counts, and driver earnings
 use `Asia/Kolkata` calendar boundaries. Ride volume is bucketed by request time,
@@ -209,6 +223,16 @@ PUSHER_CLUSTER=ap2
 EXPO_PUBLIC_PUSHER_KEY=
 EXPO_PUBLIC_PUSHER_CLUSTER=ap2
 ```
+
+Accepted-ride chat and cancellation updates also use private ride channels for
+fast foreground delivery. Chat messages are persisted and polled as a fallback,
+while cancellation state is always reconciled through ride polling. Cancelling
+a ride sends the opposite party a branded in-app notice and an Expo push
+notification.
+
+The driver dashboard keeps its content mounted during background work and shows
+a thin animated top progress line for loading, refreshes, and driver actions,
+avoiding the previous full-screen loading flicker.
 
 ## Completed Backend Location Work
 

@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   auth: vi.fn(),
   sql: vi.fn(),
   sendPushToUsers: vi.fn(),
+  triggerRideEvent: vi.fn(),
 }));
 
 vi.mock("@/auth", () => ({
@@ -18,12 +19,17 @@ vi.mock("@/app/api/utils/push-notifications", () => ({
   sendPushToUsers: mocks.sendPushToUsers,
 }));
 
+vi.mock("@/lib/pusher/server", () => ({
+  triggerRideEvent: mocks.triggerRideEvent,
+}));
+
 describe("ride detail route", () => {
   beforeEach(() => {
     vi.resetModules();
     mocks.auth.mockReset();
     mocks.sql.mockReset();
     mocks.sendPushToUsers.mockReset();
+    mocks.triggerRideEvent.mockReset();
     mocks.sql.transaction = vi.fn((callback) => callback(mocks.sql));
   });
 
@@ -91,6 +97,50 @@ describe("ride detail route", () => {
     expect(response.status).toBe(409);
     expect(body.code).toBe("RIDE_CANCELLED");
     expect(body.error).toBe("Passenger cancelled this ride");
+  });
+
+  it("notifies the driver when a passenger cancels an accepted ride", async () => {
+    mocks.auth.mockResolvedValue({ user: { id: "passenger-1" } });
+    mocks.sql
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{
+        id: "ride-1",
+        status: "cancelled",
+        passenger_id: "passenger-1",
+        driver_id: "driver-1",
+        cancellation_reason: "plans_changed",
+        cancelled_at: "2026-06-25T12:00:00.000Z",
+      }])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ user_id: "driver-user-1" }]);
+    mocks.triggerRideEvent.mockResolvedValue(true);
+    const { PATCH } = await import("@/app/api/rides/[id]/route.js");
+
+    const response = await PATCH(
+      new Request("http://localhost/api/rides/ride-1", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "cancel", reason: "plans_changed" }),
+      }),
+      { params: { id: "ride-1" } },
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.sendPushToUsers).toHaveBeenCalledWith(
+      ["driver-user-1"],
+      expect.objectContaining({
+        title: "Passenger cancelled the ride",
+        data: expect.objectContaining({ actorRole: "passenger" }),
+      }),
+    );
+    expect(mocks.triggerRideEvent).toHaveBeenCalledWith(
+      "ride-1",
+      "ride-cancelled",
+      expect.objectContaining({
+        actorRole: "passenger",
+        reason: "plans_changed",
+      }),
+    );
   });
 
   it("allows a passenger to rate their completed ride once", async () => {

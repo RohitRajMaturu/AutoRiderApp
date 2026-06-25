@@ -259,14 +259,21 @@
   }
 
   @keyframes ar-shimmer {
-    0% { background-position: -400px 0; }
-    100% { background-position: 400px 0; }
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
   }
 
   .ar-skeleton {
     border-radius: 6px;
     background: linear-gradient(90deg, var(--ar-s2) 25%, var(--ar-s3) 50%, var(--ar-s2) 75%);
-    background-size: 400px 100%;
+    background-size: 200% 100%;
+    animation: ar-shimmer 1.4s ease-in-out infinite;
+  }
+
+  .ar-chart-skeleton {
+    border-radius: 10px;
+    background: linear-gradient(90deg, #1A1A1A, #2A2A2A, #1A1A1A);
+    background-size: 200% 100%;
     animation: ar-shimmer 1.4s ease-in-out infinite;
   }
 

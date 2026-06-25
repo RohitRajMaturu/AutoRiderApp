@@ -5,16 +5,6 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import {
-  Bar,
-  CartesianGrid,
-  ComposedChart,
-  Line,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-import {
   ChevronDown,
   ChevronUp,
   Download,
@@ -29,6 +19,14 @@ import {
 import { toast } from "sonner";
 import AdminShell from "@/components/AdminShell";
 import AutoRideIcon from "@/components/AutoRideIcon";
+import {
+  ChartSkeleton,
+  FleetDonutChart,
+  RevenueAreaChart,
+  RideVolumeChart,
+  Sparkline,
+  useCountUp,
+} from "@/components/AdminECharts";
 import StatusBadge, { statusForDriver as driverStatusKey } from "@/components/ui/StatusBadge";
 import { ICON } from "@/lib/iconScale";
 
@@ -125,31 +123,6 @@ function formatDay(value) {
   return date.toLocaleDateString("en-IN", { weekday: "short" });
 }
 
-function useAnimatedCount(target, duration = 800) {
-  const [value, setValue] = useState(numberValue(target));
-
-  useEffect(() => {
-    const start = performance.now();
-    const from = value;
-    const to = numberValue(target);
-    let frame = 0;
-
-    const tick = (now) => {
-      const progress = Math.min((now - start) / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setValue(Math.round(from + (to - from) * eased));
-      if (progress < 1) {
-        frame = requestAnimationFrame(tick);
-      }
-    };
-
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-  }, [target, duration]);
-
-  return value;
-}
-
 const Card = forwardRef(function Card({ children, className = "" }, ref) {
   return (
     <section
@@ -200,7 +173,7 @@ function Skeleton() {
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.8fr)]">
         <div className="rounded-lg border p-5" style={{ borderColor: "var(--ar-border)", background: "var(--ar-s2)" }}>
           <div className="mb-5 h-4 w-44 animate-pulse rounded-full" style={{ background: "var(--ar-s3)" }} />
-          <div className="h-56 animate-pulse rounded-lg" style={{ background: "var(--ar-s3)" }} />
+          <ChartSkeleton height={260} />
         </div>
         <div className="rounded-lg border p-5" style={{ borderColor: "var(--ar-border)", background: "var(--ar-s2)" }}>
           {Array.from({ length: 5 }).map((_, index) => (
@@ -233,57 +206,12 @@ function ErrorBanner({ show, onRetry }) {
   );
 }
 
-function FleetDonut({ idle, online }) {
-  const size = 54;
-  const stroke = 8;
-  const radius = (size - stroke) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const idlePct = online > 0 ? idle / online : 0;
-  const busyPct = 1 - idlePct;
-
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={radius}
-        fill="none"
-        stroke={"var(--ar-s3)"}
-        strokeWidth={stroke}
-      />
-      <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={radius}
-        fill="none"
-        stroke={"var(--ar-ok)"}
-        strokeWidth={stroke}
-        strokeDasharray={`${circumference * idlePct} ${circumference}`}
-        strokeLinecap="round"
-        transform={`rotate(-90 ${size / 2} ${size / 2})`}
-      />
-      <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={radius}
-        fill="none"
-        stroke={"var(--ar-accent)"}
-        strokeWidth={stroke}
-        strokeDasharray={`${circumference * busyPct} ${circumference}`}
-        strokeDashoffset={-(circumference * idlePct)}
-        strokeLinecap="round"
-        transform={`rotate(-90 ${size / 2} ${size / 2})`}
-      />
-    </svg>
-  );
-}
-
 function MetricCards({ snapshot }) {
-  const liveRides = useAnimatedCount(snapshot.liveRides);
-  const onlineDrivers = useAnimatedCount(snapshot.onlineDrivers);
-  const todayFare = useAnimatedCount(snapshot.todayFare);
+  const liveRides = useCountUp(snapshot.liveRides);
+  const onlineDrivers = useCountUp(snapshot.onlineDrivers);
+  const todayFare = useCountUp(snapshot.todayFare);
   const avgRating = snapshot.conversionFunnel?.avg_rating;
-  const animatedRating = useAnimatedCount(avgRating ? avgRating * 10 : 0);
+  const animatedRating = useCountUp(avgRating ? avgRating * 10 : 0);
   const idle = numberValue(snapshot.idleDrivers);
   const online = numberValue(snapshot.onlineDrivers);
   const completedToday = numberValue(snapshot.todayCompletedRides);
@@ -291,6 +219,13 @@ function MetricCards({ snapshot }) {
   const todayTotal = completedToday + cancelledToday;
   const completionPct = todayTotal ? Math.round((completedToday / todayTotal) * 100) : 0;
   const funnel = snapshot.conversionFunnel || {};
+  const hourly = snapshot.hourlyToday || [];
+  const ridesSparkline = hourly.map((item) => numberValue(item.total));
+  const completedSparkline = hourly.map((item) => numberValue(item.completed));
+  const fareSparkline = hourly.map((item) => numberValue(item.fare));
+  const driverSparkline = (snapshot.weeklyTimeline || []).map((item) =>
+    numberValue(item.completed),
+  );
   const leftRequested = numberValue(funnel.left_requested);
   const completionRate = leftRequested
     ? Math.round((numberValue(funnel.completed) / leftRequested) * 100)
@@ -349,6 +284,7 @@ function MetricCards({ snapshot }) {
             ? `Attention: ${snapshot.demandSupplyGap} unmet requests`
             : "Supply adequate"}
         </p>
+        <Sparkline data={ridesSparkline} />
       </section>
 
       <section className="ar-metric-card">
@@ -367,7 +303,7 @@ function MetricCards({ snapshot }) {
           </div>
           <div className="flex flex-col items-end gap-3">
             <MetricIcon Icon={Users} tone="var(--ar-ok)" />
-            <FleetDonut idle={idle} online={online} />
+            <FleetDonutChart idle={idle} online={online} />
           </div>
         </div>
         {snapshot.staleDriverCount > 0 ? (
@@ -375,6 +311,7 @@ function MetricCards({ snapshot }) {
             {snapshot.staleDriverCount} may be ghost online
           </p>
         ) : null}
+        <Sparkline data={driverSparkline.length ? driverSparkline : completedSparkline} />
       </section>
 
       <section className="ar-metric-card">
@@ -399,6 +336,7 @@ function MetricCards({ snapshot }) {
             style={{ width: `${completionPct}%`, backgroundColor: "var(--ar-accent)" }}
           />
         </div>
+        <Sparkline data={fareSparkline} />
       </section>
 
       <section className="ar-metric-card">
@@ -426,34 +364,15 @@ function MetricCards({ snapshot }) {
         >
           {completionRate}% completed
         </span>
+        <Sparkline data={completedSparkline} />
       </section>
     </div>
   );
 }
 
-function ChartTooltip({ active, payload, label }) {
-  if (!active || !payload?.length) return null;
-  const point = payload[0]?.payload || {};
-  return (
-    <div className="rounded-lg border p-3 text-xs shadow-lg" style={{ borderColor: "var(--ar-border)", background: "var(--ar-s3)" }}>
-      <p className="mb-2 font-semibold" style={{ color: "var(--ar-t1)" }}>
-        {label}
-      </p>
-      <p style={{ color: "var(--ar-t2)" }}>Total: {point.total}</p>
-      <p style={{ color: "var(--ar-t2)" }}>Completed: {point.completed}</p>
-      <p style={{ color: "var(--ar-t2)" }}>Fare: {formatCurrency(point.fare)}</p>
-    </div>
-  );
-}
-
-function Timeline({ snapshot, sectionRef }) {
-  const [isMounted, setIsMounted] = useState(false);
+function Timeline({ snapshot, sectionRef, loading = false }) {
   const [range, setRange] = useState("today");
   const [metric, setMetric] = useState("rides");
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   const data = useMemo(() => {
     if (range === "today") {
@@ -532,28 +451,12 @@ function Timeline({ snapshot, sectionRef }) {
           </div>
         </div>
       </div>
-      {isMounted ? (
-        <ResponsiveContainer width="100%" height={260}>
-          <ComposedChart data={data}>
-            <CartesianGrid stroke="var(--ar-border)" vertical={false} strokeDasharray="4 4" />
-            <XAxis dataKey="label" tick={{ fill: "var(--ar-t2)", fontSize: 11 }} axisLine={false} tickLine={false} />
-            <YAxis yAxisId="rides" tick={{ fill: "var(--ar-t2)", fontSize: 11 }} axisLine={false} tickLine={false} />
-            <YAxis yAxisId="fare" orientation="right" hide />
-            <Tooltip content={<ChartTooltip />} />
-            <Bar yAxisId="rides" dataKey="total" fill="var(--ar-s3)" radius={[4, 4, 0, 0]} />
-            <Bar yAxisId="rides" dataKey="completed" fill="var(--ar-accent)" radius={[4, 4, 0, 0]} />
-            <Line
-              yAxisId="fare"
-              type="monotone"
-              dataKey="fare"
-              stroke="var(--ar-info)"
-              strokeWidth={2}
-              dot={false}
-            />
-          </ComposedChart>
-        </ResponsiveContainer>
+      {loading ? (
+        <ChartSkeleton height={260} />
+      ) : metric === "fare" ? (
+        <RevenueAreaChart data={data} height={260} />
       ) : (
-        <div style={{ height: 260 }} />
+        <RideVolumeChart data={data} height={260} />
       )}
     </Card>
   );
@@ -1391,7 +1294,7 @@ function AdminOpsPageContent() {
               </div>
 
               <div className="grid grid-cols-1 gap-5 2xl:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.8fr)]">
-                <Timeline snapshot={snapshot} />
+                <Timeline snapshot={snapshot} loading={snapshotQuery.isLoading} />
                 <div ref={zonesRef} className="grid gap-5 scroll-mt-24">
                   <ZoneActivity snapshot={snapshot} />
                   <Funnel snapshot={snapshot} />
