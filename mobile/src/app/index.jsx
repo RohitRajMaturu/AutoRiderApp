@@ -6,218 +6,33 @@ import {
   View,
   Text,
   TouchableOpacity,
-  ActivityIndicator,
   Animated,
-  Modal,
-  Pressable,
+  Image,
 } from "react-native";
 import {
   ArrowRight,
-  FlaskConical,
   Gauge,
   IndianRupee,
   ShieldCheck,
   UserRound,
-  CarFront,
-  Settings,
-  Crown,
+  UserPlus,
 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import useAppStore from "../store/useAppStore";
+import TukTukGoLoader from "../components/TukTukGoLoader";
 
-const SAFFRON = "#F97316";
+const SAFFRON = "#43B8B3";
 const INDIA_GREEN = "#138808";
-const DARK = "#1C1917";
-
-function RolePickerModal({ visible, onClose, onSelect }) {
-  const roles = [
-    {
-      id: "passenger",
-      Icon: UserRound,
-      title: "Passenger",
-      desc: "Book autos, track rides, call drivers",
-      color: SAFFRON,
-      bg: "#FFF7ED",
-      border: "#FED7AA",
-    },
-    {
-      id: "driver",
-      Icon: CarFront,
-      title: "Driver",
-      desc: "Go online, accept rides, manage subscription",
-      color: "#16A34A",
-      bg: "#F0FDF4",
-      border: "#BBF7D0",
-    },
-    {
-      id: "admin",
-      Icon: Settings,
-      title: "Admin",
-      desc: "Dashboard, driver approvals, analytics",
-      color: "#2563EB",
-      bg: "#EFF6FF",
-      border: "#BFDBFE",
-    },
-  ];
-
-  return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable
-        style={{
-          flex: 1,
-          backgroundColor: "#00000060",
-          justifyContent: "flex-end",
-        }}
-        onPress={onClose}
-      >
-        <Pressable onPress={() => {}}>
-          <View
-            style={{
-              backgroundColor: "#fff",
-              borderTopLeftRadius: 28,
-              borderTopRightRadius: 28,
-              padding: 28,
-              paddingBottom: 40,
-            }}
-          >
-            <View
-              style={{
-                width: 40,
-                height: 4,
-                borderRadius: 2,
-                backgroundColor: "#E7E5E4",
-                alignSelf: "center",
-                marginBottom: 24,
-              }}
-            />
-
-            <Text
-              style={{
-                fontSize: 20,
-                fontWeight: "800",
-                color: DARK,
-                marginBottom: 6,
-                letterSpacing: 0,
-              }}
-            >
-              Choose Role to Test
-            </Text>
-            <Text
-              style={{
-                fontSize: 13,
-                color: "#78716C",
-                marginBottom: 24,
-                lineHeight: 20,
-              }}
-            >
-              Explore each section of the app without signing in. API calls may show empty data.
-            </Text>
-
-            <View
-              style={{
-                backgroundColor: "#FFFBEB",
-                borderRadius: 12,
-                borderWidth: 1,
-                borderColor: "#FDE68A",
-                padding: 12,
-                marginBottom: 20,
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 10,
-              }}
-            >
-              <FlaskConical size={18} color="#92400E" />
-              <Text
-                style={{
-                  fontSize: 12,
-                  color: "#92400E",
-                  flex: 1,
-                  lineHeight: 18,
-                }}
-              >
-                Test mode - UI is fully functional. Sign in with a real account to use live data.
-              </Text>
-            </View>
-
-            <View style={{ gap: 12 }}>
-              {roles.map((role) => (
-                <TouchableOpacity
-                  key={role.id}
-                  onPress={() => onSelect(role.id)}
-                  style={{
-                    backgroundColor: role.bg,
-                    borderRadius: 16,
-                    borderWidth: 1.5,
-                    borderColor: role.border,
-                    padding: 16,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 16,
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <View
-                    style={{
-                      width: 52,
-                      height: 52,
-                      borderRadius: 26,
-                      backgroundColor: "#fff",
-                      justifyContent: "center",
-                      alignItems: "center",
-                      shadowColor: "#000",
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.08,
-                      shadowRadius: 6,
-                      elevation: 2,
-                    }}
-                  >
-                    <role.Icon size={26} color={role.color} strokeWidth={2.4} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={{
-                        fontSize: 16,
-                        fontWeight: "700",
-                        color: role.color,
-                      }}
-                    >
-                      {role.title}
-                    </Text>
-                    <Text
-                      style={{
-                        fontSize: 12,
-                        color: "#78716C",
-                        marginTop: 3,
-                        lineHeight: 18,
-                      }}
-                    >
-                      {role.desc}
-                    </Text>
-                  </View>
-                  <ArrowRight size={20} color={role.color} />
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
-  );
-}
+const DARK = "#17272B";
+const TUKTUKGO_ICON = require("../../assets/images/icon.png");
 
 export default function Index() {
-  const { auth, signIn, signUp, isReady } = useAuth();
+  const { auth, signIn, signUp, isReady, isSigningOut } = useAuth();
   const insets = useSafeAreaInsets();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(40)).current;
-  const [showRolePicker, setShowRolePicker] = useState(false);
-
-  const { testMode, testRole, testModeLoaded, loadTestMode, enableTestMode } = useAppStore();
-
-  useEffect(() => {
-    loadTestMode();
-  }, [loadTestMode]);
+  const logoShineAnim = useRef(new Animated.Value(0)).current;
+  const [selectedRole, setSelectedRole] = useState("passenger");
 
   useEffect(() => {
     Animated.parallel([
@@ -234,59 +49,96 @@ export default function Index() {
     ]).start();
   }, [fadeAnim, slideAnim]);
 
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.timing(logoShineAnim, {
+        toValue: 1,
+        duration: 3200,
+        useNativeDriver: true,
+      }),
+    );
+
+    logoShineAnim.setValue(0);
+    animation.start();
+    return () => animation.stop();
+  }, [logoShineAnim]);
+
   const { data, isLoading } = useQuery({
-    queryKey: ["userProfile"],
+    queryKey: ["userProfile", auth?.user?.id || auth?.user?.email || auth?.user?.phone || "anonymous"],
     queryFn: async () => {
       const response = await fetch("/api/user-profile");
       if (!response.ok) throw new Error("Failed to fetch profile");
       return response.json();
     },
     enabled: !!auth,
+    staleTime: 0,
   });
 
-  if (!testModeLoaded || !isReady || (auth && isLoading)) {
+  // Guard: never redirect based on stale data during or just after sign-out
+  const canRedirect = isReady && !isSigningOut && !isLoading;
+
+  if (!isReady || isSigningOut || (auth && isLoading)) {
     return (
       <View
         style={{
           flex: 1,
-          justifyContent: "center",
-          alignItems: "center",
-          backgroundColor: "#FFFBF5",
+          backgroundColor: "#EAF0F1",
         }}
       >
-        <ActivityIndicator size="large" color={SAFFRON} />
-        <Text style={{ marginTop: 12, fontSize: 14, color: "#78716C" }}>
-          Loading Auto Ride...
-        </Text>
+        <TukTukGoLoader
+          fullScreen
+          label="Loading TukTukGo..."
+          color={SAFFRON}
+        />
       </View>
     );
   }
 
-  if (testMode && testRole) {
-    if (testRole === "admin") return <Redirect href="/(admin)" />;
-    if (testRole === "driver") return <Redirect href="/(driver)" />;
-    return <Redirect href="/(passenger)" />;
-  }
-
-  if (auth) {
-    const role = data?.user?.role || "passenger";
+  if (canRedirect && auth) {
+    const role = data?.user?.role || auth?.user?.role || "passenger";
     if (role === "admin") return <Redirect href="/(admin)" />;
     if (role === "driver") return <Redirect href="/(driver)" />;
     return <Redirect href="/(passenger)" />;
   }
 
+  const selectedRoleMeta =
+    selectedRole === "driver"
+      ? {
+          id: "driver",
+          label: "Driver",
+          title: "Driver account",
+          subtitle: "Register, verify KYC, then go online after approval.",
+          Icon: Gauge,
+          color: "#16A34A",
+          bg: "#F0FDF4",
+          border: "#BBF7D0",
+        }
+      : selectedRole === "admin"
+        ? {
+            id: "admin",
+            label: "Admin",
+            title: "Admin access",
+            subtitle: "Sign in to manage drivers, rides, zones, and reviews.",
+            Icon: ShieldCheck,
+            color: DARK,
+            bg: "#F5F5F4",
+            border: "#D8E4E5",
+          }
+        : {
+            id: "passenger",
+            label: "Passenger",
+            title: "Passenger account",
+            subtitle: "Book autos, track rides, and view trip history.",
+            Icon: UserRound,
+            color: SAFFRON,
+            bg: "#E7F6F4",
+            border: "#BFE5E0",
+          };
+  const SelectedRoleIcon = selectedRoleMeta.Icon;
+
   return (
     <View style={{ flex: 1, backgroundColor: DARK }}>
       <StatusBar style="light" />
-      <RolePickerModal
-        visible={showRolePicker}
-        onClose={() => setShowRolePicker(false)}
-        onSelect={async (role) => {
-          setShowRolePicker(false);
-          await enableTestMode(role);
-        }}
-      />
-
       <View style={{ flex: 1, justifyContent: "flex-end" }}>
         <View
           style={{
@@ -336,24 +188,91 @@ export default function Index() {
             transform: [{ translateY: slideAnim }],
           }}
         >
-          <View
+          <Animated.View
             style={{
-              width: 80,
-              height: 80,
-              borderRadius: 24,
-              backgroundColor: SAFFRON,
+              width: 104,
+              height: 104,
+              borderRadius: 30,
+              backgroundColor: "#101820",
               justifyContent: "center",
               alignItems: "center",
-              marginBottom: 28,
-              shadowColor: SAFFRON,
-              shadowOffset: { width: 0, height: 8 },
-              shadowOpacity: 0.4,
-              shadowRadius: 16,
+              marginBottom: 26,
+              borderWidth: 1,
+              borderColor: "#FFFFFF18",
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 12 },
+              shadowOpacity: 0.34,
+              shadowRadius: 22,
               elevation: 12,
+              overflow: "hidden",
             }}
           >
-            <Text style={{ fontSize: 40 }}>🛺</Text>
-          </View>
+            <Image
+              source={TUKTUKGO_ICON}
+              style={{
+                width: 96,
+                height: 96,
+                borderRadius: 27,
+              }}
+              resizeMode="cover"
+            />
+            <View
+              pointerEvents="none"
+              style={{
+                position: "absolute",
+                inset: 4,
+                borderRadius: 27,
+                overflow: "hidden",
+              }}
+            >
+              <Animated.View
+                style={{
+                  position: "absolute",
+                  top: -44,
+                  left: -54,
+                  width: 34,
+                  height: 190,
+                  backgroundColor: "#FFFFFF",
+                  opacity: logoShineAnim.interpolate({
+                    inputRange: [0, 0.18, 0.34, 1],
+                    outputRange: [0, 0.32, 0, 0],
+                  }),
+                  transform: [
+                    { rotate: "24deg" },
+                    {
+                      translateX: logoShineAnim.interpolate({
+                        inputRange: [0, 0.34, 1],
+                        outputRange: [-12, 168, 168],
+                      }),
+                    },
+                  ],
+                }}
+              />
+              <Animated.View
+                style={{
+                  position: "absolute",
+                  left: 14,
+                  right: 14,
+                  bottom: 14,
+                  height: 20,
+                  borderRadius: 999,
+                  backgroundColor: "#F3B51B",
+                  opacity: logoShineAnim.interpolate({
+                    inputRange: [0, 0.45, 0.6, 0.8, 1],
+                    outputRange: [0.04, 0.04, 0.18, 0.04, 0.04],
+                  }),
+                  transform: [
+                    {
+                      scaleX: logoShineAnim.interpolate({
+                        inputRange: [0, 0.6, 1],
+                        outputRange: [0.72, 1, 0.72],
+                      }),
+                    },
+                  ],
+                }}
+              />
+            </View>
+          </Animated.View>
 
           <Text
             style={{
@@ -363,18 +282,17 @@ export default function Index() {
               letterSpacing: 0,
             }}
           >
-            Auto{"\n"}
-            <Text style={{ color: SAFFRON }}>Ride</Text>
+            <Text style={{ color: "#F3B51B" }}>Tuk</Text>TukGo
           </Text>
           <Text
             style={{
               fontSize: 16,
-              color: "#A8A29E",
+              color: "#647678",
               marginTop: 12,
               lineHeight: 24,
             }}
           >
-            India's simplest auto-rickshaw{"\n"}ride connection platform
+            India&apos;s simplest auto-rickshaw{"\n"}ride connection platform
           </Text>
 
           <View style={{ flexDirection: "row", gap: 8, marginTop: 32 }}>
@@ -419,112 +337,184 @@ export default function Index() {
           <Text
             style={{
               fontSize: 22,
-              fontWeight: "700",
-              color: "#1C1917",
+              fontWeight: "800",
+              color: "#17272B",
               marginBottom: 6,
             }}
           >
-            Get Started
+            Get started
           </Text>
           <Text
             style={{
               fontSize: 14,
-              color: "#78716C",
-              marginBottom: 24,
+              color: "#586C70",
+              marginBottom: 18,
               lineHeight: 20,
             }}
           >
-            Sign in to book an auto or start earning as a driver today.
+            Choose your role once, then continue with the right account flow.
           </Text>
-
-          <TouchableOpacity
-            onPress={() => signIn()}
-            style={{
-              backgroundColor: SAFFRON,
-              borderRadius: 14,
-              paddingVertical: 17,
-              alignItems: "center",
-              shadowColor: SAFFRON,
-              shadowOffset: { width: 0, height: 6 },
-              shadowOpacity: 0.35,
-              shadowRadius: 12,
-              elevation: 8,
-            }}
-            activeOpacity={0.85}
-          >
-            <Text
-              style={{
-                color: "#fff",
-                fontSize: 17,
-                fontWeight: "700",
-                letterSpacing: 0,
-              }}
-            >
-              Continue with Email / Number
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => signUp({ params: { role: "admin" } })}
-            style={{
-              backgroundColor: "#111827",
-              borderRadius: 14,
-              paddingVertical: 15,
-              alignItems: "center",
-              marginTop: 12,
-              flexDirection: "row",
-              justifyContent: "center",
-              gap: 8,
-            }}
-            activeOpacity={0.85}
-          >
-            <Crown size={18} color="#FBBF24" />
-            <Text style={{ color: "#fff", fontSize: 15, fontWeight: "800" }}>
-              Continue as Admin
-            </Text>
-          </TouchableOpacity>
 
           <View
             style={{
+              backgroundColor: "#F7FBFA",
+              borderColor: "#D8E4E5",
+              borderRadius: 18,
+              borderWidth: 1,
               flexDirection: "row",
-              alignItems: "center",
-              gap: 12,
-              marginVertical: 18,
+              gap: 6,
+              marginBottom: 14,
+              padding: 5,
             }}
           >
-            <View style={{ flex: 1, height: 1, backgroundColor: "#E7E5E4" }} />
-            <Text style={{ fontSize: 12, color: "#A8A29E", fontWeight: "600" }}>
-              OR
-            </Text>
-            <View style={{ flex: 1, height: 1, backgroundColor: "#E7E5E4" }} />
+            {[
+              { id: "passenger", label: "Passenger", Icon: UserRound },
+              { id: "driver", label: "Driver", Icon: Gauge },
+              { id: "admin", label: "Admin", Icon: ShieldCheck },
+            ].map((item) => {
+              const selected = selectedRole === item.id;
+              const RoleIcon = item.Icon;
+              const color =
+                item.id === "driver" ? "#16A34A" : item.id === "admin" ? DARK : SAFFRON;
+              return (
+                <TouchableOpacity
+                  key={item.id}
+                  onPress={() => setSelectedRole(item.id)}
+                  style={{
+                    alignItems: "center",
+                    backgroundColor: selected ? color : "transparent",
+                    borderRadius: 13,
+                    flex: 1,
+                    flexDirection: "row",
+                    gap: 5,
+                    justifyContent: "center",
+                    minHeight: 42,
+                  }}
+                  activeOpacity={0.86}
+                >
+                  <RoleIcon size={16} color={selected ? "#fff" : color} />
+                  <Text
+                    style={{
+                      color: selected ? "#fff" : "#586C70",
+                      fontSize: 12,
+                      fontWeight: "900",
+                    }}
+                  >
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <View
+            style={{
+              backgroundColor: selectedRoleMeta.bg,
+              borderColor: selectedRoleMeta.border,
+              borderRadius: 18,
+              borderWidth: 1,
+              flexDirection: "row",
+              gap: 12,
+              marginBottom: 14,
+              padding: 14,
+            }}
+          >
+            <View
+              style={{
+                alignItems: "center",
+                backgroundColor: "#fff",
+                borderRadius: 14,
+                height: 44,
+                justifyContent: "center",
+                width: 44,
+              }}
+            >
+              <SelectedRoleIcon size={22} color={selectedRoleMeta.color} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: "#17272B", fontSize: 15, fontWeight: "900" }}>
+                {selectedRoleMeta.title}
+              </Text>
+              <Text style={{ color: "#586C70", fontSize: 12, lineHeight: 17, marginTop: 2 }}>
+                {selectedRoleMeta.subtitle}
+              </Text>
+            </View>
           </View>
 
           <TouchableOpacity
-            onPress={() => setShowRolePicker(true)}
+            onPress={() => signIn({ params: { role: selectedRole } })}
             style={{
-              backgroundColor: "#F5F5F4",
+              backgroundColor: selectedRoleMeta.color,
               borderRadius: 14,
-              paddingVertical: 15,
               alignItems: "center",
-              borderWidth: 1.5,
-              borderColor: "#E7E5E4",
               flexDirection: "row",
-              justifyContent: "center",
               gap: 8,
+              justifyContent: "center",
+              paddingVertical: 16,
+              shadowColor: selectedRoleMeta.color,
+              shadowOffset: { width: 0, height: 6 },
+              shadowOpacity: 0.28,
+              shadowRadius: 12,
+              elevation: 7,
             }}
-            activeOpacity={0.8}
+            activeOpacity={0.85}
           >
-            <FlaskConical size={18} color="#44403C" />
-            <Text style={{ color: "#44403C", fontSize: 15, fontWeight: "700" }}>
-              Skip Sign In - Test App
+            <ArrowRight size={18} color="#fff" />
+            <Text style={{ color: "#fff", fontSize: 16, fontWeight: "900" }}>
+              Sign in as {selectedRoleMeta.label}
             </Text>
           </TouchableOpacity>
+
+          {selectedRole === "admin" ? (
+            <View
+              style={{
+                alignItems: "center",
+                backgroundColor: "#F7FBFA",
+                borderColor: "#D8E4E5",
+                borderRadius: 14,
+                borderWidth: 1,
+                flexDirection: "row",
+                gap: 8,
+                justifyContent: "center",
+                marginTop: 10,
+                paddingHorizontal: 14,
+                paddingVertical: 14,
+              }}
+            >
+              <ShieldCheck size={18} color="#586C70" />
+              <Text style={{ color: "#586C70", flex: 1, fontSize: 13, fontWeight: "800", textAlign: "center" }}>
+                Admin accounts are managed by platform owners
+              </Text>
+            </View>
+          ) : (
+            <TouchableOpacity
+              onPress={() => signUp({ params: { role: selectedRole } })}
+              style={{
+                borderColor: selectedRoleMeta.border,
+                borderRadius: 14,
+                borderWidth: 1,
+                alignItems: "center",
+                backgroundColor: "#fff",
+                flexDirection: "row",
+                gap: 8,
+                justifyContent: "center",
+                marginTop: 10,
+                paddingVertical: 14,
+              }}
+              activeOpacity={0.85}
+            >
+              <UserPlus size={18} color={selectedRoleMeta.color} />
+              <Text style={{ color: selectedRoleMeta.color, fontSize: 14, fontWeight: "900" }}>
+                Create {selectedRoleMeta.label} Account
+              </Text>
+            </TouchableOpacity>
+          )}
 
           <Text
             style={{
               textAlign: "center",
               fontSize: 11,
-              color: "#A8A29E",
+              color: "#647678",
               marginTop: 16,
               lineHeight: 16,
             }}
@@ -536,3 +526,4 @@ export default function Index() {
     </View>
   );
 }
+

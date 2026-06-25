@@ -1,0 +1,139 @@
+{
+  "palette": {
+    "autoYellow": "#F3B51B",
+    "autoGreen": "#1F8A4C",
+    "autoBlack": "#17272B",
+    "primary": "#43B8B3",
+    "primaryDark": "#339E9A",
+    "success": "#22C55E",
+    "error": "#EF4444",
+    "purple": "#7C3AED",
+    "text": "#17272B",
+    "textSecondary": "#647678",
+    "surface": "#FFFFFF",
+    "darkSurface": "#17272B",
+    "road": "#D8E4E5"
+  },
+  "animations": [
+    {
+      "id": "searching-nearby-auto",
+      "text": "Finding nearby autos...",
+      "loop": true,
+      "sequence": [
+        "Auto eases left and right over a soft road shadow.",
+        "Three radar rings pulse outward from the GPS center.",
+        "Location pins fade in staggered order, then disappear for seamless loop."
+      ],
+      "timing": "0-400ms settle, 400-1600ms radar pulse, 1600-2000ms pin fade reset.",
+      "rive": "State machine: idle_loop; inputs: theme, reduceMotion. Artboards: auto, radar, pins."
+    },
+    {
+      "id": "driver-match-found",
+      "text": "Driver found!",
+      "loop": false,
+      "sequence": [
+        "Auto starts left and travels toward a glowing destination pin.",
+        "Auto brakes with a small suspension dip.",
+        "Success check draws on, followed by restrained teal/gold particles."
+      ],
+      "timing": "0-900ms approach, 900-1150ms stop, 1150-1600ms check and particles.",
+      "rive": "State machine: intro -> found_complete; trigger: play. Inputs: theme."
+    },
+    {
+      "id": "driver-arriving",
+      "text": "Driver is on the way",
+      "loop": true,
+      "sequence": [
+        "Dotted route reveals from driver side to passenger pin.",
+        "Auto glides along the route and loops back invisibly.",
+        "Passenger pin gently pulses to anchor the waiting state."
+      ],
+      "timing": "0-2500ms route travel loop with pin pulse every 900ms.",
+      "rive": "State machine: arriving_loop; numeric input progress 0..1 for ETA sync."
+    },
+    {
+      "id": "ride-in-progress",
+      "text": "Ride in progress",
+      "loop": true,
+      "sequence": [
+        "Pickup and destination markers stay fixed.",
+        "Auto moves continuously along a curved route.",
+        "Route shimmer suggests motion without visual noise."
+      ],
+      "timing": "0-2500ms continuous route loop.",
+      "rive": "State machine: ride_loop; numeric input routeProgress."
+    },
+    {
+      "id": "ride-completed",
+      "text": "Ride completed successfully",
+      "loop": false,
+      "sequence": [
+        "Auto reaches destination marker.",
+        "Destination glow expands into a success ring.",
+        "Auto settles while checkmark appears."
+      ],
+      "timing": "0-1000ms arrive, 1000-1400ms ring, 1400-1800ms check settle.",
+      "rive": "State machine: complete_once; trigger: complete."
+    },
+    {
+      "id": "booking-button-loader",
+      "text": "Finding Auto...",
+      "loop": true,
+      "sequence": [
+        "Tiny auto enters from left inside button-safe frame.",
+        "Road dash scrolls opposite direction.",
+        "Auto exits and re-enters with no jump."
+      ],
+      "timing": "0-1200ms seamless button loop.",
+      "rive": "State machine: button_loop; artboard 120x48."
+    },
+    {
+      "id": "no-drivers-available",
+      "text": "No autos nearby right now",
+      "loop": false,
+      "sequence": [
+        "Parked auto rests beside a quiet road.",
+        "Three nearby pins fade away one by one.",
+        "Scene holds on a calm empty state."
+      ],
+      "timing": "0-900ms pins disappear, 900-2000ms hold.",
+      "rive": "State machine: empty_hold; trigger: reset."
+    },
+    {
+      "id": "payment-success",
+      "text": "Payment successful",
+      "loop": false,
+      "sequence": [
+        "Green success ring opens at center.",
+        "Auto passes through the ring.",
+        "UPI-style success check locks in."
+      ],
+      "timing": "0-450ms ring, 450-1100ms pass-through, 1100-1600ms check.",
+      "rive": "State machine: payment_success; trigger: paid."
+    },
+    {
+      "id": "detecting-location",
+      "text": "Detecting your location...",
+      "loop": true,
+      "sequence": [
+        "GPS marker pins to center.",
+        "Two radar rings expand and fade.",
+        "Center dot breathes subtly."
+      ],
+      "timing": "0-2000ms radar loop.",
+      "rive": "State machine: gps_loop; boolean input hasLock."
+    },
+    {
+      "id": "splash-screen",
+      "text": "TukTukGo",
+      "loop": false,
+      "sequence": [
+        "Auto outline draws progressively.",
+        "Cab fills with yellow and green brand colors.",
+        "Wheels and wordmark settle into final lockup."
+      ],
+      "timing": "0-1200ms outline draw, 1200-2100ms fill, 2100-2500ms settle.",
+      "rive": "State machine: splash_once; trigger: start; events: finished."
+    }
+  ]
+}

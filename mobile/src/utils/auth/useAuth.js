@@ -1,8 +1,14 @@
-import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useCallback, useEffect } from 'react';
 import { useAuthModal, useAuthStore, authKey, secureStoreOptions } from './store';
+import useAppStore from '@/store/useAppStore';
+import queryClient from '@/utils/queryClient';
 
+const MOBILE_SIGNUP_ROLES = new Set(['passenger', 'driver']);
+
+function getMobileSignupRole(role) {
+  return MOBILE_SIGNUP_ROLES.has(role) ? role : 'passenger';
+}
 
 /**
  * This hook provides authentication functionality.
@@ -11,8 +17,9 @@ import { useAuthModal, useAuthStore, authKey, secureStoreOptions } from './store
  * directly.
  */
 export const useAuth = () => {
-  const { isReady, auth, setAuth } = useAuthStore();
-  const { isOpen, close, open } = useAuthModal();
+  const { isReady, auth, setAuth, isSigningOut, setSigningOut } = useAuthStore();
+  const { close, open } = useAuthModal();
+  const resetSessionState = useAppStore((state) => state.resetSessionState);
 
   const initiate = useCallback(() => {
     // The auth state machine must always reach a terminal state. SecureStore
@@ -26,12 +33,15 @@ export const useAuth = () => {
       new Promise((resolve) => setTimeout(() => resolve(null), 3000)),
     ])
       .then((stored) => {
+        const nextAuth = stored ? JSON.parse(stored) : null;
+        queryClient.clear();
         useAuthStore.setState({
-          auth: stored ? JSON.parse(stored) : null,
+          auth: nextAuth,
           isReady: true,
         });
       })
       .catch(() => {
+        queryClient.clear();
         useAuthStore.setState({ auth: null, isReady: true });
       });
   }, []);
@@ -42,18 +52,39 @@ export const useAuth = () => {
     open({ mode: 'signin', params: options?.params });
   }, [open]);
   const signUp = useCallback((options) => {
-    open({ mode: 'signup', params: options?.params });
+    const params = options?.params || {};
+    open({
+      mode: 'signup',
+      params: {
+        ...params,
+        role: getMobileSignupRole(params.role),
+      },
+    });
   }, [open]);
 
-  const signOut = useCallback(() => {
-    setAuth(null);
-    close();
-    router.replace('/');
-  }, [close, setAuth]);
+  const signOut = useCallback(async () => {
+    setSigningOut(true);
+    try {
+      close();
+
+      await queryClient.cancelQueries();
+
+      setAuth(null);
+      queryClient.removeQueries({ queryKey: ["userProfile"] });
+
+      await Promise.allSettled([
+        Promise.resolve(resetSessionState()),
+        SecureStore.deleteItemAsync(authKey, secureStoreOptions),
+      ]);
+    } finally {
+      setSigningOut(false);
+    }
+  }, [close, resetSessionState, setAuth, setSigningOut]);
 
   return {
     isReady,
     isAuthenticated: isReady ? !!auth : null,
+    isSigningOut,
     signIn,
     signOut,
     signUp,

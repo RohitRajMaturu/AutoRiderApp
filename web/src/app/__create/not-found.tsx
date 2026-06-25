@@ -7,7 +7,7 @@ export async function loader({ params }: Route.LoaderArgs) {
   };
 }
 
-export default function AutoRideNotFoundPage({
+export default function TukTukGoNotFoundPage({
   loaderData,
 }: {
   loaderData: Awaited<ReturnType<typeof loader>>;
@@ -21,7 +21,7 @@ export default function AutoRideNotFoundPage({
         <div className="mb-8 flex h-20 w-20 items-center justify-center rounded-[24px] bg-[#F97316] shadow-[0_12px_30px_rgba(249,115,22,0.35)]">
           <img
             src="/favicon.png"
-            alt="Auto Ride"
+            alt="TukTukGo"
             className="h-[72px] w-[72px] rounded-[20px] object-contain"
           />
         </div>
@@ -36,14 +36,14 @@ export default function AutoRideNotFoundPage({
         </h1>
         <p className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-stone-300">
           We could not find <span className="font-bold text-white">/{missingPath}</span>.
-          Head back to Auto Ride and continue from a known screen.
+          Head back to TukTukGo and continue from a known screen.
         </p>
 
         <Link
           to="/"
           className="mt-7 inline-flex w-full items-center justify-center rounded-2xl bg-[#F97316] px-5 py-4 text-base font-extrabold text-white shadow-[0_10px_24px_rgba(249,115,22,0.28)] transition hover:bg-[#EA580C]"
         >
-          Back to Auto Ride
+          Back to TukTukGo
         </Link>
       </section>
     </main>

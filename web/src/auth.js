@@ -13,6 +13,14 @@ async function readToken(request) {
     return null;
   }
 
+  const bearerToken = await getToken({
+    req: request,
+    secret: process.env.AUTH_SECRET,
+  });
+  if (bearerToken?.sub) {
+    return bearerToken;
+  }
+
   for (const cookieName of AUTH_COOKIE_NAMES) {
     const token = await getToken({
       req: request,

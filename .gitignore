@@ -1,1 +1,31 @@
+# Environment files and local secrets
+.env
+.env.*
+!.env.example
+!.env.sample
 web/.env
+web/.env.*
+!web/.env.example
+mobile/.env
+mobile/.env.*
+!mobile/.env.example
+
+# Native signing credentials
+*.jks
+*.keystore
+*.p8
+*.p12
+*.pem
+*.key
+*.mobileprovision
+google-services.json
+GoogleService-Info.plist
+
+# Local runtime uploads and generated private data
+web/public/uploads/
+uploads/
+
+# Local tooling
+.DS_Store
+Thumbs.db
+mobile/design_recommendations/*

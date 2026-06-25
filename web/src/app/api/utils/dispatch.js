@@ -29,11 +29,19 @@ export function getDriverHeartbeatTimeoutSeconds() {
   });
 }
 
+export function getDriverRideRadiusMeters() { // PATCHED:
+  return getEnvNumber("DRIVER_RIDE_RADIUS_KM", 8, {
+    min: 1,
+    max: 50,
+  }) * 1000;
+}
+
 export async function findZoneForPoint(lat, lng, scopedSql = sql) {
   const rows = await scopedSql`
     SELECT id, name, max_online_drivers
     FROM geo_zones
     WHERE is_active = true
+      AND dispatch_enabled = true
       AND ST_Covers(boundary::geometry, ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326))
     ORDER BY created_at ASC
     LIMIT 1
@@ -71,19 +79,22 @@ export async function autoCancelGhostRides(scopedSql = sql) {
   `;
 }
 
-export async function selectZoneDrivers(zoneId, scopedSql = sql) {
+export async function selectZoneDrivers(zoneId, pickupLat, pickupLng, scopedSql = sql) { // PATCHED:
   if (!zoneId) return [];
-  await offlineExpiredDrivers(scopedSql);
+  const radiusMeters = getDriverRideRadiusMeters(); // PATCHED:
   const rows = await scopedSql`
     SELECT d.id, d.user_id, u.phone, d.online_since, z.max_online_drivers
     FROM drivers d
     JOIN geo_zones z ON z.id = d.zone_id
     JOIN auth_users u ON u.id = d.user_id
     WHERE d.zone_id = ${zoneId}
+      AND z.is_active = true
+      AND z.dispatch_enabled = true
       AND d.is_online = true
       AND d.is_approved = true
       AND d.subscription_expiry > CURRENT_TIMESTAMP
-      AND d.last_heartbeat_at >= CURRENT_TIMESTAMP - make_interval(secs => ${getDriverHeartbeatTimeoutSeconds()})
+      AND d.location IS NOT NULL
+      AND ST_DWithin(d.location, ST_SetSRID(ST_MakePoint(${pickupLng}, ${pickupLat}), 4326)::geography, ${radiusMeters}) -- PATCHED:
     ORDER BY d.online_since ASC NULLS LAST, d.updated_at ASC
     LIMIT (SELECT max_online_drivers FROM geo_zones WHERE id = ${zoneId})
   `;
@@ -97,19 +108,30 @@ export function createBackgroundTask(task) {
 }
 
 export async function dispatchRideRequest(ride, scopedSql = sql) {
-  const drivers = await selectZoneDrivers(ride.zone_id, scopedSql);
-  for (const driver of drivers) {
-    await scopedSql`
-      INSERT INTO ride_driver_notifications (ride_id, driver_id, channel, status, payload)
-      VALUES (
-        ${ride.id},
-        ${driver.id},
-        'websocket',
-        'pending',
-        ${JSON.stringify({ type: "ride_request", ride_id: ride.id })}::jsonb
-      )
-      ON CONFLICT (ride_id, driver_id, channel) DO NOTHING
-    `;
+  const drivers = await selectZoneDrivers(ride.zone_id, ride.pickup_lat, ride.pickup_lng, scopedSql); // PATCHED:
+  if (drivers.length === 0) {
+    return 0;
   }
+
+  const payload = JSON.stringify({
+    type: ride.status === "negotiating" ? "fare_negotiation" : "ride_request",
+    ride_id: ride.id,
+  });
+  const values = [];
+  const placeholders = drivers.map((driver, index) => {
+    const offset = index * 5;
+    values.push(ride.id, driver.id, "websocket", "pending", payload);
+    return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}::jsonb)`;
+  });
+
+  await scopedSql(
+    `
+      INSERT INTO ride_driver_notifications (ride_id, driver_id, channel, status, payload)
+      VALUES ${placeholders.join(", ")}
+      ON CONFLICT (ride_id, driver_id, channel) DO NOTHING
+    `,
+    values,
+  );
+
   return drivers.length;
 }

@@ -34,11 +34,6 @@ export async function GET(request) {
   ]);
 
   if (!jwt || !session?.user?.id) {
-    console.error("GET /api/auth/token unauthorized", {
-      hasJwt: !!jwt,
-      hasSession: !!session,
-      cookies: request.headers.get("cookie") || "",
-    });
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 

@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Auto Ride",
-    "slug": "auto-ride",
+    "name": "TukTukGo",
+    "slug": "tuktukgo",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -9,18 +9,24 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
+      "icon": "./assets/images/icon.png",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#ffffff"
       },
+      "softwareKeyboardLayoutMode": "pan",
       "permissions": [
+        "android.permission.POST_NOTIFICATIONS",
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS"
+      ],
+      "blockedPermissions": [
+        "android.permission.WRITE_CONTACTS"
       ],
       "package": "com.autoride.app"
     },
@@ -34,7 +40,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#FFF7ED"
@@ -51,15 +57,26 @@
       ],
       [
         "expo-video",
-        { "supportsBackgroundPlayback": true, "supportsPictureInPicture": true }
+        {
+          "supportsBackgroundPlayback": true,
+          "supportsPictureInPicture": true
+        }
       ],
       "expo-font",
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Allow TukTukGo to open your contacts so you can choose an emergency contact."
+        }
+      ],
+      "expo-notifications",
       "expo-secure-store",
-      "expo-web-browser"
+      "expo-web-browser",
+      "@sentry/react-native"
     ],
     "web": {
       "bundler": "metro",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/icon.png"
     },
     "experiments": {
       "typedRoutes": true

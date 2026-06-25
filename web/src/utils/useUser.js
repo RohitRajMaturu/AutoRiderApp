@@ -4,28 +4,30 @@ import { useSession } from "@auth/create/react";
 
 const useUser = () => {
   const { data: session, status } = useSession();
-  const id = session?.user?.id
+  const id = session?.user?.id;
 
   const [user, setUser] = React.useState(session?.user ?? null);
+  const lastIdRef = React.useRef(id);
 
-  const fetchUser = React.useCallback(async (session) => {
-  return session?.user;
-}, [])
+  React.useEffect(() => {
+    if (lastIdRef.current === id) return;
+    lastIdRef.current = id;
+
+    if (process.env.NEXT_PUBLIC_CREATE_ENV !== "PRODUCTION") return;
+
+    if (id) {
+      Promise.resolve(session?.user).then(setUser);
+    } else {
+      setUser(null);
+    }
+  }, [id, session]);
 
   const refetchUser = React.useCallback(() => {
-    if(process.env.NEXT_PUBLIC_CREATE_ENV === "PRODUCTION") {
-      if (id) {
-        fetchUser(session).then(setUser);
-      } else {
-        setUser(null);
-      }
-    }
-  }, [fetchUser, id])
-
-  React.useEffect(refetchUser, [refetchUser]);
+    lastIdRef.current = null;
+  }, []);
 
   if (process.env.NEXT_PUBLIC_CREATE_ENV !== "PRODUCTION") {
-    return { user, data: session?.user || null, loading: status === 'loading', refetch: refetchUser };
+    return { user, data: session?.user || null, loading: status === 'loading', refetch: () => {} };
   }
   return { user, data: user, loading: status === 'loading' || (status === 'authenticated' && !user), refetch: refetchUser };
 };

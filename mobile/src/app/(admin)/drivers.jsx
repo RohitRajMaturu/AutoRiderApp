@@ -16,24 +16,21 @@ import {
   X,
   Search,
   ChevronDown,
-  Car,
-  Phone,
   Calendar,
-  ExternalLink,
 } from "lucide-react-native";
 import { StatusBar } from "expo-status-bar";
+import AutoRideIcon from "@/components/AutoRideIcon";
+import { ICON } from "@/theme/iconScale";
 
-const PRIMARY = "#F97316";
-const PRIMARY_LIGHT = "#FFF7ED";
-const PRIMARY_BORDER = "#FED7AA";
-const BG = "#1C1917";
-const SURFACE = "#292524";
-const SURFACE2 = "#FFFFFF";
-const BORDER = "#44403C";
-const TEXT = "#FAFAF9";
-const TEXT_SECONDARY = "#A8A29E";
+const PRIMARY = "#F5A623";
+const PRIMARY_LIGHT = "rgba(245,166,35,0.12)";
+const PRIMARY_BORDER = "rgba(255,255,255,0.14)";
+const BG = "#0D0F12";
+const SURFACE = "#1C2028";
+const BORDER = "rgba(255,255,255,0.16)";
+const TEXT = "#F0F2F5";
+const TEXT_SECONDARY = "#C3C8D4";
 const SUCCESS = "#22C55E";
-const SUCCESS_DARK = "#16A34A";
 const ERROR = "#EF4444";
 
 function DriverCard({ driver, onApprove, onReject, isUpdating }) {
@@ -86,10 +83,7 @@ function DriverCard({ driver, onApprove, onReject, isUpdating }) {
                 alignItems: "center",
               }}
             >
-              <Car
-                size={22}
-                color={driver.is_approved ? SUCCESS : TEXT_SECONDARY}
-              />
+              <AutoRideIcon size={ICON.lg} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 15, fontWeight: "700", color: TEXT }}>
@@ -111,14 +105,14 @@ function DriverCard({ driver, onApprove, onReject, isUpdating }) {
                 borderRadius: 99,
                 backgroundColor: driver.is_approved
                   ? `${SUCCESS}20`
-                  : "#D9770620",
+                  : "#B8870020",
               }}
             >
               <Text
                 style={{
                   fontSize: 9,
                   fontWeight: "700",
-                  color: driver.is_approved ? SUCCESS : "#D97706",
+                  color: driver.is_approved ? SUCCESS : "#B88700",
                   textTransform: "uppercase",
                   letterSpacing: 0.5,
                 }}
@@ -127,7 +121,7 @@ function DriverCard({ driver, onApprove, onReject, isUpdating }) {
               </Text>
             </View>
             <ChevronDown
-              size={16}
+              size={ICON.sm}
               color={TEXT_SECONDARY}
               style={{ transform: [{ rotate: expanded ? "180deg" : "0deg" }] }}
             />
@@ -253,6 +247,27 @@ function DriverCard({ driver, onApprove, onReject, isUpdating }) {
                   letterSpacing: 0.5,
                 }}
               >
+                Rating
+              </Text>
+              <Text style={{ fontSize: 13, color: TEXT }}>
+                {driver.avg_driver_rating_30d
+                  ? `${Number(driver.avg_driver_rating_30d).toFixed(1)} / 5 (30d)`
+                  : "No ratings in 30d"}
+              </Text>
+            </View>
+            <View
+              style={{ flexDirection: "row", gap: 10, alignItems: "center" }}
+            >
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: "600",
+                  color: TEXT_SECONDARY,
+                  width: 70,
+                  textTransform: "uppercase",
+                  letterSpacing: 0.5,
+                }}
+              >
                 Status
               </Text>
               <View style={{ flexDirection: "row", gap: 8 }}>
@@ -304,7 +319,7 @@ function DriverCard({ driver, onApprove, onReject, isUpdating }) {
                 }}
                 activeOpacity={0.8}
               >
-                <X size={16} color={ERROR} />
+                <X size={ICON.sm} color={ERROR} />
                 <Text style={{ color: ERROR, fontSize: 13, fontWeight: "700" }}>
                   Reject
                 </Text>
@@ -329,7 +344,7 @@ function DriverCard({ driver, onApprove, onReject, isUpdating }) {
                 }}
                 activeOpacity={0.85}
               >
-                <Check size={16} color="#fff" />
+                <Check size={ICON.sm} color="#fff" />
                 <Text
                   style={{ color: "#fff", fontSize: 13, fontWeight: "700" }}
                 >
@@ -357,7 +372,7 @@ function DriverCard({ driver, onApprove, onReject, isUpdating }) {
                 }}
                 activeOpacity={0.8}
               >
-                <Calendar size={16} color={PRIMARY} />
+                <Calendar size={ICON.sm} color={PRIMARY} />
                 <Text
                   style={{ color: PRIMARY, fontSize: 13, fontWeight: "700" }}
                 >
@@ -468,7 +483,7 @@ export default function AdminDrivers() {
             paddingVertical: 12,
           }}
         >
-          <Search size={16} color={TEXT_SECONDARY} />
+          <Search size={ICON.sm} color={TEXT_SECONDARY} />
           <TextInput
             placeholder="Search vehicle, phone, email..."
             placeholderTextColor={TEXT_SECONDARY}
@@ -478,7 +493,7 @@ export default function AdminDrivers() {
           />
           {search.length > 0 && (
             <TouchableOpacity onPress={() => setSearch("")}>
-              <X size={14} color={TEXT_SECONDARY} />
+              <X size={ICON.xs} color={TEXT_SECONDARY} />
             </TouchableOpacity>
           )}
         </View>
@@ -598,3 +613,4 @@ export default function AdminDrivers() {
     </View>
   );
 }
+

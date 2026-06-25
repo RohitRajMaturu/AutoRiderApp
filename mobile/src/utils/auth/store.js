@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
+import queryClient from '@/utils/queryClient';
 
 export const authKey = 'auto-ride-auth';
 
@@ -31,7 +32,9 @@ export const secureStoreOptions = {
 export const useAuthStore = create((set) => ({
   isReady: false,
   auth: null,
+  isSigningOut: false,
   setAuth: (auth) => {
+    queryClient.clear();
     if (auth) {
       SecureStore.setItemAsync(
         authKey,
@@ -48,6 +51,7 @@ export const useAuthStore = create((set) => ({
     }
     set({ auth });
   },
+  setSigningOut: (isSigningOut) => set({ isSigningOut }),
 }));
 
 /**

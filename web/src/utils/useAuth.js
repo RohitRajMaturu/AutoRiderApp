@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { signIn, signOut } from "@auth/create/react";
+import { signIn, signOut as authSignOut } from "@auth/create/react";
 
 function isDevIframe() {
   try {
@@ -66,6 +66,10 @@ function useAuth() {
     if (isDevIframe()) return devSocialShim("apple", cb);
     return signIn("apple", { ...options, callbackUrl: cb });
   }, [callbackUrl]);
+
+  const signOut = useCallback((options) => {
+    return authSignOut(options);
+  }, []);
 
   return {
     signInWithCredentials,

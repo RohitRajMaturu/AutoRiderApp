@@ -1,6 +1,5 @@
 import sql from "@/app/api/utils/sql";
 import { auth } from "@/auth";
-import { autoCancelGhostRides, offlineExpiredDrivers } from "@/app/api/utils/dispatch";
 
 export async function GET(request) {
   try {
@@ -9,17 +8,20 @@ export async function GET(request) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    await autoCancelGhostRides();
-    await offlineExpiredDrivers();
-
     const driverRows = await sql`
-      SELECT id
-      FROM drivers
+      UPDATE drivers
+      SET last_heartbeat_at = CURRENT_TIMESTAMP,
+          location = CASE
+            WHEN last_lat IS NOT NULL AND last_lng IS NOT NULL
+            THEN ST_SetSRID(ST_MakePoint(last_lng, last_lat), 4326)::geography
+            ELSE location
+          END,
+          updated_at = CURRENT_TIMESTAMP
       WHERE user_id = ${session.user.id}
         AND is_online = true
         AND is_approved = true
         AND subscription_expiry > CURRENT_TIMESTAMP
-      LIMIT 1
+      RETURNING id
     `;
     const driverId = driverRows[0]?.id;
     if (!driverId) {
@@ -27,10 +29,9 @@ export async function GET(request) {
     }
 
     const rides = await sql`
-      SELECT r.*, u.phone as passenger_phone, n.created_at as dispatched_at
+      SELECT r.*, false AS can_call, n.created_at as dispatched_at
       FROM ride_driver_notifications n
       JOIN rides r ON r.id = n.ride_id
-      JOIN auth_users u ON u.id = r.passenger_id
       WHERE n.driver_id = ${driverId}
         AND n.channel = 'websocket'
         AND n.status IN ('pending', 'failed')

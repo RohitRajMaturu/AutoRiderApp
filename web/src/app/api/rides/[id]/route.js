@@ -1,16 +1,25 @@
 import sql from "@/app/api/utils/sql";
 import { auth } from "@/auth";
 import {
-  autoCancelGhostRides,
   getAcceptedRideTimeoutMinutes,
-  offlineExpiredDrivers,
 } from "@/app/api/utils/dispatch";
+import { sendPushToUsers } from "@/app/api/utils/push-notifications";
+import { triggerRideEvent } from "@/lib/pusher/server";
 
 function readCancellationReason(value, fallback) {
   if (typeof value !== "string") return fallback;
   const trimmed = value.trim();
   if (!trimmed) return fallback;
   return trimmed.slice(0, 180);
+}
+
+function readRatingFeedback(value) {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (trimmed.length > 280) return undefined;
+  return trimmed;
 }
 
 export async function PATCH(request, { params }) {
@@ -23,8 +32,41 @@ export async function PATCH(request, { params }) {
     const { id } = params;
     const body = await request.json();
     const { action } = body;
-    await autoCancelGhostRides();
-    await offlineExpiredDrivers();
+
+    if (action === "rate") {
+      const driverRating = Number(body.driver_rating);
+      const ratingFeedback = readRatingFeedback(body.rating_feedback);
+      if (
+        !Number.isInteger(driverRating) ||
+        driverRating < 1 ||
+        driverRating > 5 ||
+        ratingFeedback === undefined
+      ) {
+        return Response.json(
+          { error: "driver_rating must be 1-5 and rating_feedback must be 280 characters or fewer" },
+          { status: 400 },
+        );
+      }
+
+      const result = await sql`
+        UPDATE rides
+        SET driver_rating = ${driverRating},
+            rating_feedback = ${ratingFeedback},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ${id}
+          AND passenger_id = ${session.user.id}
+          AND status = 'completed'
+          AND driver_rating IS NULL
+        RETURNING *
+      `;
+      if (result.length === 0) {
+        return Response.json(
+          { error: "Ride cannot be rated because it is not completed, already rated, or not accessible to this user" },
+          { status: 409 },
+        );
+      }
+      return Response.json({ ride: result[0] });
+    }
 
     const driverRows =
       await sql`
@@ -60,13 +102,17 @@ export async function PATCH(request, { params }) {
           UPDATE rides 
           SET driver_id = ${driverId}, 
               status = 'accepted',
+              final_fare = COALESCE(final_fare, estimated_fare),
               accepted_at = CURRENT_TIMESTAMP,
               expires_at = CURRENT_TIMESTAMP + make_interval(mins => ${getAcceptedRideTimeoutMinutes()}),
               updated_at = CURRENT_TIMESTAMP
-          WHERE id = ${id}
-            AND status = 'requested'
-            AND driver_id IS NULL
-            AND zone_id = ${driver.zone_id}
+          FROM drivers d -- PATCHED:
+          WHERE rides.id = ${id} -- PATCHED:
+            AND rides.status = 'requested' -- PATCHED:
+            AND rides.driver_id IS NULL -- PATCHED:
+            AND rides.zone_id = ${driver.zone_id} -- PATCHED:
+            AND d.id = ${driverId}
+            AND d.subscription_expiry > NOW() -- PATCHED:
             AND EXISTS (
               SELECT 1
               FROM ride_driver_notifications n
@@ -85,11 +131,47 @@ export async function PATCH(request, { params }) {
       });
 
       if (result.length === 0) {
+        const rideRows = await sql`
+          SELECT status, driver_id, zone_id
+          FROM rides
+          WHERE id = ${id}
+          LIMIT 1
+        `;
+        const ride = rideRows[0];
+        if (!ride) {
+          return Response.json(
+            { error: "Ride is no longer available", code: "RIDE_UNAVAILABLE" },
+            { status: 409 },
+          );
+        }
+        if (ride.status === "cancelled") {
+          return Response.json(
+            { error: "Passenger cancelled this ride", code: "RIDE_CANCELLED" },
+            { status: 409 },
+          );
+        }
+        if (ride.driver_id || ride.status === "accepted") {
+          return Response.json(
+            { error: "Ride was already accepted by another driver", code: "RIDE_ALREADY_ACCEPTED" },
+            { status: 409 },
+          );
+        }
+        if (ride.status !== "requested") {
+          return Response.json(
+            { error: "Ride is no longer available", code: "RIDE_UNAVAILABLE" },
+            { status: 409 },
+          );
+        }
         return Response.json(
-          { error: "Ride already accepted by another driver or cancelled" },
-          { status: 400 },
+          { error: "Ride cannot be accepted right now", code: "RIDE_ACCEPT_UNAVAILABLE" },
+          { status: 409 },
         );
       }
+      await sendPushToUsers([result[0].passenger_id], {
+        title: "Driver accepted your ride",
+        body: "Your driver is heading to the pickup location.",
+        data: { type: "ride_accepted", rideId: result[0].id },
+      });
       return Response.json({ ride: result[0] });
     }
 
@@ -103,17 +185,56 @@ export async function PATCH(request, { params }) {
       const result = await sql`
         UPDATE rides 
         SET status = 'completed',
+            final_fare = COALESCE(final_fare, estimated_fare),
             completed_at = CURRENT_TIMESTAMP,
             updated_at = CURRENT_TIMESTAMP
-        WHERE id = ${id} AND driver_id = ${driverId} AND status = 'accepted'
+        WHERE id = ${id}
+          AND driver_id = ${driverId}
+          AND status = 'accepted'
+          AND started_at IS NOT NULL
         RETURNING *
       `;
       if (result.length === 0) {
         return Response.json(
-          { error: "Ride cannot be completed because it is not assigned to this driver or is no longer active" },
+          { error: "Ride must be started before it can be completed" },
           { status: 409 },
         );
       }
+      await sendPushToUsers([result[0].passenger_id], {
+        title: "Ride completed",
+        body: "Your trip has been marked complete.",
+        data: { type: "ride_completed", rideId: result[0].id },
+      });
+      return Response.json({ ride: result[0] });
+    }
+
+    if (action === "start") {
+      if (!driverId) {
+        return Response.json(
+          { error: "Only the assigned driver can start a ride" },
+          { status: 403 },
+        );
+      }
+      const result = await sql`
+        UPDATE rides
+        SET started_at = COALESCE(started_at, CURRENT_TIMESTAMP),
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ${id}
+          AND driver_id = ${driverId}
+          AND status = 'accepted'
+        RETURNING *
+      `;
+      if (result.length === 0) {
+        return Response.json(
+          { error: "Ride cannot be started because it is not assigned to this driver or is no longer active" },
+          { status: 409 },
+        );
+      }
+      await sendPushToUsers([result[0].passenger_id], {
+        title: "Ride started",
+        body: "Your trip has started.",
+        data: { type: "ride_started", rideId: result[0].id },
+      });
       return Response.json({ ride: result[0] });
     }
 
@@ -132,7 +253,7 @@ export async function PATCH(request, { params }) {
               updated_at = CURRENT_TIMESTAMP
           WHERE id = ${id}
           AND (passenger_id = ${session.user.id} OR driver_id = ${driverId})
-          AND status IN ('requested', 'accepted')
+          AND status IN ('requested', 'negotiating', 'accepted')
           RETURNING *
         `;
         if (rows.length > 0) {
@@ -153,6 +274,37 @@ export async function PATCH(request, { params }) {
           { status: 409 },
         );
       }
+      const cancelledRide = result[0];
+      const notifyUserIds = [];
+      if (driverId && cancelledRide.passenger_id) {
+        notifyUserIds.push(cancelledRide.passenger_id);
+      } else if (cancelledRide.driver_id) {
+        const driverUserRows = await sql`
+          SELECT user_id
+          FROM drivers
+          WHERE id = ${cancelledRide.driver_id}
+          LIMIT 1
+        `;
+        if (driverUserRows[0]?.user_id) notifyUserIds.push(driverUserRows[0].user_id);
+      }
+      await sendPushToUsers(notifyUserIds, {
+        title: driverId ? "Driver cancelled the ride" : "Passenger cancelled the ride",
+        body: driverId
+          ? "Your driver can no longer complete this ride."
+          : "The passenger has cancelled this ride.",
+        data: {
+          type: "ride_cancelled",
+          rideId: cancelledRide.id,
+          actorRole: driverId ? "driver" : "passenger",
+          reason: actorReason,
+        },
+      });
+      await triggerRideEvent(cancelledRide.id, "ride-cancelled", {
+        rideId: cancelledRide.id,
+        actorRole: driverId ? "driver" : "passenger",
+        reason: actorReason,
+        cancelledAt: cancelledRide.cancelled_at || new Date().toISOString(),
+      });
       return Response.json({ ride: result[0] });
     }
 
@@ -172,11 +324,23 @@ export async function GET(request, { params }) {
 
     const { id } = params;
     const rows = await sql`
-      SELECT r.*, d.vehicle_number, d.auto_photo_url, du.phone as driver_phone, pu.phone as passenger_phone
+      SELECT
+        r.*,
+        d.vehicle_number,
+        d.auto_photo_url,
+        du.name as driver_name,
+        du.image as driver_image,
+        d.last_lat as driver_last_lat,
+        d.last_lng as driver_last_lng,
+        (r.status = 'accepted' AND r.driver_id IS NOT NULL) AS can_call,
+        COALESCE((
+          SELECT json_agg(o ORDER BY o.responded_at DESC)
+          FROM ride_fare_offers o
+          WHERE o.ride_id = r.id
+        ), '[]'::json) as fare_offers
       FROM rides r
       LEFT JOIN drivers d ON r.driver_id = d.id
       LEFT JOIN auth_users du ON d.user_id = du.id
-      JOIN auth_users pu ON r.passenger_id = pu.id
       JOIN auth_users requester ON requester.id = ${session.user.id}
       WHERE r.id = ${id}
       AND (

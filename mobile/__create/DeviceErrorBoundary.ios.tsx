@@ -32,8 +32,8 @@ const DeviceErrorBoundary = ({ sentLogs }: { sentLogs: boolean }) => {
       isOpen
       description={
         sentLogs
-          ? 'Auto Ride ran into an unexpected issue and saved the error details for diagnostics.'
-          : 'Auto Ride ran into an unexpected issue. Please restart the app and try again.'
+          ? 'TukTukGo ran into an unexpected issue and saved the error details for diagnostics.'
+          : 'TukTukGo ran into an unexpected issue. Please restart the app and try again.'
       }
     >
       <View style={{ flexDirection: 'row', gap: 8 }}>

@@ -14,19 +14,34 @@ import MapView, { Marker, Polygon } from "react-native-maps";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { LocateFixed, Map, Plus, Search, ToggleLeft, ToggleRight, X } from "lucide-react-native";
+import {
+  ChevronLeft,
+  ChevronRight,
+  LocateFixed,
+  Map,
+  Pencil,
+  Plus,
+  Search,
+  ToggleLeft,
+  ToggleRight,
+  Trash2,
+  X,
+} from "lucide-react-native";
+import { ICON } from "@/theme/iconScale";
+import { toast } from "sonner-native";
 
-const PRIMARY = "#F97316";
-const BG = "#1C1917";
-const SURFACE = "#292524";
-const BORDER = "#44403C";
-const TEXT = "#FAFAF9";
-const TEXT_SECONDARY = "#A8A29E";
+const PRIMARY = "#F5A623";
+const BG = "#0D0F12";
+const SURFACE = "#1C2028";
+const BORDER = "rgba(255,255,255,0.16)";
+const TEXT = "#F0F2F5";
+const TEXT_SECONDARY = "#C3C8D4";
 const SUCCESS = "#22C55E";
 const ERROR = "#EF4444";
+const PAGE_SIZE = 10;
 const DEFAULT_REGION = {
-  latitude: 12.9716,
-  longitude: 77.5946,
+  latitude: 17.385,
+  longitude: 78.4867,
   latitudeDelta: 0.12,
   longitudeDelta: 0.12,
 };
@@ -49,6 +64,15 @@ function buildRectangleBoundary(swLat, swLng, neLat, neLng) {
   };
 }
 
+function buildPolygonBoundary(points) {
+  const coordinates = points.map((point) => [point.longitude, point.latitude]);
+  coordinates.push([points[0].longitude, points[0].latitude]);
+  return {
+    type: "Polygon",
+    coordinates: [coordinates],
+  };
+}
+
 function normalizeRectangleFromPoints(points) {
   if (points.length < 2) return null;
   const lats = points.map((point) => point.latitude);
@@ -59,6 +83,22 @@ function normalizeRectangleFromPoints(points) {
     north: Math.max(...lats),
     east: Math.max(...lngs),
   };
+}
+
+function polygonPointsFromBoundary(boundary) {
+  const geometry = boundary?.type === "Feature" ? boundary.geometry : boundary;
+  const ring =
+    geometry?.type === "Polygon"
+      ? geometry.coordinates?.[0]
+      : geometry?.type === "MultiPolygon"
+        ? geometry.coordinates?.[0]?.[0]
+        : null;
+  if (!Array.isArray(ring)) return [];
+  const points = ring
+    .slice(0, -1)
+    .map(([longitude, latitude]) => ({ latitude: Number(latitude), longitude: Number(longitude) }))
+    .filter((point) => Number.isFinite(point.latitude) && Number.isFinite(point.longitude));
+  return points;
 }
 
 function rectanglePolygon(rectangle) {
@@ -105,22 +145,53 @@ export default function AdminZones() {
   const [neLat, setNeLat] = useState("");
   const [neLng, setNeLng] = useState("");
   const [geoJson, setGeoJson] = useState("");
+  const [validatedGeoJson, setValidatedGeoJson] = useState(null);
+  const [validatedGeoJsonText, setValidatedGeoJsonText] = useState("");
+  const [geoJsonPreviewRegion, setGeoJsonPreviewRegion] = useState(null);
   const [mapPoints, setMapPoints] = useState([]);
+  const [polygonPoints, setPolygonPoints] = useState([]);
+  const [editingZone, setEditingZone] = useState(null);
   const [areaSearch, setAreaSearch] = useState("");
   const [areaSuggestions, setAreaSuggestions] = useState([]);
   const [searchPin, setSearchPin] = useState(null);
   const [isSearchingArea, setIsSearchingArea] = useState(false);
+  const [zoneSearch, setZoneSearch] = useState("");
+  const [zonePage, setZonePage] = useState(1);
+  const [zoneSort, setZoneSort] = useState("name");
+  const [zoneDirection, setZoneDirection] = useState("asc");
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
-    queryKey: ["adminZones"],
+    queryKey: ["adminZones", zoneSearch, zoneSort, zoneDirection, zonePage],
     queryFn: async () => {
-      const res = await fetch("/api/admin/zones");
+      const params = new URLSearchParams({
+        page: String(zonePage),
+        pageSize: String(PAGE_SIZE),
+        search: zoneSearch.trim(),
+        sort: zoneSort,
+        direction: zoneDirection,
+      });
+      const res = await fetch(`/api/admin/zones?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to fetch zones");
       return res.json();
     },
   });
 
-  const createZone = useMutation({
+  const resetZoneForm = () => {
+    setName("");
+    setSwLat("");
+    setSwLng("");
+    setNeLat("");
+    setNeLng("");
+    setGeoJson("");
+    setValidatedGeoJson(null);
+    setValidatedGeoJsonText("");
+    setGeoJsonPreviewRegion(null);
+    setMapPoints([]);
+    setPolygonPoints([]);
+    setEditingZone(null);
+  };
+
+  const saveZone = useMutation({
     mutationFn: async () => {
       const cap = Number(maxDrivers);
       if (!name.trim() || !Number.isInteger(cap) || cap < 1 || cap > 500) {
@@ -129,7 +200,15 @@ export default function AdminZones() {
 
       let boundary;
       if (mode === "geojson") {
-        boundary = parseGeoJsonBoundary(geoJson);
+        if (!validatedGeoJson || validatedGeoJsonText !== geoJson.trim()) {
+          throw new Error("Validate the GeoJSON and review its preview before saving.");
+        }
+        boundary = validatedGeoJson;
+      } else if (mode === "polygon") {
+        if (polygonPoints.length < 3) {
+          throw new Error("Tap at least three map points to draw a polygon.");
+        }
+        boundary = buildPolygonBoundary(polygonPoints);
       } else {
         const south = toNumber(swLat);
         const west = toNumber(swLng);
@@ -144,10 +223,12 @@ export default function AdminZones() {
         boundary = buildRectangleBoundary(south, west, north, east);
       }
 
+      const isEditing = Boolean(editingZone?.id);
       const res = await fetch("/api/admin/zones", {
-        method: "POST",
+        method: isEditing ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          ...(isEditing ? { zone_id: editingZone.id } : {}),
           name: name.trim(),
           max_online_drivers: cap,
           boundary,
@@ -160,17 +241,15 @@ export default function AdminZones() {
       return res.json();
     },
     onSuccess: () => {
-      setName("");
-      setSwLat("");
-      setSwLng("");
-      setNeLat("");
-      setNeLng("");
-      setGeoJson("");
-      setMapPoints([]);
+      resetZoneForm();
+      setZonePage(1);
       queryClient.invalidateQueries({ queryKey: ["adminZones"] });
-      Alert.alert("Zone Created", "Drivers can now be matched inside this boundary.");
+      toast.success("Zone saved", {
+        description: "Drivers can now be matched inside this boundary.",
+      });
     },
-    onError: (err) => Alert.alert("Zone Error", err.message),
+    onError: (err) =>
+      toast.error("Zone could not be saved", { description: err.message }),
   });
 
   const toggleZone = useMutation({
@@ -183,13 +262,98 @@ export default function AdminZones() {
       if (!res.ok) throw new Error("Failed to update zone");
       return res.json();
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["adminZones"] }),
-    onError: (err) => Alert.alert("Zone Error", err.message),
+    onMutate: async (zone) => {
+      await queryClient.cancelQueries({ queryKey: ["adminZones"] });
+      const snapshots = queryClient.getQueriesData({ queryKey: ["adminZones"] });
+      queryClient.setQueriesData({ queryKey: ["adminZones"] }, (current) => {
+        if (!current?.zones) return current;
+        return {
+          ...current,
+          zones: current.zones.map((item) =>
+            item.id === zone.id ? { ...item, is_active: !item.is_active } : item,
+          ),
+        };
+      });
+      return { snapshots };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["adminZones"] });
+      toast.success(data.zone?.is_active ? "Zone activated" : "Zone made inactive");
+    },
+    onError: (err, _zone, context) => {
+      context?.snapshots?.forEach(([key, value]) => queryClient.setQueryData(key, value));
+      toast.error("Zone status not updated", { description: err.message });
+    },
+  });
+
+  const deleteZone = useMutation({
+    mutationFn: async (zone) => {
+      const res = await fetch("/api/admin/zones", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ zone_id: zone.id }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to delete zone");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      if (zones.length === 1 && zonePage > 1) {
+        setZonePage((page) => Math.max(page - 1, 1));
+      }
+      queryClient.invalidateQueries({ queryKey: ["adminZones"] });
+      toast.success("Zone deleted");
+    },
+    onError: (err) => toast.error("Zone could not be deleted", { description: err.message }),
   });
 
   const zones = data?.zones || [];
+  const pagination = data?.pagination || {
+    page: zonePage,
+    pageSize: PAGE_SIZE,
+    total: zones.length,
+    totalPages: 1,
+  };
   const selectedRectangle = normalizeRectangleFromPoints(mapPoints);
   const selectedPolygon = rectanglePolygon(selectedRectangle);
+  const activeMapPolygon = mode === "polygon" ? polygonPoints : selectedPolygon;
+  const geoJsonPreviewPoints = polygonPointsFromBoundary(validatedGeoJson);
+
+  const validateGeoJson = () => {
+    try {
+      const boundary = parseGeoJsonBoundary(geoJson);
+      const points = polygonPointsFromBoundary(boundary);
+      if (points.length < 3) {
+        throw new Error("The selected GeoJSON region needs at least three valid points.");
+      }
+      setValidatedGeoJson(boundary);
+      setValidatedGeoJsonText(geoJson.trim());
+      toast.success("GeoJSON is valid", {
+        description: "Review the highlighted region, then save the zone.",
+      });
+      const rectangle = normalizeRectangleFromPoints(points);
+      if (rectangle) {
+        setGeoJsonPreviewRegion({
+          latitude: (rectangle.south + rectangle.north) / 2,
+          longitude: (rectangle.west + rectangle.east) / 2,
+          latitudeDelta: Math.max(rectangle.north - rectangle.south, 0.01) * 1.8,
+          longitudeDelta: Math.max(rectangle.east - rectangle.west, 0.01) * 1.8,
+        });
+      }
+    } catch (error) {
+      setValidatedGeoJson(null);
+      setValidatedGeoJsonText("");
+      toast.error("Invalid GeoJSON", { description: error.message });
+    }
+  };
+
+  const cancelGeoJsonPreview = () => {
+    setValidatedGeoJson(null);
+    setValidatedGeoJsonText("");
+    setGeoJsonPreviewRegion(null);
+  };
 
   const setRectangleFromMap = (points) => {
     setMapPoints(points);
@@ -203,7 +367,15 @@ export default function AdminZones() {
 
   const handleMapPress = (event) => {
     const point = event.nativeEvent.coordinate;
+    if (mode === "polygon") {
+      setPolygonPoints((points) => [...points, point]);
+      return;
+    }
     setRectangleFromMap(mapPoints.length >= 2 ? [point] : [...mapPoints, point]);
+  };
+
+  const undoPolygonPoint = () => {
+    setPolygonPoints((points) => points.slice(0, -1));
   };
 
   const searchArea = async () => {
@@ -263,6 +435,77 @@ export default function AdminZones() {
     }
   };
 
+  const updateSort = (field) => {
+    setZonePage(1);
+    if (zoneSort === field) {
+      setZoneDirection((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setZoneSort(field);
+    setZoneDirection(field === "created_at" ? "desc" : "asc");
+  };
+
+  const switchMode = (nextMode) => {
+    setMode(nextMode);
+    if (nextMode !== "rectangle") {
+      setMapPoints([]);
+      setSwLat("");
+      setSwLng("");
+      setNeLat("");
+      setNeLng("");
+    }
+    if (nextMode !== "polygon") {
+      setPolygonPoints([]);
+    }
+    if (nextMode !== "geojson") {
+      cancelGeoJsonPreview();
+    }
+  };
+
+  const confirmDeleteZone = (zone) => {
+    Alert.alert(
+      "Delete Zone?",
+      `Delete "${zone.name}" permanently? Drivers and rides linked to it will become unzoned.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => deleteZone.mutate(zone),
+        },
+      ],
+    );
+  };
+
+  const editZone = (zone) => {
+    const points = polygonPointsFromBoundary(zone.boundary);
+    setEditingZone(zone);
+    setName(zone.name || "");
+    setMaxDrivers(String(zone.max_online_drivers || 25));
+    setGeoJson(JSON.stringify(zone.boundary || {}, null, 2));
+    setValidatedGeoJson(zone.boundary || null);
+    setValidatedGeoJsonText(JSON.stringify(zone.boundary || {}, null, 2).trim());
+    setPolygonPoints(points);
+    setMode(points.length >= 3 ? "polygon" : "geojson");
+    setMapPoints([]);
+    const rectangle = normalizeRectangleFromPoints(points);
+    if (rectangle) {
+      setSwLat(formatCoord(rectangle.south));
+      setSwLng(formatCoord(rectangle.west));
+      setNeLat(formatCoord(rectangle.north));
+      setNeLng(formatCoord(rectangle.east));
+      mapRef.current?.animateToRegion(
+        {
+          latitude: (rectangle.south + rectangle.north) / 2,
+          longitude: (rectangle.west + rectangle.east) / 2,
+          latitudeDelta: Math.max(rectangle.north - rectangle.south, 0.01) * 1.8,
+          longitudeDelta: Math.max(rectangle.east - rectangle.west, 0.01) * 1.8,
+        },
+        450,
+      );
+    }
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
       <StatusBar style="light" />
@@ -279,7 +522,7 @@ export default function AdminZones() {
           Service Zones
         </Text>
         <Text style={{ fontSize: 13, color: TEXT_SECONDARY, marginTop: 2 }}>
-          {zones.length} configured boundaries
+          {pagination.total} configured boundaries
         </Text>
       </View>
 
@@ -305,19 +548,38 @@ export default function AdminZones() {
           }}
         >
           <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-            <Plus size={18} color={PRIMARY} />
+            <Plus size={ICON.md} color={PRIMARY} />
             <Text style={{ fontSize: 15, fontWeight: "800", color: TEXT }}>
-              Create Service Zone
+              {editingZone ? "Edit Service Zone" : "Create Service Zone"}
             </Text>
           </View>
+          {editingZone ? (
+            <TouchableOpacity
+              onPress={resetZoneForm}
+              style={{
+                alignSelf: "flex-start",
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                borderRadius: 10,
+                borderWidth: 1,
+                borderColor: BORDER,
+                backgroundColor: BG,
+              }}
+            >
+              <Text style={{ color: TEXT_SECONDARY, fontWeight: "800", fontSize: 12 }}>
+                Cancel Editing
+              </Text>
+            </TouchableOpacity>
+          ) : null}
           <View style={{ flexDirection: "row", gap: 8 }}>
             {[
               { key: "rectangle", label: "Rectangle" },
+              { key: "polygon", label: "Polygon" },
               { key: "geojson", label: "GeoJSON" },
             ].map((item) => (
               <TouchableOpacity
                 key={item.key}
-                onPress={() => setMode(item.key)}
+                onPress={() => switchMode(item.key)}
                 style={{
                   flex: 1,
                   paddingVertical: 9,
@@ -355,7 +617,7 @@ export default function AdminZones() {
             keyboardType="number-pad"
             style={{ backgroundColor: BG, color: TEXT, borderRadius: 10, padding: 12 }}
           />
-          {mode === "rectangle" ? (
+          {mode === "rectangle" || mode === "polygon" ? (
             <>
               {Platform.OS !== "web" && (
                 <>
@@ -377,7 +639,7 @@ export default function AdminZones() {
                         paddingVertical: 10,
                       }}
                     >
-                      <Search size={16} color={TEXT_SECONDARY} />
+                      <Search size={ICON.sm} color={TEXT_SECONDARY} />
                       <TextInput
                         placeholder="Search area, locality, landmark..."
                         placeholderTextColor={TEXT_SECONDARY}
@@ -395,7 +657,7 @@ export default function AdminZones() {
                             setSearchPin(null);
                           }}
                         >
-                          <X size={16} color={TEXT_SECONDARY} />
+                          <X size={ICON.sm} color={TEXT_SECONDARY} />
                         </TouchableOpacity>
                       )}
                       <TouchableOpacity
@@ -413,7 +675,7 @@ export default function AdminZones() {
                         {isSearchingArea ? (
                           <ActivityIndicator size="small" color="#fff" />
                         ) : (
-                          <LocateFixed size={16} color="#fff" />
+                          <LocateFixed size={ICON.sm} color="#fff" />
                         )}
                       </TouchableOpacity>
                     </View>
@@ -468,11 +730,19 @@ export default function AdminZones() {
                           pinColor={index === 0 ? PRIMARY : SUCCESS}
                         />
                       ))}
-                      {selectedPolygon.length === 4 && (
+                      {polygonPoints.map((point, index) => (
+                        <Marker
+                          key={`polygon-${point.latitude}-${point.longitude}-${index}`}
+                          coordinate={point}
+                          title={`Point ${index + 1}`}
+                          pinColor={PRIMARY}
+                        />
+                      ))}
+                      {activeMapPolygon.length >= 3 && (
                         <Polygon
-                          coordinates={selectedPolygon}
+                          coordinates={activeMapPolygon}
                           strokeColor={PRIMARY}
-                          fillColor="rgba(249,115,22,0.22)"
+                          fillColor="rgba(67,184,179,0.22)"
                           strokeWidth={2}
                         />
                       )}
@@ -485,124 +755,338 @@ export default function AdminZones() {
                         bottom: 10,
                         padding: 10,
                         borderRadius: 10,
-                        backgroundColor: "rgba(28,25,23,0.88)",
+                        backgroundColor: "rgba(13,15,18,0.92)",
                         borderWidth: 1,
-                        borderColor: BORDER,
+                        borderColor: `${PRIMARY}66`,
+                        shadowColor: "#000",
+                        shadowOffset: { width: 0, height: 6 },
+                        shadowOpacity: 0.14,
+                        shadowRadius: 12,
+                        elevation: 4,
                       }}
                     >
                       <Text style={{ color: TEXT, fontSize: 12, fontWeight: "800" }}>
-                        {mapPoints.length < 2
-                          ? `Tap ${2 - mapPoints.length} more corner${mapPoints.length === 1 ? "" : "s"}`
-                          : "Rectangle selected"}
+                        {mode === "polygon"
+                          ? polygonPoints.length < 3
+                            ? `Tap ${3 - polygonPoints.length} more point${polygonPoints.length === 2 ? "" : "s"}`
+                            : `${polygonPoints.length} point polygon selected`
+                          : mapPoints.length < 2
+                            ? `Tap ${2 - mapPoints.length} more corner${mapPoints.length === 1 ? "" : "s"}`
+                            : "Rectangle selected"}
                       </Text>
                       <Text style={{ color: TEXT_SECONDARY, fontSize: 11, marginTop: 3 }}>
-                        Search to jump, pan manually, then tap two opposite corners.
+                        {mode === "polygon"
+                          ? "Search to jump, then tap each boundary vertex in order."
+                          : "Search to jump, pan manually, then tap two opposite corners."}
                       </Text>
                     </View>
                   </View>
                 </>
               )}
-              {Platform.OS !== "web" && mapPoints.length > 0 && (
-                <TouchableOpacity
-                  onPress={() => {
-                    setMapPoints([]);
-                    setSwLat("");
-                    setSwLng("");
-                    setNeLat("");
-                    setNeLng("");
-                  }}
-                  style={{
-                    alignSelf: "flex-start",
-                    paddingHorizontal: 12,
-                    paddingVertical: 8,
-                    borderRadius: 10,
-                    borderWidth: 1,
-                    borderColor: BORDER,
-                    backgroundColor: BG,
-                  }}
-                >
-                  <Text style={{ color: TEXT_SECONDARY, fontWeight: "800", fontSize: 12 }}>
-                    Clear Map Selection
-                  </Text>
-                </TouchableOpacity>
+              {Platform.OS !== "web" && (mapPoints.length > 0 || polygonPoints.length > 0) && (
+                <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
+                  {mode === "polygon" && polygonPoints.length > 0 ? (
+                    <TouchableOpacity
+                      onPress={undoPolygonPoint}
+                      style={{
+                        paddingHorizontal: 12,
+                        paddingVertical: 8,
+                        borderRadius: 10,
+                        borderWidth: 1,
+                        borderColor: BORDER,
+                        backgroundColor: BG,
+                      }}
+                    >
+                      <Text style={{ color: TEXT_SECONDARY, fontWeight: "800", fontSize: 12 }}>
+                        Undo Point
+                      </Text>
+                    </TouchableOpacity>
+                  ) : null}
+                  <TouchableOpacity
+                    onPress={() => {
+                      setMapPoints([]);
+                      setPolygonPoints([]);
+                      setSwLat("");
+                      setSwLng("");
+                      setNeLat("");
+                      setNeLng("");
+                    }}
+                    style={{
+                      paddingHorizontal: 12,
+                      paddingVertical: 8,
+                      borderRadius: 10,
+                      borderWidth: 1,
+                      borderColor: BORDER,
+                      backgroundColor: BG,
+                    }}
+                  >
+                    <Text style={{ color: TEXT_SECONDARY, fontWeight: "800", fontSize: 12 }}>
+                      Clear Map Selection
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               )}
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <TextInput
-                  placeholder="SW lat"
-                  placeholderTextColor={TEXT_SECONDARY}
-                  value={swLat}
-                  onChangeText={setSwLat}
-                  keyboardType="decimal-pad"
-                  style={{ flex: 1, backgroundColor: BG, color: TEXT, borderRadius: 10, padding: 12 }}
-                />
-                <TextInput
-                  placeholder="SW lng"
-                  placeholderTextColor={TEXT_SECONDARY}
-                  value={swLng}
-                  onChangeText={setSwLng}
-                  keyboardType="decimal-pad"
-                  style={{ flex: 1, backgroundColor: BG, color: TEXT, borderRadius: 10, padding: 12 }}
-                />
-              </View>
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <TextInput
-                  placeholder="NE lat"
-                  placeholderTextColor={TEXT_SECONDARY}
-                  value={neLat}
-                  onChangeText={setNeLat}
-                  keyboardType="decimal-pad"
-                  style={{ flex: 1, backgroundColor: BG, color: TEXT, borderRadius: 10, padding: 12 }}
-                />
-                <TextInput
-                  placeholder="NE lng"
-                  placeholderTextColor={TEXT_SECONDARY}
-                  value={neLng}
-                  onChangeText={setNeLng}
-                  keyboardType="decimal-pad"
-                  style={{ flex: 1, backgroundColor: BG, color: TEXT, borderRadius: 10, padding: 12 }}
-                />
-              </View>
+              {mode === "rectangle" ? (
+                <>
+                  <View style={{ flexDirection: "row", gap: 8 }}>
+                    <TextInput
+                      placeholder="SW lat"
+                      placeholderTextColor={TEXT_SECONDARY}
+                      value={swLat}
+                      onChangeText={setSwLat}
+                      keyboardType="decimal-pad"
+                      style={{ flex: 1, backgroundColor: BG, color: TEXT, borderRadius: 10, padding: 12 }}
+                    />
+                    <TextInput
+                      placeholder="SW lng"
+                      placeholderTextColor={TEXT_SECONDARY}
+                      value={swLng}
+                      onChangeText={setSwLng}
+                      keyboardType="decimal-pad"
+                      style={{ flex: 1, backgroundColor: BG, color: TEXT, borderRadius: 10, padding: 12 }}
+                    />
+                  </View>
+                  <View style={{ flexDirection: "row", gap: 8 }}>
+                    <TextInput
+                      placeholder="NE lat"
+                      placeholderTextColor={TEXT_SECONDARY}
+                      value={neLat}
+                      onChangeText={setNeLat}
+                      keyboardType="decimal-pad"
+                      style={{ flex: 1, backgroundColor: BG, color: TEXT, borderRadius: 10, padding: 12 }}
+                    />
+                    <TextInput
+                      placeholder="NE lng"
+                      placeholderTextColor={TEXT_SECONDARY}
+                      value={neLng}
+                      onChangeText={setNeLng}
+                      keyboardType="decimal-pad"
+                      style={{ flex: 1, backgroundColor: BG, color: TEXT, borderRadius: 10, padding: 12 }}
+                    />
+                  </View>
+                </>
+              ) : (
+                <Text style={{ color: TEXT_SECONDARY, fontSize: 12, lineHeight: 18 }}>
+                  {polygonPoints.length
+                    ? `${polygonPoints.length} polygon point${polygonPoints.length === 1 ? "" : "s"} selected.`
+                    : "Tap the map to add polygon boundary points."}
+                </Text>
+              )}
             </>
           ) : (
-            <TextInput
-              placeholder='Paste GeoJSON Polygon, MultiPolygon, or Feature'
-              placeholderTextColor={TEXT_SECONDARY}
-              value={geoJson}
-              onChangeText={setGeoJson}
-              multiline
-              textAlignVertical="top"
-              autoCapitalize="none"
-              style={{
-                minHeight: 150,
-                backgroundColor: BG,
-                color: TEXT,
-                borderRadius: 10,
-                padding: 12,
-                fontFamily: "monospace",
-              }}
-            />
+            <>
+              <TextInput
+                placeholder='Paste GeoJSON Polygon, MultiPolygon, or Feature'
+                placeholderTextColor={TEXT_SECONDARY}
+                value={geoJson}
+                onChangeText={(value) => {
+                  setGeoJson(value);
+                  if (value.trim() !== validatedGeoJsonText) {
+                    setValidatedGeoJson(null);
+                    setValidatedGeoJsonText("");
+                  }
+                }}
+                multiline
+                textAlignVertical="top"
+                autoCapitalize="none"
+                style={{
+                  minHeight: 150,
+                  backgroundColor: BG,
+                  color: TEXT,
+                  borderRadius: 10,
+                  padding: 12,
+                  fontFamily: "monospace",
+                }}
+              />
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                <TouchableOpacity
+                  onPress={validateGeoJson}
+                  style={{
+                    backgroundColor: PRIMARY,
+                    borderRadius: 10,
+                    flex: 1,
+                    alignItems: "center",
+                    paddingVertical: 11,
+                  }}
+                >
+                  <Text style={{ color: "#fff", fontWeight: "800" }}>
+                    Validate & Preview
+                  </Text>
+                </TouchableOpacity>
+                {validatedGeoJson ? (
+                  <TouchableOpacity
+                    onPress={cancelGeoJsonPreview}
+                    style={{
+                      backgroundColor: BG,
+                      borderColor: BORDER,
+                      borderRadius: 10,
+                      borderWidth: 1,
+                      alignItems: "center",
+                      paddingHorizontal: 14,
+                      paddingVertical: 11,
+                    }}
+                  >
+                    <Text style={{ color: TEXT, fontWeight: "800" }}>Cancel Preview</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+              {validatedGeoJson && Platform.OS !== "web" ? (
+                <View
+                  style={{
+                    height: 240,
+                    borderRadius: 12,
+                    overflow: "hidden",
+                    borderWidth: 1,
+                    borderColor: SUCCESS,
+                  }}
+                >
+                  <MapView
+                    ref={mapRef}
+                    style={{ flex: 1 }}
+                    region={geoJsonPreviewRegion || DEFAULT_REGION}
+                  >
+                    <Polygon
+                      coordinates={geoJsonPreviewPoints}
+                      strokeColor={SUCCESS}
+                      fillColor="rgba(34,197,94,0.24)"
+                      strokeWidth={3}
+                    />
+                  </MapView>
+                </View>
+              ) : null}
+            </>
           )}
-          <TouchableOpacity
-            onPress={() => createZone.mutate()}
-            disabled={createZone.isPending}
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            {editingZone ? (
+              <TouchableOpacity
+                onPress={resetZoneForm}
+                style={{
+                  alignItems: "center",
+                  backgroundColor: BG,
+                  borderColor: BORDER,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  flex: 1,
+                  paddingVertical: 13,
+                }}
+              >
+                <Text style={{ color: TEXT, fontWeight: "800" }}>Cancel Edit</Text>
+              </TouchableOpacity>
+            ) : null}
+            <TouchableOpacity
+              onPress={() => saveZone.mutate()}
+              disabled={
+                saveZone.isPending ||
+                (mode === "geojson" &&
+                  (!validatedGeoJson || validatedGeoJsonText !== geoJson.trim()))
+              }
+              style={{
+                backgroundColor:
+                  mode === "geojson" &&
+                  (!validatedGeoJson || validatedGeoJsonText !== geoJson.trim())
+                    ? "#7A6334"
+                    : PRIMARY,
+                borderRadius: 10,
+                paddingVertical: 13,
+                alignItems: "center",
+                flex: 1,
+              }}
+            >
+              <Text style={{ color: "#fff", fontWeight: "800" }}>
+                {saveZone.isPending ? "Saving..." : editingZone ? "Save Zone" : "Create Zone"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View
+          style={{
+            backgroundColor: SURFACE,
+            borderRadius: 14,
+            borderWidth: 1,
+            borderColor: BORDER,
+            padding: 14,
+            marginBottom: 12,
+            gap: 10,
+          }}
+        >
+          <View
             style={{
-              backgroundColor: PRIMARY,
-              borderRadius: 10,
-              paddingVertical: 13,
+              flexDirection: "row",
               alignItems: "center",
+              gap: 10,
+              backgroundColor: BG,
+              borderRadius: 12,
+              paddingHorizontal: 12,
+              paddingVertical: 10,
             }}
           >
-            <Text style={{ color: "#fff", fontWeight: "800" }}>
-              {createZone.isPending ? "Creating..." : "Create Zone"}
-            </Text>
-          </TouchableOpacity>
+            <Search size={ICON.sm} color={TEXT_SECONDARY} />
+            <TextInput
+              placeholder="Search zones"
+              placeholderTextColor={TEXT_SECONDARY}
+              value={zoneSearch}
+              onChangeText={(value) => {
+                setZoneSearch(value);
+                setZonePage(1);
+              }}
+              style={{ flex: 1, color: TEXT, fontSize: 13, paddingVertical: 0 }}
+            />
+            {zoneSearch.length > 0 && (
+              <TouchableOpacity
+                onPress={() => {
+                  setZoneSearch("");
+                  setZonePage(1);
+                }}
+              >
+                <X size={ICON.sm} color={TEXT_SECONDARY} />
+              </TouchableOpacity>
+            )}
+          </View>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            {[
+              { key: "name", label: "Name" },
+              { key: "status", label: "Status" },
+              { key: "created_at", label: "Newest" },
+              { key: "drivers", label: "Cap" },
+            ].map((item) => {
+              const active = zoneSort === item.key;
+              return (
+                <TouchableOpacity
+                  key={item.key}
+                  onPress={() => updateSort(item.key)}
+                  style={{
+                    flex: 1,
+                    minHeight: 38,
+                    borderRadius: 10,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: active ? PRIMARY : BG,
+                    borderWidth: 1,
+                    borderColor: active ? PRIMARY : BORDER,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: active ? "#fff" : TEXT_SECONDARY,
+                      fontSize: 11,
+                      fontWeight: "800",
+                    }}
+                  >
+                    {item.label}
+                    {active ? (zoneDirection === "asc" ? " ↑" : " ↓") : ""}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
 
         {isLoading ? (
           <ActivityIndicator color={PRIMARY} />
         ) : zones.length === 0 ? (
           <View style={{ alignItems: "center", paddingVertical: 40 }}>
-            <Map size={36} color={TEXT_SECONDARY} />
+            <Map size={ICON.xl} color={TEXT_SECONDARY} />
             <Text style={{ color: TEXT_SECONDARY, marginTop: 10 }}>
               No zones yet
             </Text>
@@ -633,20 +1117,106 @@ export default function AdminZones() {
                 </Text>
               </View>
               <TouchableOpacity
+                onPress={() => editZone(zone)}
+                style={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: 12,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: BG,
+                  borderWidth: 1,
+                  borderColor: BORDER,
+                }}
+              >
+                <Pencil size={ICON.md} color={PRIMARY} />
+              </TouchableOpacity>
+              <TouchableOpacity
                 onPress={() => toggleZone.mutate(zone)}
                 disabled={toggleZone.isPending}
                 style={{ padding: 8 }}
               >
                 {zone.is_active ? (
-                  <ToggleRight size={30} color={SUCCESS} />
+                  <ToggleRight size={ICON.xl} color={SUCCESS} />
                 ) : (
-                  <ToggleLeft size={30} color={TEXT_SECONDARY} />
+                  <ToggleLeft size={ICON.xl} color={TEXT_SECONDARY} />
                 )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => confirmDeleteZone(zone)}
+                disabled={deleteZone.isPending}
+                style={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: 12,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: "#FEF2F2",
+                  borderWidth: 1,
+                  borderColor: "#FECACA",
+                }}
+              >
+                <Trash2 size={ICON.md} color={ERROR} />
               </TouchableOpacity>
             </View>
           ))
+        )}
+        {!isLoading && pagination.totalPages > 1 && (
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginTop: 4,
+              backgroundColor: SURFACE,
+              borderRadius: 14,
+              borderWidth: 1,
+              borderColor: BORDER,
+              padding: 10,
+            }}
+          >
+            <TouchableOpacity
+              onPress={() => setZonePage((page) => Math.max(page - 1, 1))}
+              disabled={zonePage <= 1}
+              style={{
+                width: 42,
+                height: 38,
+                borderRadius: 11,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: zonePage <= 1 ? BG : PRIMARY,
+                opacity: zonePage <= 1 ? 0.6 : 1,
+              }}
+            >
+              <ChevronLeft size={ICON.md} color={zonePage <= 1 ? TEXT_SECONDARY : "#fff"} />
+            </TouchableOpacity>
+            <Text style={{ color: TEXT_SECONDARY, fontSize: 12, fontWeight: "800" }}>
+              Page {pagination.page} of {pagination.totalPages}
+            </Text>
+            <TouchableOpacity
+              onPress={() =>
+                setZonePage((page) => Math.min(page + 1, pagination.totalPages))
+              }
+              disabled={zonePage >= pagination.totalPages}
+              style={{
+                width: 42,
+                height: 38,
+                borderRadius: 11,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: zonePage >= pagination.totalPages ? BG : PRIMARY,
+                opacity: zonePage >= pagination.totalPages ? 0.6 : 1,
+              }}
+            >
+              <ChevronRight
+                size={ICON.md}
+                color={zonePage >= pagination.totalPages ? TEXT_SECONDARY : "#fff"}
+              />
+            </TouchableOpacity>
+          </View>
         )}
       </ScrollView>
     </View>
   );
 }
+

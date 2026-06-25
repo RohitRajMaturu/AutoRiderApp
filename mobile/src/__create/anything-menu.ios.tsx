@@ -1,3 +1,3 @@
-export default function AutoRideMenu() {
+export default function TukTukGoMenu() {
   return null;
 }

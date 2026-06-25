@@ -1,4 +1,4 @@
-# AutoConnect Production Integrations Backlog
+# TukTukGo Production Integrations Backlog
 
 This app is intentionally light right now. The items below are the major integrations needed before treating it like a production Ola/Uber-style ride platform.
 
@@ -95,18 +95,20 @@ Acceptance criteria:
 ## 4. Payments And Driver Subscriptions
 
 Current state:
-- Subscription model exists conceptually.
-- Payment provider is not production-integrated.
+- Subscription eligibility exists in the backend.
+- Razorpay is the selected provider in the current infrastructure plan, but
+  production credentials, real plans, and webhook delivery still need validation.
+  Backend status/create/cancel routes, webhook verification, fallback payment
+  link handling, and the mobile wallet panel are implemented behind env
+  configuration.
 
 Production requirement:
 - Driver subscription purchase/renewal.
 - Payment status webhook processing.
 - Prevent unsubscribed drivers from going online.
 
-Provider options:
-- Razorpay
-- Cashfree
-- Stripe, if supported for the intended market/use case
+Planned provider:
+- Razorpay Subscriptions with UPI AutoPay and manual payment-link fallback.
 
 Acceptance criteria:
 - Payment state is updated by verified webhooks.
@@ -119,7 +121,8 @@ Current state:
 - SMS is implemented behind a provider-neutral backend module.
 - `SMS_PROVIDER=fast2sms` uses Fast2SMS for OTP and SMS fallback testing.
 - `SMS_PROVIDER=msg91` uses MSG91 OTP and transactional templates when production-ready.
-- No production push notification workflow.
+- Push-token storage and basic Expo ride lifecycle sending exist, but real-device
+  delivery validation is still pending.
 
 Production requirement:
 - Push notifications for ride requested, accepted, cancelled, completed.
@@ -185,18 +188,37 @@ Production requirement:
 - Basic analytics for ride funnel.
 - Support/debug views for user and ride issues.
 
-Provider options:
-- Sentry
-- PostHog
-- Datadog
-- OpenTelemetry-compatible stack
+Planned stack:
+- Sentry for error tracking.
+- Grafana Cloud/Loki/Prometheus/Tempo with OpenTelemetry for logs, metrics, and traces.
+- UptimeRobot for uptime checks.
 
 Acceptance criteria:
 - Backend errors include request id and user id when available.
 - Mobile errors are captured without leaking secrets.
 - Ride request failures can be diagnosed from logs.
 
-## 9. Security, Privacy, And Compliance
+## 9. Masked Calling
+
+Current state:
+- Mobile call actions avoid visible raw phone-number text, but direct phone
+  calling waits for live Exotel credentials. Backend masked-call initiation and
+  call logging are implemented behind env configuration.
+
+Production requirement:
+- Passenger and driver calls must go through a masked/toll-free number so neither
+  party sees the other's real phone number.
+
+Planned provider:
+- Exotel Number Masking API.
+
+Acceptance criteria:
+- Calls are allowed only for accepted or in-progress rides.
+- The backend stores call SID, ride ID, direction, status, and duration, not raw
+  passenger or driver phone numbers.
+- Each ride direction is rate-limited to prevent harassment.
+
+## 10. Security, Privacy, And Compliance
 
 Production requirement:
 - Secrets only in backend/server environment.

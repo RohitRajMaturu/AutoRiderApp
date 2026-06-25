@@ -1,7 +1,12 @@
 import { Tabs } from "expo-router";
 import { Home, Clock, User } from "lucide-react-native";
+import { ICON } from "@/theme/iconScale";
+import { useAuth } from "@/utils/auth/useAuth";
 
 export default function PassengerLayout() {
+  const { auth, isReady } = useAuth();
+  if (!isReady || !auth) return null;
+
   return (
     <Tabs
       screenOptions={{
@@ -9,12 +14,12 @@ export default function PassengerLayout() {
         tabBarStyle: {
           backgroundColor: "#FFFFFF",
           borderTopWidth: 1,
-          borderTopColor: "#E7E5E4",
+          borderTopColor: "#D8E4E5",
           paddingTop: 8,
           paddingBottom: 4,
         },
-        tabBarActiveTintColor: "#F97316",
-        tabBarInactiveTintColor: "#A8A29E",
+        tabBarActiveTintColor: "#43B8B3",
+        tabBarInactiveTintColor: "#647678",
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: "600",
@@ -26,11 +31,11 @@ export default function PassengerLayout() {
         name="index"
         options={{
           title: "Home",
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color }) => (
             <Home
               color={color}
-              size={22}
-              strokeWidth={color === "#F97316" ? 2.5 : 1.8}
+              size={ICON.lg}
+              strokeWidth={color === "#43B8B3" ? 2.5 : 1.5}
             />
           ),
         }}
@@ -39,11 +44,11 @@ export default function PassengerLayout() {
         name="rides"
         options={{
           title: "My Rides",
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color }) => (
             <Clock
               color={color}
-              size={22}
-              strokeWidth={color === "#F97316" ? 2.5 : 1.8}
+              size={ICON.lg}
+              strokeWidth={color === "#43B8B3" ? 2.5 : 1.5}
             />
           ),
         }}
@@ -52,11 +57,11 @@ export default function PassengerLayout() {
         name="profile"
         options={{
           title: "Profile",
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color }) => (
             <User
               color={color}
-              size={22}
-              strokeWidth={color === "#F97316" ? 2.5 : 1.8}
+              size={ICON.lg}
+              strokeWidth={color === "#43B8B3" ? 2.5 : 1.5}
             />
           ),
         }}
@@ -64,3 +69,4 @@ export default function PassengerLayout() {
     </Tabs>
   );
 }
+

@@ -1,20 +1,30 @@
 import { Tabs } from "expo-router";
 import { BarChart3, FileText, Map, Users, Route } from "lucide-react-native";
+import { useTheme } from "@/theme/ThemeContext";
+import { ICON } from "@/theme/iconScale";
+import { useAuth } from "@/utils/auth/useAuth";
 
 export default function AdminLayout() {
+  const theme = useTheme();
+  const { auth, isReady } = useAuth();
+  const active = theme.accent;
+
+  if (!isReady || !auth) return null;
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: "#1C1917",
+          backgroundColor: theme.surface1,
           borderTopWidth: 1,
-          borderTopColor: "#292524",
+          borderTopColor: theme.border,
           paddingTop: 8,
           paddingBottom: 4,
+          height: 60,
         },
-        tabBarActiveTintColor: "#F97316",
-        tabBarInactiveTintColor: "#78716C",
+        tabBarActiveTintColor: active,
+        tabBarInactiveTintColor: theme.text3,
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: "600",
@@ -29,8 +39,8 @@ export default function AdminLayout() {
           tabBarIcon: ({ color }) => (
             <BarChart3
               color={color}
-              size={22}
-              strokeWidth={color === "#F97316" ? 2.5 : 1.8}
+              size={ICON.lg}
+              strokeWidth={color === active ? 2.5 : 1.5}
             />
           ),
         }}
@@ -42,8 +52,8 @@ export default function AdminLayout() {
           tabBarIcon: ({ color }) => (
             <Users
               color={color}
-              size={22}
-              strokeWidth={color === "#F97316" ? 2.5 : 1.8}
+              size={ICON.lg}
+              strokeWidth={color === active ? 2.5 : 1.5}
             />
           ),
         }}
@@ -55,8 +65,8 @@ export default function AdminLayout() {
           tabBarIcon: ({ color }) => (
             <Route
               color={color}
-              size={22}
-              strokeWidth={color === "#F97316" ? 2.5 : 1.8}
+              size={ICON.lg}
+              strokeWidth={color === active ? 2.5 : 1.5}
             />
           ),
         }}
@@ -68,8 +78,8 @@ export default function AdminLayout() {
           tabBarIcon: ({ color }) => (
             <Map
               color={color}
-              size={22}
-              strokeWidth={color === "#F97316" ? 2.5 : 1.8}
+              size={ICON.lg}
+              strokeWidth={color === active ? 2.5 : 1.5}
             />
           ),
         }}
@@ -81,8 +91,8 @@ export default function AdminLayout() {
           tabBarIcon: ({ color }) => (
             <FileText
               color={color}
-              size={22}
-              strokeWidth={color === "#F97316" ? 2.5 : 1.8}
+              size={ICON.lg}
+              strokeWidth={color === active ? 2.5 : 1.5}
             />
           ),
         }}
@@ -90,3 +100,4 @@ export default function AdminLayout() {
     </Tabs>
   );
 }
+

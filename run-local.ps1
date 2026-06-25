@@ -49,13 +49,31 @@ function Ensure-Dependencies {
 }
 
 function Get-LanIpAddress {
-  $Address = Get-NetIPAddress -AddressFamily IPv4 |
-    Where-Object {
-      $_.IPAddress -notlike "127.*" -and
-      $_.IPAddress -notlike "169.254.*" -and
-      $_.PrefixOrigin -ne "WellKnown"
-    } |
-    Select-Object -First 1 -ExpandProperty IPAddress
+  $Address = $null
+
+  try {
+    $Address = [System.Net.Dns]::GetHostAddresses([System.Net.Dns]::GetHostName()) |
+      Where-Object {
+        $_.AddressFamily -eq [System.Net.Sockets.AddressFamily]::InterNetwork -and
+        $_.IPAddressToString -notlike "127.*" -and
+        $_.IPAddressToString -notlike "169.254.*"
+      } |
+      Select-Object -First 1 -ExpandProperty IPAddressToString
+  } catch {
+    $Address = $null
+  }
+
+  if (-not $Address) {
+    $IpConfig = ipconfig | Select-String -Pattern "IPv4 Address"
+    $Address = $IpConfig |
+      ForEach-Object {
+        if ($_.Line -match ":\s*([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)") {
+          $Matches[1]
+        }
+      } |
+      Where-Object { $_ -notlike "127.*" -and $_ -notlike "169.254.*" } |
+      Select-Object -First 1
+  }
 
   if (-not $Address) {
     return "127.0.0.1"
@@ -84,7 +102,7 @@ function Wait-ForBackend {
 }
 
 Ensure-Command "node"
-Ensure-Command "npm"
+Ensure-Command "npm.cmd"
 
 Ensure-Dependencies -Name "web/backend" -Directory $WebDir
 Ensure-Dependencies -Name "mobile" -Directory $MobileDir
@@ -93,15 +111,17 @@ $LanIp = Get-LanIpAddress
 $BackendUrl = "http://${LanIp}:4000"
 $BackendLocalUrl = "http://127.0.0.1:4000"
 
-Write-Step "Starting backend"
-$BackendCommand = "Set-Location '$WebDir'; npm run dev"
+Write-Step "Starting web app and API"
+$BackendCommand = "Set-Location '$WebDir'; npm.cmd run dev:lan"
 Start-Process powershell.exe -ArgumentList "-NoExit", "-Command", $BackendCommand
 
 Wait-ForBackend -Url $BackendLocalUrl
 
 Write-Step "Starting Expo Go"
 Write-Host "Backend URL for your phone: $BackendUrl"
-Write-Host "Web backend local URL:       $BackendLocalUrl"
+Write-Host "Web app local URL:           $BackendLocalUrl"
+Write-Host "Admin login local URL:       $BackendLocalUrl/admin-login"
+Write-Host "Web app LAN URL:             $BackendUrl"
 Write-Host "Scan the Expo QR code with Expo Go."
 Write-Host ""
 

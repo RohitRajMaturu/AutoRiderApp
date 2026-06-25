@@ -1,35 +1,71 @@
-import React from "react";
-import { View, Text, TouchableOpacity, ScrollView, Alert } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, Linking, Modal, Pressable, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/utils/auth/useAuth";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
+import * as ImagePicker from "expo-image-picker";
 import {
   LogOut,
   Phone,
-  Car,
   Shield,
   ChevronRight,
-  Star,
   HelpCircle,
   Calendar,
   FlaskConical,
+  Camera,
+  UserRound,
 } from "lucide-react-native";
 import { StatusBar } from "expo-status-bar";
 import useAppStore from "@/store/useAppStore";
+import { ICON } from "@/theme/iconScale";
+import AutoRideIcon from "@/components/AutoRideIcon";
+import TukTukGoLoader from "@/components/TukTukGoLoader";
 
-const PRIMARY = "#F97316";
-const PRIMARY_LIGHT = "#FFF7ED";
-const PRIMARY_BORDER = "#FED7AA";
-const BG = "#FFFBF5";
+const PRIMARY = "#43B8B3";
+const PRIMARY_LIGHT = "#E7F6F4";
+const PRIMARY_BORDER = "#BFE5E0";
+const BG = "#EAF0F1";
 const SURFACE = "#FFFFFF";
-const BORDER = "#E7E5E4";
-const TEXT = "#1C1917";
-const TEXT_SECONDARY = "#78716C";
-const TEXT_MUTED = "#A8A29E";
+const BORDER = "#D8E4E5";
+const TEXT = "#17272B";
+const TEXT_SECONDARY = "#586C70";
+const TEXT_MUTED = "#647678";
 const SUCCESS = "#16A34A";
 const SUCCESS_LIGHT = "#DCFCE7";
-const DARK = "#1C1917";
+const DARK = "#17272B";
+const SUPPORT_WHATSAPP_URL = `https://wa.me/${process.env.EXPO_PUBLIC_SUPPORT_PHONE ?? "919999999999"}`;
+const DRIVER_GUIDELINES_URL = process.env.EXPO_PUBLIC_GUIDELINES_URL ?? "#";
+
+function readAssetMimeType(asset) {
+  if (asset?.mimeType) return asset.mimeType;
+  const extension = String(asset?.uri || "").split(".").pop()?.toLowerCase();
+  if (extension === "png") return "image/png";
+  if (extension === "webp") return "image/webp";
+  return "image/jpeg";
+}
+
+async function uploadImageAsset({ asset, field, scope }) {
+  if (!asset?.base64) {
+    throw new Error("Could not read the selected image");
+  }
+
+  const mimeType = readAssetMimeType(asset);
+  const response = await fetch("/api/upload", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      scope,
+      filename: asset.fileName || `${field}-${Date.now()}.jpg`,
+      base64: `data:${mimeType};base64,${asset.base64}`,
+    }),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok || !body.url) {
+    throw new Error(body.error || "Upload failed");
+  }
+  return body;
+}
 
 function MenuItem({
   icon: Icon,
@@ -61,7 +97,7 @@ function MenuItem({
           alignItems: "center",
         }}
       >
-        <Icon size={18} color={color} strokeWidth={2} />
+        <Icon size={ICON.sm} color={color} />
       </View>
       <View style={{ flex: 1 }}>
         <Text style={{ fontSize: 14, fontWeight: "600", color: TEXT }}>
@@ -73,8 +109,113 @@ function MenuItem({
           </Text>
         )}
       </View>
-      <ChevronRight size={16} color={TEXT_MUTED} />
+      <ChevronRight size={ICON.sm} color={TEXT_MUTED} />
     </TouchableOpacity>
+  );
+}
+
+function ProfileFetchNotice({ visible }) {
+  if (!visible) return null;
+
+  return (
+    <View
+      style={{
+        alignItems: "center",
+        backgroundColor: "#FFFFFF12",
+        borderColor: "#FFFFFF24",
+        borderRadius: 14,
+        borderWidth: 1,
+        marginTop: 16,
+        paddingVertical: 10,
+        width: "100%",
+      }}
+    >
+      <TukTukGoLoader label="Loading profile..." size={32} textColor="#FFFFFFCC" />
+    </View>
+  );
+}
+
+function SignOutSheet({ visible, onCancel, onConfirm }) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+      <Pressable
+        onPress={onCancel}
+        style={{
+          flex: 1,
+          backgroundColor: "#00000066",
+          justifyContent: "flex-end",
+        }}
+      >
+        <Pressable
+          style={{
+            backgroundColor: SURFACE,
+            borderTopLeftRadius: 26,
+            borderTopRightRadius: 26,
+            padding: 22,
+            paddingBottom: 30,
+          }}
+        >
+          <View
+            style={{
+              alignSelf: "center",
+              width: 42,
+              height: 4,
+              borderRadius: 2,
+              backgroundColor: BORDER,
+              marginBottom: 18,
+            }}
+          />
+          <View
+            style={{
+              width: 50,
+              height: 50,
+              borderRadius: 16,
+              backgroundColor: "#FEF2F2",
+              borderWidth: 1,
+              borderColor: "#FECACA",
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: 14,
+            }}
+          >
+            <LogOut size={ICON.lg} color="#DC2626" />
+          </View>
+          <Text style={{ fontSize: 20, fontWeight: "800", color: TEXT }}>
+            Sign out?
+          </Text>
+          <Text style={{ marginTop: 8, fontSize: 14, lineHeight: 20, color: TEXT_SECONDARY }}>
+            You can sign back in anytime to go online, accept rides, and view earnings.
+          </Text>
+          <View style={{ flexDirection: "row", gap: 12, marginTop: 22 }}>
+            <TouchableOpacity
+              onPress={onCancel}
+              style={{
+                flex: 1,
+                borderRadius: 14,
+                borderWidth: 1,
+                borderColor: BORDER,
+                paddingVertical: 14,
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ color: TEXT, fontSize: 14, fontWeight: "800" }}>Stay</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={onConfirm}
+              style={{
+                flex: 1,
+                borderRadius: 14,
+                backgroundColor: "#DC2626",
+                paddingVertical: 14,
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ color: "#fff", fontSize: 14, fontWeight: "800" }}>Sign Out</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
   );
 }
 
@@ -82,31 +223,125 @@ export default function DriverProfile() {
   const insets = useSafeAreaInsets();
   const { signOut, auth } = useAuth();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { testMode, disableTestMode } = useAppStore();
+  const [phone, setPhone] = useState("");
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [showSignOutSheet, setShowSignOutSheet] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(null);
+  const authUserKey =
+    auth?.user?.id || auth?.user?.email || auth?.user?.phone || "anonymous";
 
-  const { data: profile } = useQuery({
-    queryKey: ["userProfile"],
+  const { data: profile, isLoading: profileLoading } = useQuery({
+    queryKey: ["userProfile", authUserKey],
     queryFn: async () => {
       const res = await fetch("/api/user-profile");
+      if (!res.ok) throw new Error("Failed to load profile");
       return res.json();
     },
+    enabled: !!auth,
+    staleTime: 0,
   });
 
-  const { data: driverData } = useQuery({
-    queryKey: ["driverMe"],
+  const { data: driverData, isLoading: driverProfileLoading } = useQuery({
+    queryKey: ["driverMe", authUserKey],
     queryFn: async () => {
       const res = await fetch("/api/drivers");
+      if (!res.ok) throw new Error("Failed to load driver profile");
       return res.json();
     },
+    enabled: !!auth,
+    staleTime: 0,
   });
 
   const user = profile?.user || auth?.user;
   const driver = driverData?.driver;
+  useEffect(() => {
+    if (!testMode) {
+      setPhone(user?.phone || "");
+    }
+  }, [testMode, user?.phone]);
+
+  const updateProfile = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/user-profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: phone.trim() }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || "Failed to save profile");
+      return body;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["userProfile", authUserKey] });
+      setIsProfileOpen(false);
+    },
+    onError: (err) => Alert.alert("Save Failed", err.message),
+  });
+
+  const updateDriverPhoto = useMutation({
+    mutationFn: async (autoPhotoUrl) => {
+      const res = await fetch("/api/drivers", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ auto_photo_url: autoPhotoUrl }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || "Failed to save auto photo");
+      return body;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["driverMe", authUserKey] }),
+    onError: (err) => Alert.alert("Upload Failed", err.message),
+  });
+
+  const uploadProfileImage = async (kind) => {
+    setUploadingImage(kind);
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert("Permission required", "Allow photo access to choose this image.");
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+        base64: true,
+      });
+      const asset = result.assets?.[0];
+      if (result.canceled || !asset?.uri) return;
+
+      const body = await uploadImageAsset({
+        asset,
+        field: kind,
+        scope: kind === "driver" ? "driver-profile" : "driver-auto",
+      });
+      const savedUrl = body.path || body.url;
+      if (kind === "driver") {
+        const res = await fetch("/api/user-profile", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: savedUrl }),
+        });
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(payload.error || "Failed to save driver image");
+        queryClient.invalidateQueries({ queryKey: ["userProfile", authUserKey] });
+      } else {
+        updateDriverPhoto.mutate(savedUrl);
+      }
+    } catch (err) {
+      Alert.alert("Upload Failed", err.message || "Could not upload image");
+    } finally {
+      setUploadingImage(null);
+    }
+  };
+
   const expiry = driver?.subscription_expiry
     ? new Date(driver.subscription_expiry)
     : null;
   const isSubscribed = expiry && expiry > new Date();
-  const initials = user?.email ? user.email.charAt(0).toUpperCase() : "D";
 
   const handleExitTestMode = async () => {
     Alert.alert("Exit Test Mode", "Go back to sign-in screen?", [
@@ -143,18 +378,18 @@ export default function DriverProfile() {
             }}
             activeOpacity={0.8}
           >
-            <FlaskConical size={16} color="#D97706" />
+            <FlaskConical size={ICON.sm} color="#B88700" />
             <Text
               style={{
                 flex: 1,
                 fontSize: 12,
-                color: "#92400E",
+                color: "#286B68",
                 fontWeight: "600",
               }}
             >
               🧪 Test Mode Active — Tap to Sign In with real account
             </Text>
-            <Text style={{ fontSize: 12, color: "#D97706", fontWeight: "700" }}>
+            <Text style={{ fontSize: 12, color: "#B88700", fontWeight: "700" }}>
               Exit →
             </Text>
           </TouchableOpacity>
@@ -207,9 +442,17 @@ export default function DriverProfile() {
               shadowOpacity: 0.4,
               shadowRadius: 16,
               elevation: 12,
+              overflow: "hidden",
             }}
           >
-            <Text style={{ fontSize: 36, fontWeight: "800", color: "#fff" }}>
+            {!testMode && user?.image ? (
+              <Image
+                source={{ uri: user.image }}
+                style={{ bottom: 0, left: 0, position: "absolute", right: 0, top: 0 }}
+                resizeMode="cover"
+              />
+            ) : null}
+            <Text style={{ fontSize: 36, fontWeight: "800", color: "#fff", opacity: !testMode && user?.image ? 0 : 1 }}>
               {testMode
                 ? "🛺"
                 : auth?.user?.email
@@ -221,6 +464,7 @@ export default function DriverProfile() {
           <Text style={{ fontSize: 20, fontWeight: "700", color: "#fff" }}>
             {testMode ? "Guest Driver" : auth?.user?.email || "Driver"}
           </Text>
+          <ProfileFetchNotice visible={!testMode && (profileLoading || driverProfileLoading)} />
           <View
             style={{
               marginTop: 8,
@@ -233,9 +477,9 @@ export default function DriverProfile() {
               backgroundColor: "#FFFFFF15",
             }}
           >
-            <Car size={14} color={PRIMARY} />
+            <AutoRideIcon size={ICON.xs} />
             <Text style={{ fontSize: 12, fontWeight: "700", color: "#fff" }}>
-              {testMode ? "Test Vehicle" : driver?.vehicle_number || "Driver"}
+              {testMode ? "Test Vehicle" : driver?.vehicle_number || "Registration pending"}
             </Text>
           </View>
 
@@ -265,6 +509,224 @@ export default function DriverProfile() {
                   ? `✅ Subscribed · ${Math.ceil((expiry - new Date()) / 86400000)} days left`
                   : "⚠️ No Active Subscription"}
             </Text>
+          </View>
+        </View>
+
+        {!testMode ? (
+          <View style={{ margin: 16, marginBottom: 0 }}>
+            <View
+              style={{
+                backgroundColor: SURFACE,
+                borderColor: BORDER,
+                borderRadius: 16,
+                borderWidth: 1,
+                padding: 16,
+                gap: 14,
+              }}
+            >
+              <Text style={{ color: TEXT_MUTED, fontSize: 11, fontWeight: "800", letterSpacing: 0.8, textTransform: "uppercase" }}>
+                Driver media
+              </Text>
+              <View style={{ flexDirection: "row", gap: 12 }}>
+                <View style={{ flex: 1 }}>
+                  <View
+                    style={{
+                      alignItems: "center",
+                      backgroundColor: "#F5F5F4",
+                      borderColor: BORDER,
+                      borderRadius: 14,
+                      borderWidth: 1,
+                      height: 112,
+                      justifyContent: "center",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {user?.image ? (
+                      <Image source={{ uri: user.image }} style={{ height: "100%", width: "100%" }} resizeMode="cover" />
+                    ) : (
+                      <UserRound size={ICON.xl} color={TEXT_MUTED} />
+                    )}
+                  </View>
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    disabled={uploadingImage === "driver"}
+                    onPress={() => uploadProfileImage("driver")}
+                    style={{ alignItems: "center", backgroundColor: PRIMARY_LIGHT, borderRadius: 12, flexDirection: "row", gap: 7, justifyContent: "center", marginTop: 8, paddingVertical: 11 }}
+                  >
+                    <Camera size={ICON.sm} color={PRIMARY} />
+                    <Text style={{ color: PRIMARY, fontSize: 12, fontWeight: "900" }}>
+                      {uploadingImage === "driver" ? "Uploading..." : "Driver photo"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View
+                    style={{
+                      alignItems: "center",
+                      backgroundColor: "#F5F5F4",
+                      borderColor: BORDER,
+                      borderRadius: 14,
+                      borderWidth: 1,
+                      height: 112,
+                      justifyContent: "center",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {driver?.auto_photo_url ? (
+                      <Image source={{ uri: driver.auto_photo_url }} style={{ height: "100%", width: "100%" }} resizeMode="cover" />
+                    ) : (
+                      <AutoRideIcon size={ICON.xl} />
+                    )}
+                  </View>
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    disabled={uploadingImage === "auto" || updateDriverPhoto.isPending}
+                    onPress={() => uploadProfileImage("auto")}
+                    style={{ alignItems: "center", backgroundColor: PRIMARY_LIGHT, borderRadius: 12, flexDirection: "row", gap: 7, justifyContent: "center", marginTop: 8, paddingVertical: 11 }}
+                  >
+                    <Camera size={ICON.sm} color={PRIMARY} />
+                    <Text style={{ color: PRIMARY, fontSize: 12, fontWeight: "900" }}>
+                      {uploadingImage === "auto" || updateDriverPhoto.isPending ? "Uploading..." : "Auto photo"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+              <View style={{ backgroundColor: "#F7FBFA", borderColor: BORDER, borderRadius: 12, borderWidth: 1, padding: 12 }}>
+                <Text style={{ color: TEXT_MUTED, fontSize: 11, fontWeight: "800", textTransform: "uppercase" }}>Registration plate</Text>
+                <Text style={{ color: TEXT, fontSize: 17, fontWeight: "900", marginTop: 3 }}>
+                  {driver?.vehicle_number || "Not registered"}
+                </Text>
+              </View>
+            </View>
+          </View>
+        ) : null}
+
+        {/* Account settings */}
+        <View style={{ margin: 16, marginBottom: 0 }}>
+          <View
+            style={{
+              backgroundColor: SURFACE,
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor: BORDER,
+              padding: 16,
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: "700",
+                    color: TEXT_MUTED,
+                    textTransform: "uppercase",
+                    letterSpacing: 0.8,
+                  }}
+                >
+                  Account Settings
+                </Text>
+                <Text style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 4 }}>
+                  Keep your contact number current for passenger calls and alerts.
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setIsProfileOpen((value) => !value)}
+                style={{
+                  borderRadius: 999,
+                  backgroundColor: PRIMARY_LIGHT,
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                }}
+              >
+                <Text style={{ color: PRIMARY, fontSize: 12, fontWeight: "800" }}>
+                  {isProfileOpen ? "Hide" : "Edit"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {isProfileOpen ? (
+            <View style={{ marginTop: 16, gap: 12 }}>
+              <View>
+                <Text style={{ fontSize: 11, fontWeight: "700", color: TEXT_MUTED, marginBottom: 6 }}>
+                  Email
+                </Text>
+                <View
+                  style={{
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: BORDER,
+                    backgroundColor: "#F5F5F4",
+                    paddingHorizontal: 14,
+                    paddingVertical: 13,
+                  }}
+                >
+                  <Text style={{ color: TEXT_SECONDARY, fontSize: 14, fontWeight: "600" }}>
+                    {testMode ? "Guest mode" : user?.email || "Not available"}
+                  </Text>
+                </View>
+              </View>
+
+              <View>
+                <Text style={{ fontSize: 11, fontWeight: "700", color: TEXT_MUTED, marginBottom: 6 }}>
+                  Phone Number
+                </Text>
+                <TextInput
+                  value={phone}
+                  onChangeText={setPhone}
+                  editable={!testMode && !updateProfile.isPending}
+                  keyboardType="phone-pad"
+                  placeholder="Add phone number"
+                  placeholderTextColor={TEXT_MUTED}
+                  style={{
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: phone ? PRIMARY_BORDER : BORDER,
+                    backgroundColor: SURFACE,
+                    paddingHorizontal: 14,
+                    paddingVertical: 12,
+                    color: TEXT,
+                    fontSize: 15,
+                    fontWeight: "600",
+                  }}
+                />
+              </View>
+
+              <TouchableOpacity
+                onPress={() => updateProfile.mutate()}
+                disabled={testMode || updateProfile.isPending}
+                style={{
+                  borderRadius: 12,
+                  backgroundColor: testMode ? "#BFD1D3" : PRIMARY,
+                  paddingVertical: 14,
+                  alignItems: "center",
+                  opacity: updateProfile.isPending ? 0.7 : 1,
+                }}
+                activeOpacity={0.85}
+              >
+                <Text style={{ color: "#fff", fontSize: 14, fontWeight: "800" }}>
+                  {updateProfile.isPending ? "Saving..." : "Save Profile"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            ) : (
+              <View
+                style={{
+                  marginTop: 16,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: BORDER,
+                  backgroundColor: "#F8FAFA",
+                  padding: 14,
+                }}
+              >
+                <Text style={{ color: TEXT_MUTED, fontSize: 11, fontWeight: "800", textTransform: "uppercase" }}>
+                  Saved Contact
+                </Text>
+                <Text style={{ marginTop: 4, color: TEXT, fontSize: 15, fontWeight: "700" }}>
+                  {phone || "No phone number added"}
+                </Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -299,27 +761,30 @@ export default function DriverProfile() {
                 >
                   Vehicle Details
                 </Text>
+                <Text style={{ fontSize: 12, color: "#286B68", marginTop: 4 }}>
+                  వాహన వివరాలు / वाहन विवरण
+                </Text>
               </View>
               {[
                 {
-                  label: "Vehicle Number",
+                  label: "Vehicle Number / వాహనం / वाहन",
                   value: driver.vehicle_number,
-                  icon: Car,
+                  icon: AutoRideIcon,
                 },
                 {
-                  label: "Contact Phone",
-                  value: auth?.user?.phone || "Not added",
+                  label: "Contact Phone / ఫోన్ / फोन",
+                  value: user?.phone || "Not added",
                   icon: Phone,
                 },
                 {
-                  label: "Approval Status",
+                  label: "Approval Status / అనుమతి / मंज़ूरी",
                   value: driver.is_approved ? "✅ Approved" : "⏳ Pending",
                   icon: Shield,
                 },
                 ...(expiry
                   ? [
                       {
-                        label: "Subscription Expiry",
+                        label: "Subscription Expiry / గడువు / समाप्ति",
                         value: expiry.toLocaleDateString("en-IN", {
                           day: "numeric",
                           month: "long",
@@ -351,7 +816,7 @@ export default function DriverProfile() {
                       alignItems: "center",
                     }}
                   >
-                    <item.icon size={18} color={TEXT_SECONDARY} />
+                    <item.icon size={ICON.sm} color={TEXT_SECONDARY} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text
@@ -394,22 +859,16 @@ export default function DriverProfile() {
             }}
           >
             <MenuItem
-              icon={Star}
-              label="Rate Auto Ride"
-              sublabel="Share your driver experience"
-              onPress={() => {}}
-            />
-            <MenuItem
               icon={HelpCircle}
               label="Help & Support"
               sublabel="Driver assistance center"
-              onPress={() => {}}
+              onPress={() => Linking.openURL(SUPPORT_WHATSAPP_URL)}
             />
             <MenuItem
               icon={Shield}
               label="Driver Guidelines"
               sublabel="Rules & best practices"
-              onPress={() => {}}
+              onPress={() => Linking.openURL(DRIVER_GUIDELINES_URL)}
             />
           </View>
         </View>
@@ -432,25 +891,16 @@ export default function DriverProfile() {
               }}
               activeOpacity={0.8}
             >
-              <FlaskConical size={18} color="#D97706" />
+              <FlaskConical size={ICON.sm} color="#B88700" />
               <Text
-                style={{ color: "#D97706", fontSize: 15, fontWeight: "700" }}
+                style={{ color: "#B88700", fontSize: 15, fontWeight: "700" }}
               >
                 Exit Test Mode → Sign In
               </Text>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
-              onPress={() => {
-                Alert.alert("Sign Out", "Are you sure you want to sign out?", [
-                  { text: "Cancel", style: "cancel" },
-                  {
-                    text: "Sign Out",
-                    style: "destructive",
-                    onPress: () => signOut(),
-                  },
-                ]);
-              }}
+              onPress={() => setShowSignOutSheet(true)}
               style={{
                 backgroundColor: "#FEF2F2",
                 borderRadius: 14,
@@ -464,7 +914,7 @@ export default function DriverProfile() {
               }}
               activeOpacity={0.8}
             >
-              <LogOut size={18} color="#DC2626" />
+              <LogOut size={ICON.sm} color="#DC2626" />
               <Text
                 style={{ color: "#DC2626", fontSize: 15, fontWeight: "700" }}
               >
@@ -474,6 +924,19 @@ export default function DriverProfile() {
           )}
         </View>
 
+        <SignOutSheet
+          visible={showSignOutSheet}
+          onCancel={() => setShowSignOutSheet(false)}
+          onConfirm={async () => {
+            setShowSignOutSheet(false);
+            try {
+              await signOut();
+            } catch {
+              Alert.alert("Sign out", "You have been returned to the start screen.");
+            }
+          }}
+        />
+
         <Text
           style={{
             textAlign: "center",
@@ -482,9 +945,10 @@ export default function DriverProfile() {
             marginTop: 28,
           }}
         >
-          Auto Ride Driver Console v1.0 - India
+          TukTukGo Driver Console v1.0 - India
         </Text>
       </ScrollView>
     </View>
   );
 }
+

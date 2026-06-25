@@ -17,7 +17,7 @@ function buildParameterizedQuery(strings, values) {
 }
 
 const pool = process.env.DATABASE_URL
-  ? new Pool({ connectionString: process.env.DATABASE_URL })
+  ? new Pool({ connectionString: process.env.DATABASE_URL, max: 10 })
   : null;
 
 async function query(text, values = []) {

@@ -1,7 +1,12 @@
 import { Tabs } from "expo-router";
 import { Home, Wallet, User } from "lucide-react-native";
+import { ICON } from "@/theme/iconScale";
+import { useAuth } from "@/utils/auth/useAuth";
 
 export default function DriverLayout() {
+  const { auth, isReady } = useAuth();
+  if (!isReady || !auth) return null;
+
   return (
     <Tabs
       screenOptions={{
@@ -9,12 +14,12 @@ export default function DriverLayout() {
         tabBarStyle: {
           backgroundColor: "#FFFFFF",
           borderTopWidth: 1,
-          borderTopColor: "#E7E5E4",
+          borderTopColor: "#D8E4E5",
           paddingTop: 8,
           paddingBottom: 4,
         },
-        tabBarActiveTintColor: "#F97316",
-        tabBarInactiveTintColor: "#A8A29E",
+        tabBarActiveTintColor: "#43B8B3",
+        tabBarInactiveTintColor: "#647678",
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: "600",
@@ -29,8 +34,8 @@ export default function DriverLayout() {
           tabBarIcon: ({ color }) => (
             <Home
               color={color}
-              size={22}
-              strokeWidth={color === "#F97316" ? 2.5 : 1.8}
+              size={ICON.lg}
+              strokeWidth={color === "#43B8B3" ? 2.5 : 1.5}
             />
           ),
         }}
@@ -42,8 +47,8 @@ export default function DriverLayout() {
           tabBarIcon: ({ color }) => (
             <Wallet
               color={color}
-              size={22}
-              strokeWidth={color === "#F97316" ? 2.5 : 1.8}
+              size={ICON.lg}
+              strokeWidth={color === "#43B8B3" ? 2.5 : 1.5}
             />
           ),
         }}
@@ -55,12 +60,19 @@ export default function DriverLayout() {
           tabBarIcon: ({ color }) => (
             <User
               color={color}
-              size={22}
-              strokeWidth={color === "#F97316" ? 2.5 : 1.8}
+              size={ICON.lg}
+              strokeWidth={color === "#43B8B3" ? 2.5 : 1.5}
             />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="kyc-submit"
+        options={{
+          href: null,
         }}
       />
     </Tabs>
   );
 }
+

@@ -1,60 +1,112 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Image, Platform, Text, View } from 'react-native';
+import { Alert, Animated, Platform, Text, TouchableOpacity, View } from 'react-native';
 import { WebView } from 'react-native-webview';
+import * as Contacts from 'expo-contacts';
+import { ArrowLeft } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthModal, useAuthStore } from './store';
+import TukTukGoLoader from '@/components/TukTukGoLoader';
 
 const callbackUrl = '/api/auth/token';
 const onboardingUrl = '/onboarding';
+const MOBILE_SIGNUP_ROLES = new Set(['passenger', 'driver']);
+
+function contactDisplayName(contact) {
+  return (
+    contact?.name?.trim() ||
+    [contact?.firstName, contact?.middleName, contact?.lastName]
+      .filter(Boolean)
+      .join(' ')
+      .trim() ||
+    contact?.nickname?.trim() ||
+    ''
+  );
+}
+
+function normalizeAuthParams(mode, params = {}) {
+  if (mode !== 'signup') {
+    return params || {};
+  }
+
+  const role = MOBILE_SIGNUP_ROLES.has(params?.role) ? params.role : 'passenger';
+  return {
+    ...(params || {}),
+    role,
+  };
+}
 
 function buildAuthPath(mode, params = {}, callback = callbackUrl) {
-  const query = new URLSearchParams({ callbackUrl: callback });
+  const query = new URLSearchParams({ callbackUrl: callback, client: 'mobile' });
+  const page = mode === 'signup' ? 'signin' : mode;
+  if (mode === 'signup') {
+    query.set('mode', 'signup');
+  }
   Object.entries(params || {}).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') {
       query.set(key, String(value));
     }
   });
-  return `/account/${mode}?${query.toString()}`;
+  return `/account/${page}?${query.toString()}`;
+}
+
+function buildFreshAuthPath(mode, params = {}, callback = callbackUrl) {
+  const next = buildAuthPath(mode, params, callback);
+  return `/account/logout?next=${encodeURIComponent(next)}`;
 }
 
 /**
  * This renders a WebView for authentication and handles both web and native platforms.
  */
 export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
-  const isAdminSignup = mode === 'signup' && params?.role === 'admin';
-  const authCallback = mode === 'signup' && !isAdminSignup ? onboardingUrl : callbackUrl;
+  const insets = useSafeAreaInsets();
+  const mobileParams = useMemo(() => normalizeAuthParams(mode, params), [mode, params]);
+  const isMobileSignup = mode === 'signup';
+  const authCallback = isMobileSignup ? onboardingUrl : callbackUrl;
   const authParams = useMemo(
-    () => (mode === 'signup' && !isAdminSignup ? { ...params, finalCallbackUrl: callbackUrl } : params),
-    [mode, params, isAdminSignup],
+    () => (isMobileSignup ? { ...mobileParams, finalCallbackUrl: callbackUrl } : mobileParams),
+    [isMobileSignup, mobileParams],
   );
-  const [currentURI, setURI] = useState(`${baseURL}${buildAuthPath(mode, authParams, authCallback)}`);
+  const [currentURI, setURI] = useState(`${baseURL}${buildFreshAuthPath(mode, authParams, authCallback)}`);
   const [isPageReady, setIsPageReady] = useState(false);
   const [authError, setAuthError] = useState(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const { auth, setAuth, isReady } = useAuthStore();
-  const { close } = useAuthModal();
+  const { auth, setAuth, isReady, isSigningOut } = useAuthStore();
+  const { close, isOpen } = useAuthModal();
   const isAuthenticated = isReady ? !!auth : null;
   const iframeRef = useRef(null);
+  const nativeWebViewRef = useRef(null);
   useEffect(() => {
+    if (isSigningOut) {
+      return;
+    }
     if (Platform.OS === 'web') {
       return;
     }
     if (isAuthenticated) {
       close();
     }
-  }, [isAuthenticated, close]);
+  }, [isAuthenticated, close, isSigningOut]);
   useEffect(() => {
+    if (isSigningOut) {
+      return;
+    }
+    if (!isOpen) {
+      return;
+    }
     if (isAuthenticated) {
       return;
     }
     setIsPageReady(false);
     setAuthError(null);
     fadeAnim.setValue(0);
-    const nextUri = `${baseURL}${buildAuthPath(mode, authParams, authCallback)}`;
-    console.log('[AuthWebView] opening', { mode, nextUri, authCallback, authParams });
+    const nextUri = `${baseURL}${buildFreshAuthPath(mode, authParams, authCallback)}`;
     setURI(nextUri);
-  }, [mode, authParams, authCallback, baseURL, isAuthenticated, fadeAnim]);
+  }, [mode, authParams, authCallback, baseURL, isAuthenticated, fadeAnim, isOpen, isSigningOut]);
 
   useEffect(() => {
+    if (isSigningOut) {
+      return;
+    }
     if (isPageReady || isAuthenticated) {
       return;
     }
@@ -64,10 +116,9 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
       fadeAnim.setValue(1);
     }, 8000);
     return () => clearTimeout(timer);
-  }, [isPageReady, isAuthenticated, currentURI, fadeAnim]);
+  }, [isPageReady, isAuthenticated, currentURI, fadeAnim, isSigningOut]);
 
   const handlePageLoaded = () => {
-    console.log('[AuthWebView] page loaded', currentURI);
     setIsPageReady(true);
     Animated.timing(fadeAnim, {
       toValue: 1,
@@ -84,33 +135,19 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
         right: 0,
         bottom: 0,
         left: 0,
-        backgroundColor: '#1C1917',
+        backgroundColor: '#EAF0F1',
         justifyContent: 'center',
         alignItems: 'center',
         zIndex: 2,
       }}
       pointerEvents="none"
     >
-      <View
-        style={{
-          width: 76,
-          height: 76,
-          borderRadius: 24,
-          backgroundColor: '#F97316',
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginBottom: 18,
-        }}
-      >
-        <Image
-          source={require('../../../assets/images/icon.png')}
-          style={{ width: 58, height: 58, resizeMode: 'contain' }}
-        />
-      </View>
-      <ActivityIndicator color="#F97316" />
-      <Text style={{ marginTop: 12, color: '#D6D3D1', fontSize: 13, fontWeight: '700' }}>
-        {authError || 'Opening Auto Ride...'}
-      </Text>
+      <TukTukGoLoader
+        size={76}
+        color="#43B8B3"
+        textColor="#586C70"
+        label={authError || 'Opening TukTukGo...'}
+      />
     </View>
   );
 
@@ -145,13 +182,11 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
         return;
       }
       if (event.data.type === 'AUTH_SUCCESS') {
-        console.log('[AuthWebView] web auth success', event.data.user);
         setAuth({
           jwt: event.data.jwt,
           user: event.data.user,
         });
       } else if (event.data.type === 'AUTH_ERROR') {
-        console.error('[AuthWebView] web auth error', event.data.error);
         setAuthError(event.data.error || 'Authentication failed');
       }
     };
@@ -165,22 +200,22 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
 
   if (Platform.OS === 'web') {
     const handleIframeError = () => {
-      console.error('Failed to load auth iframe');
+      setAuthError('Authentication page failed to load');
     };
 
     return (
-      <View style={{ flex: 1, backgroundColor: '#1C1917' }}>
+      <View style={{ flex: 1, backgroundColor: '#EAF0F1' }}>
         {!isPageReady && loadingView}
         <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
           <iframe
             ref={iframeRef}
-            title="Auto Ride authentication"
-            src={`${proxyURL}${buildAuthPath(
+            title="TukTukGo authentication"
+            src={`${proxyURL}${buildFreshAuthPath(
               mode,
-              mode === 'signup' && params?.role !== 'admin'
-                ? { ...params, finalCallbackUrl: '/api/auth/expo-web-success' }
-                : params,
-              mode === 'signup' && params?.role !== 'admin' ? onboardingUrl : '/api/auth/expo-web-success',
+              isMobileSignup
+                ? { ...mobileParams, finalCallbackUrl: '/api/auth/expo-web-success' }
+                : mobileParams,
+              isMobileSignup ? onboardingUrl : '/api/auth/expo-web-success',
             )}`}
             style={{ width: '100%', height: '100%', border: 'none' }}
             onLoad={handlePageLoaded}
@@ -191,12 +226,72 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
       </View>
     );
   }
+
+  const handleNativeMessage = async (event) => {
+    let message;
+    try {
+      message = JSON.parse(event.nativeEvent?.data || '{}');
+    } catch {
+      return;
+    }
+    if (message?.type !== 'PICK_EMERGENCY_CONTACT') return;
+
+    try {
+      const permission = await Contacts.requestPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Contacts Permission', 'Allow contacts access to choose an emergency contact.');
+        return;
+      }
+      const contact = await Contacts.presentContactPickerAsync();
+      if (!contact) return;
+      const phone = contact.phoneNumbers?.find((item) => item.number)?.number || '';
+      const detail = JSON.stringify({ name: contactDisplayName(contact), phone });
+      nativeWebViewRef.current?.injectJavaScript(`
+        window.dispatchEvent(new CustomEvent('TUKTUKGO_CONTACT_SELECTED', {
+          detail: ${detail}
+        }));
+        true;
+      `);
+    } catch {
+      Alert.alert('Contact Picker Unavailable', 'Please enter the emergency contact manually.');
+    }
+  };
+
   return (
-    <View style={{ flex: 1, backgroundColor: '#1C1917' }}>
+    <View style={{ flex: 1, backgroundColor: '#EAF0F1' }}>
+      <TouchableOpacity
+        onPress={close}
+        activeOpacity={0.82}
+        style={{
+          position: 'absolute',
+          top: insets.top + 12,
+          left: 16,
+          zIndex: 4,
+          width: 42,
+          height: 42,
+          borderRadius: 21,
+          backgroundColor: '#FFFFFFEE',
+          borderWidth: 1,
+          borderColor: '#D8E4E5',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+        accessibilityRole="button"
+        accessibilityLabel="Back to TukTukGo home"
+      >
+        <ArrowLeft size={20} color="#17272B" />
+      </TouchableOpacity>
       {!isPageReady && loadingView}
       <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
         <WebView
+          ref={nativeWebViewRef}
           sharedCookiesEnabled
+          automaticallyAdjustContentInsets={false}
+          contentInsetAdjustmentBehavior="never"
+          keyboardDisplayRequiresUserAction={false}
+          keyboardShouldPersistTaps="handled"
+          scrollEnabled
+          nestedScrollEnabled
           source={{
             uri: currentURI,
           }}
@@ -207,25 +302,22 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
             'x-createxyz-host': process.env.EXPO_PUBLIC_HOST,
           }}
           onLoadStart={() => {
-            console.log('[AuthWebView] load start', currentURI);
             setIsPageReady(false);
             fadeAnim.setValue(0);
           }}
           onLoadEnd={handlePageLoaded}
           onError={(event) => {
-            console.error('[AuthWebView] webview load error', event.nativeEvent);
             setAuthError(event.nativeEvent?.description || 'WebView failed to load');
             setIsPageReady(true);
             fadeAnim.setValue(1);
           }}
           onHttpError={(event) => {
-            console.error('[AuthWebView] webview HTTP error', event.nativeEvent);
             setAuthError(`HTTP ${event.nativeEvent?.statusCode || ''} while loading auth`);
             setIsPageReady(true);
             fadeAnim.setValue(1);
           }}
+          onMessage={handleNativeMessage}
           onShouldStartLoadWithRequest={(request) => {
-            console.log('[AuthWebView] nav request', request.url);
             const requestPath = (() => {
               try {
                 return new URL(request.url).pathname;
@@ -237,34 +329,30 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
               setAuthError(null);
               fetch(request.url, { credentials: 'include' }).then(async (response) => {
                 if (!response.ok) {
-                  const body = await response.text().catch(() => '');
-                  console.error('[AuthWebView] token fetch failed', response.status, body);
                   setAuthError('Login did not complete. Please try again.');
                   setIsPageReady(true);
-                  setURI(`${baseURL}${buildAuthPath(mode, authParams, authCallback)}`);
+                  setURI(`${baseURL}${buildFreshAuthPath(mode, authParams, authCallback)}`);
                   return;
                 }
                 response.json().then((data) => {
                   if (!data.jwt) {
-                    console.error('[AuthWebView] token response missing jwt', data);
                     setAuthError('Login response was incomplete. Please try again.');
                     setIsPageReady(true);
-                    setURI(`${baseURL}${buildAuthPath(mode, authParams, authCallback)}`);
+                    setURI(`${baseURL}${buildFreshAuthPath(mode, authParams, authCallback)}`);
                     return;
                   }
                   setAuth({ jwt: data.jwt, user: data.user });
                 });
-              }).catch((err) => {
-                console.error('[AuthWebView] token fetch error', err);
+              }).catch(() => {
                 setAuthError('Login failed. Please try again.');
                 setIsPageReady(true);
-                setURI(`${baseURL}${buildAuthPath(mode, authParams, authCallback)}`);
+                setURI(`${baseURL}${buildFreshAuthPath(mode, authParams, authCallback)}`);
               });
               return false;
             }
             return true;
           }}
-          style={{ flex: 1, backgroundColor: '#1C1917' }}
+          style={{ flex: 1, backgroundColor: '#EAF0F1' }}
         />
       </Animated.View>
       {errorBanner}

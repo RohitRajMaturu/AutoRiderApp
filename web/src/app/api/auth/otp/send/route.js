@@ -17,7 +17,6 @@ function fast2smsNumber(phone) {
 async function sendFast2SmsOtp(phone, otp) {
   const apiKey = process.env.FAST2SMS_API_KEY?.trim();
   if (!apiKey) {
-    console.log("[otp] Fast2SMS skipped: missing FAST2SMS_API_KEY");
     return { ok: false, error: "FAST2SMS_API_KEY is missing" };
   }
 
@@ -28,7 +27,7 @@ async function sendFast2SmsOtp(phone, otp) {
 
   const body = new URLSearchParams({
     route: process.env.FAST2SMS_ROUTE || process.env.FAST2SMS_OTP_ROUTE || "q",
-    message: `Your Auto Ride OTP is ${otp}. Do not share it with anyone.`,
+    message: `Your TukTukGo OTP is ${otp}. Do not share it with anyone.`,
     language: process.env.FAST2SMS_LANGUAGE || "english",
     numbers: number,
   });
@@ -50,7 +49,6 @@ async function sendFast2SmsOtp(phone, otp) {
     data = { raw: text };
   }
 
-  console.log("[otp] Fast2SMS response", response.status, data);
   return {
     ok: response.ok,
     error: data?.message || data?.error || data?.raw || `Fast2SMS rejected request with ${response.status}`,

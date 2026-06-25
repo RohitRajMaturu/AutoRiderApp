@@ -10,8 +10,8 @@ global.Buffer = Buffer;
 
 const context = require.context('./src/app');
 
-function AutoRideApp() {
+function TukTukGoApp() {
   return <ExpoRoot context={context} />;
 }
 
-registerRootComponent(AutoRideApp);
+registerRootComponent(TukTukGoApp);
