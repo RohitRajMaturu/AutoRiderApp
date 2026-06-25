@@ -1,14 +1,14 @@
 import { Tabs } from "expo-router";
+import { View } from "react-native";
+import TestModeBackButton from "@/components/TestModeBackButton";
 import { Home, Wallet, User } from "lucide-react-native";
 import { ICON } from "@/theme/iconScale";
-import { useAuth } from "@/utils/auth/useAuth";
 
 export default function DriverLayout() {
-  const { auth, isReady } = useAuth();
-  if (!isReady || !auth) return null;
-
   return (
-    <Tabs
+    <View style={{ flex: 1 }}>
+      <TestModeBackButton />
+      <Tabs
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
@@ -72,7 +72,7 @@ export default function DriverLayout() {
           href: null,
         }}
       />
-    </Tabs>
+      </Tabs>
+    </View>
   );
 }
-

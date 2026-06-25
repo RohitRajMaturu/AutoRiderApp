@@ -212,7 +212,6 @@ export default function RootLayout() {
       pathname.startsWith("/admin");
 
     if (!auth && inProtectedGroup) {
-      router.dismissAll();
       router.replace("/");
     }
   }, [auth, firstSegment, isReady, pathname, router]);
@@ -251,9 +250,9 @@ export default function RootLayout() {
         <GestureHandlerRootView style={{ flex: 1 }}>
           <Stack screenOptions={{ headerShown: false }} initialRouteName="index">
             <Stack.Screen name="index" />
-            <Stack.Screen name="(passenger)" options={{ headerShown: false }} />
-            <Stack.Screen name="(driver)" options={{ headerShown: false }} />
-            <Stack.Screen name="(admin)" options={{ headerShown: false }} />
+            <Stack.Screen name="(passenger)" options={{ headerShown: false, animation: "none" }} />
+            <Stack.Screen name="(driver)" options={{ headerShown: false, animation: "none" }} />
+            <Stack.Screen name="(admin)" options={{ headerShown: false, animation: "none" }} />
           </Stack>
           <AuthModal />
           <ConsentGate />
