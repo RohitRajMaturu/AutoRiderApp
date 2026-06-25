@@ -1,9 +1,11 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   RefreshControl,
   ScrollView,
   Text,
+  TextInput,
+  TouchableOpacity,
   View,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
@@ -11,11 +13,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import {
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   FileText,
   MapPin,
   Power,
   Route,
   ShieldCheck,
+  Search,
   UserCheck,
   UserX,
 } from "lucide-react-native";
@@ -139,16 +144,39 @@ function auditPresentation(log) {
 
 export default function AdminAudit() {
   const insets = useSafeAreaInsets();
+  const [category, setCategory] = useState("all");
+  const [sort, setSort] = useState("newest");
+  const [searchText, setSearchText] = useState("");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
   const { data, isLoading, refetch, isRefetching } = useQuery({
-    queryKey: ["adminAudit"],
+    queryKey: ["adminAudit", category, sort, search, page],
     queryFn: async () => {
-      const res = await fetch("/api/admin/audit");
+      const params = new URLSearchParams({
+        category,
+        sort,
+        search,
+        page: String(page),
+        pageSize: String(pageSize),
+      });
+      const res = await fetch(`/api/admin/audit?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to fetch audit log");
       return res.json();
     },
     refetchInterval: 30000,
   });
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setPage(1);
+      setSearch(searchText.trim());
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchText]);
+
   const logs = data?.logs || [];
+  const counts = data?.counts || {};
+  const pagination = data?.pagination || { page: 1, total: 0, totalPages: 1 };
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
@@ -166,8 +194,99 @@ export default function AdminAudit() {
           Admin Activity
         </Text>
         <Text style={{ fontSize: 13, color: TEXT_SECONDARY, marginTop: 2 }}>
-          Actions performed by administrators
+          {counts.all || 0} recorded administrator actions
         </Text>
+        <View
+          style={{
+            alignItems: "center",
+            backgroundColor: SURFACE,
+            borderColor: BORDER,
+            borderRadius: 12,
+            borderWidth: 1,
+            flexDirection: "row",
+            gap: 8,
+            marginTop: 14,
+            paddingHorizontal: 12,
+          }}
+        >
+          <Search size={ICON.sm} color={TEXT_SECONDARY} />
+          <TextInput
+            value={searchText}
+            onChangeText={setSearchText}
+            placeholder="Search action, admin, target or details"
+            placeholderTextColor={TEXT_SECONDARY}
+            style={{ color: TEXT, flex: 1, fontSize: 13, paddingVertical: 11 }}
+          />
+        </View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ marginTop: 10, flexGrow: 0 }}
+          contentContainerStyle={{ gap: 8 }}
+        >
+          {[
+            ["all", "All"],
+            ["zone", "Zones"],
+            ["driver", "Drivers"],
+            ["ride", "Rides"],
+          ].map(([value, label]) => (
+            <TouchableOpacity
+              key={value}
+              onPress={() => {
+                setCategory(value);
+                setPage(1);
+              }}
+              style={{
+                backgroundColor: category === value ? `${PRIMARY}20` : SURFACE,
+                borderColor: category === value ? PRIMARY : BORDER,
+                borderRadius: 99,
+                borderWidth: 1,
+                paddingHorizontal: 12,
+                paddingVertical: 7,
+              }}
+            >
+              <Text
+                style={{
+                  color: category === value ? PRIMARY : TEXT_SECONDARY,
+                  fontSize: 12,
+                  fontWeight: "800",
+                }}
+              >
+                {label} ({counts[value] || 0})
+              </Text>
+            </TouchableOpacity>
+          ))}
+          {[
+            ["newest", "Newest"],
+            ["oldest", "Oldest"],
+          ].map(([value, label]) => (
+            <TouchableOpacity
+              key={value}
+              onPress={() => {
+                setSort(value);
+                setPage(1);
+              }}
+              style={{
+                backgroundColor: sort === value ? `${SUCCESS}20` : SURFACE,
+                borderColor: sort === value ? SUCCESS : BORDER,
+                borderRadius: 99,
+                borderWidth: 1,
+                paddingHorizontal: 12,
+                paddingVertical: 7,
+              }}
+            >
+              <Text
+                style={{
+                  color: sort === value ? SUCCESS : TEXT_SECONDARY,
+                  fontSize: 12,
+                  fontWeight: "800",
+                }}
+              >
+                {label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </View>
 
       {isLoading ? (
@@ -266,6 +385,72 @@ export default function AdminAudit() {
               );
             })
           )}
+          {pagination.total > 0 ? (
+            <View
+              style={{
+                alignItems: "center",
+                flexDirection: "row",
+                justifyContent: "space-between",
+                marginTop: 4,
+                paddingVertical: 12,
+              }}
+            >
+              <TouchableOpacity
+                disabled={page <= 1}
+                onPress={() => setPage((current) => Math.max(1, current - 1))}
+                style={{
+                  alignItems: "center",
+                  backgroundColor: SURFACE,
+                  borderColor: BORDER,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  flexDirection: "row",
+                  gap: 5,
+                  opacity: page <= 1 ? 0.4 : 1,
+                  paddingHorizontal: 12,
+                  paddingVertical: 9,
+                }}
+              >
+                <ChevronLeft size={ICON.xs} color={TEXT} />
+                <Text style={{ color: TEXT, fontSize: 12, fontWeight: "800" }}>
+                  Previous
+                </Text>
+              </TouchableOpacity>
+              <View style={{ alignItems: "center" }}>
+                <Text style={{ color: TEXT, fontSize: 12, fontWeight: "800" }}>
+                  Page {pagination.page} of {pagination.totalPages}
+                </Text>
+                <Text style={{ color: TEXT_SECONDARY, fontSize: 10, marginTop: 2 }}>
+                  {pagination.total} matching actions
+                </Text>
+              </View>
+              <TouchableOpacity
+                disabled={page >= pagination.totalPages}
+                onPress={() =>
+                  setPage((current) =>
+                    Math.min(pagination.totalPages, current + 1),
+                  )
+                }
+                style={{
+                  alignItems: "center",
+                  backgroundColor: SURFACE,
+                  borderColor: BORDER,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  flexDirection: "row",
+                  gap: 5,
+                  opacity: page >= pagination.totalPages ? 0.4 : 1,
+                  paddingHorizontal: 12,
+                  paddingVertical: 9,
+                }}
+              >
+                <Text style={{ color: TEXT, fontSize: 12, fontWeight: "800" }}>
+                  Next
+                </Text>
+                <ChevronRight size={ICON.xs} color={TEXT} />
+              </TouchableOpacity>
+            </View>
+          ) : null}
         </ScrollView>
       )}
     </View>

@@ -76,7 +76,17 @@ function truncate(value, max = 15) {
 }
 
 function formatAction(action) {
-  return String(action || "").replace(/\./g, " / ");
+  const labels = {
+    "zone.create": "Created service zone",
+    "zone.update": "Updated service zone",
+    "zone.delete": "Removed service zone",
+    "driver.update": "Updated driver account",
+    "driver.force_offline": "Took driver offline",
+    "driver_kyc.approve": "Approved driver verification",
+    "driver_kyc.reject": "Rejected driver verification",
+    "ride.cancel": "Cancelled stuck ride",
+  };
+  return labels[action] || String(action || "").replace(/[._]/g, " ");
 }
 
 function formatReason(reason) {
@@ -482,8 +492,8 @@ function parseZoneGeoJson(value) {
   return { geometry, points };
 }
 
-function geoJsonPreviewPath(points, width = 560, height = 260) {
-  if (!points?.length) return "";
+function geoJsonPreviewPoints(points, width = 560, height = 260) {
+  if (!points?.length) return [];
   const lats = points.map((point) => point.lat);
   const lngs = points.map((point) => point.lng);
   const minLat = Math.min(...lats);
@@ -493,13 +503,20 @@ function geoJsonPreviewPath(points, width = 560, height = 260) {
   const latRange = Math.max(maxLat - minLat, 0.000001);
   const lngRange = Math.max(maxLng - minLng, 0.000001);
   const padding = 20;
+  return points.map((point) => ({
+    x: padding + ((point.lng - minLng) / lngRange) * (width - padding * 2),
+    y: height - padding - ((point.lat - minLat) / latRange) * (height - padding * 2),
+  }));
+}
+
+function geoJsonPreviewPath(points, width = 560, height = 260) {
+  const projected = geoJsonPreviewPoints(points, width, height);
+  if (!projected.length) return "";
   return (
-    points
-      .map((point, index) => {
-        const x = padding + ((point.lng - minLng) / lngRange) * (width - padding * 2);
-        const y = height - padding - ((point.lat - minLat) / latRange) * (height - padding * 2);
-        return `${index === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`;
-      })
+    projected
+      .map((point, index) =>
+        `${index === 0 ? "M" : "L"}${point.x.toFixed(2)},${point.y.toFixed(2)}`,
+      )
       .join(" ") + " Z"
   );
 }
@@ -511,6 +528,21 @@ function ZoneGeoJsonCreator() {
   const [geoJson, setGeoJson] = useState("");
   const [validated, setValidated] = useState(null);
   const previewPath = useMemo(() => geoJsonPreviewPath(validated?.points), [validated]);
+  const previewPoints = useMemo(
+    () => geoJsonPreviewPoints(validated?.points),
+    [validated],
+  );
+  const previewBounds = useMemo(() => {
+    if (!validated?.points?.length) return null;
+    const lats = validated.points.map((point) => point.lat);
+    const lngs = validated.points.map((point) => point.lng);
+    return {
+      north: Math.max(...lats),
+      south: Math.min(...lats),
+      east: Math.max(...lngs),
+      west: Math.min(...lngs),
+    };
+  }, [validated]);
 
   const reset = () => {
     setName("");
@@ -622,12 +654,30 @@ function ZoneGeoJsonCreator() {
         ) : null}
       </div>
       {validated ? (
-        <div className="mt-4 overflow-hidden rounded-xl border" style={{ borderColor: "var(--ar-ok)", background: "var(--ar-s1)" }}>
+        <div className="mt-4 overflow-hidden rounded-xl border" style={{ borderColor: "var(--ar-ok)", background: "#111820" }}>
           <svg viewBox="0 0 560 260" className="h-64 w-full" aria-label="Validated GeoJSON region preview">
-            <path d={previewPath} fill="rgba(34,197,94,0.24)" stroke="var(--ar-ok)" strokeWidth="3" />
+            <defs>
+              <pattern id="zone-grid" width="28" height="28" patternUnits="userSpaceOnUse">
+                <path d="M 28 0 L 0 0 0 28" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
+              </pattern>
+            </defs>
+            <rect width="560" height="260" fill="url(#zone-grid)" />
+            <path d={previewPath} fill="rgba(34,197,94,0.08)" stroke="var(--ar-ok)" strokeWidth="4" />
+            {previewPoints.map((point, index) => (
+                <circle
+                  key={`${point.x}-${point.y}-${index}`}
+                  cx={point.x}
+                  cy={point.y}
+                  r="4"
+                  fill="#ffffff"
+                  stroke="var(--ar-ok)"
+                  strokeWidth="2"
+                />
+            ))}
           </svg>
-          <div className="border-t px-3 py-2 text-xs font-semibold" style={{ borderColor: "var(--ar-border)", color: "var(--ar-ok)" }}>
-            Region validated. Save only if the highlighted boundary is correct.
+          <div className="grid border-t px-3 py-2 text-xs sm:grid-cols-2" style={{ borderColor: "var(--ar-border)", color: "var(--ar-t2)" }}>
+            <span>North/South: {previewBounds?.north.toFixed(5)} / {previewBounds?.south.toFixed(5)}</span>
+            <span>East/West: {previewBounds?.east.toFixed(5)} / {previewBounds?.west.toFixed(5)}</span>
           </div>
         </div>
       ) : null}
@@ -1240,12 +1290,98 @@ function DriverTable({ drivers, sectionRef }) {
   );
 }
 
-function AuditLog({ snapshot, sectionRef }) {
+function AuditLog({ sectionRef }) {
+  const [category, setCategory] = useState("all");
+  const [sort, setSort] = useState("newest");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const pageSize = 15;
+  const auditQuery = useQuery({
+    queryKey: ["adminAudit", category, sort, search, page],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        category,
+        sort,
+        search,
+        page: String(page),
+        pageSize: String(pageSize),
+      });
+      const res = await fetch(`/api/admin/audit?${params.toString()}`);
+      if (!res.ok) throw new Error("Failed to load admin activity");
+      return res.json();
+    },
+    refetchInterval: 30000,
+  });
+  const logs = auditQuery.data?.logs || [];
+  const counts = auditQuery.data?.counts || {};
+  const pagination = auditQuery.data?.pagination || {
+    page: 1,
+    total: 0,
+    totalPages: 1,
+  };
+
   return (
     <Card ref={sectionRef}>
-      <h2 className="mb-4 text-lg font-semibold" style={{ color: "var(--ar-t1)" }}>
-        Recent Admin Actions
-      </h2>
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold" style={{ color: "var(--ar-t1)" }}>
+            Admin Activity
+          </h2>
+          <p className="mt-1 text-xs" style={{ color: "var(--ar-t2)" }}>
+            {counts.all || 0} recorded actions
+          </p>
+        </div>
+        <select
+          value={sort}
+          onChange={(event) => {
+            setSort(event.target.value);
+            setPage(1);
+          }}
+          className="rounded-lg border px-3 py-2 text-xs font-semibold outline-none"
+          style={{ background: "var(--ar-s1)", borderColor: "var(--ar-border)", color: "var(--ar-t1)" }}
+        >
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+        </select>
+      </div>
+      <div className="mb-3 flex flex-wrap gap-2">
+        {[
+          ["all", "All"],
+          ["zone", "Zones"],
+          ["driver", "Drivers"],
+          ["ride", "Rides"],
+        ].map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => {
+              setCategory(value);
+              setPage(1);
+            }}
+            className="rounded-full border px-3 py-1.5 text-xs font-semibold"
+            style={{
+              borderColor: category === value ? "var(--ar-accent)" : "var(--ar-border)",
+              background: category === value ? "var(--ar-accent-dim)" : "var(--ar-s1)",
+              color: category === value ? "var(--ar-accent)" : "var(--ar-t2)",
+            }}
+          >
+            {label} ({counts[value] || 0})
+          </button>
+        ))}
+      </div>
+      <div className="relative mb-4">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2" size={ICON.sm} style={{ color: "var(--ar-t2)" }} />
+        <input
+          value={search}
+          onChange={(event) => {
+            setSearch(event.target.value);
+            setPage(1);
+          }}
+          placeholder="Search admin, action, target, or details"
+          className="w-full rounded-lg border py-2 pl-9 pr-3 text-sm outline-none"
+          style={{ background: "var(--ar-s1)", borderColor: "var(--ar-border)", color: "var(--ar-t1)" }}
+        />
+      </div>
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead>
@@ -1258,7 +1394,7 @@ function AuditLog({ snapshot, sectionRef }) {
             </tr>
           </thead>
           <tbody>
-            {(snapshot.recentAuditLog || []).map((item) => (
+            {logs.map((item) => (
               <tr key={item.id}>
                 <td className="border-b px-3 py-3 font-bold" style={{ borderColor: "var(--ar-border)", color: "var(--ar-t2)" }}>
                   {relativeTime(item.created_at)}
@@ -1282,7 +1418,7 @@ function AuditLog({ snapshot, sectionRef }) {
                 </td>
               </tr>
             ))}
-            {(snapshot.recentAuditLog || []).length === 0 ? (
+            {logs.length === 0 ? (
               <tr>
                 <td colSpan="5" className="px-3 py-8 text-center text-sm font-bold" style={{ color: "var(--ar-t2)" }}>
                   No recent admin actions
@@ -1292,6 +1428,33 @@ function AuditLog({ snapshot, sectionRef }) {
           </tbody>
         </table>
       </div>
+      {pagination.total > 0 ? (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          <button
+            type="button"
+            disabled={page <= 1}
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
+            className="rounded-lg border px-3 py-2 text-xs font-semibold disabled:opacity-40"
+            style={{ borderColor: "var(--ar-border)", color: "var(--ar-t1)" }}
+          >
+            Previous
+          </button>
+          <span className="text-xs font-semibold" style={{ color: "var(--ar-t2)" }}>
+            Page {pagination.page} of {pagination.totalPages} · {pagination.total} actions
+          </span>
+          <button
+            type="button"
+            disabled={page >= pagination.totalPages}
+            onClick={() =>
+              setPage((current) => Math.min(pagination.totalPages, current + 1))
+            }
+            className="rounded-lg border px-3 py-2 text-xs font-semibold disabled:opacity-40"
+            style={{ borderColor: "var(--ar-border)", color: "var(--ar-t1)" }}
+          >
+            Next
+          </button>
+        </div>
+      ) : null}
     </Card>
   );
 }
@@ -1341,6 +1504,7 @@ function CancellationBreakdown({ snapshot }) {
 
 function AdminOpsPageContent() {
   const overviewRef = useRef(null);
+  const createZoneRef = useRef(null);
   const driversRef = useRef(null);
   const zonesRef = useRef(null);
   const auditRef = useRef(null);
@@ -1402,6 +1566,7 @@ function AdminOpsPageContent() {
 
   const navItems = [
     ["overview", "Overview", overviewRef],
+    ["create-zone", "Create Zone", createZoneRef],
     ["drivers", "Drivers", driversRef],
     ["zones", "Zones", zonesRef],
     ["audit", "Audit Log", auditRef],
@@ -1485,10 +1650,13 @@ function AdminOpsPageContent() {
                 <MetricCards snapshot={snapshot} />
               </div>
 
+              <div ref={createZoneRef} className="scroll-mt-24">
+                <ZoneGeoJsonCreator />
+              </div>
+
               <div className="grid grid-cols-1 gap-5 2xl:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.8fr)]">
                 <Timeline snapshot={snapshot} loading={snapshotQuery.isLoading} />
                 <div ref={zonesRef} className="grid gap-5 scroll-mt-24">
-                  <ZoneGeoJsonCreator />
                   <ZoneActivity snapshot={snapshot} />
                   <Funnel snapshot={snapshot} />
                 </div>
@@ -1498,8 +1666,8 @@ function AdminOpsPageContent() {
                 <DriverTable drivers={drivers} />
               </div>
 
-              <div ref={auditRef} className="grid scroll-mt-24 grid-cols-1 gap-5 xl:grid-cols-2">
-                <AuditLog snapshot={snapshot} />
+              <div ref={auditRef} className="grid scroll-mt-24 gap-5">
+                <AuditLog />
                 <CancellationBreakdown snapshot={snapshot} />
               </div>
             </>

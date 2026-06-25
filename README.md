@@ -244,6 +244,11 @@ mobile and web admin. Invalid JSON uses app-native notifications, validated
 boundaries are previewed before saving, edit mode has an explicit cancel action,
 and active/inactive updates use immediate UI feedback.
 
+Admin activity uses a shared server-paginated API on mobile and web with action
+category filters, actor/action/detail search, and newest/oldest sorting. The web
+GeoJSON creator is a dedicated full-width operations section with a map-style
+boundary preview, vertex markers, and coordinate bounds.
+
 ## Completed Backend Location Work
 
 - Server-side Ola Maps autocomplete through `GET /api/locations/autocomplete`.

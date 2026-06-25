@@ -86,12 +86,17 @@ database name before starting.
   and matching-result totals.
 - In Admin Activity, verify entries describe the action performed in plain
   language and show the administrator and timestamp.
+- On mobile and web Admin Activity, verify category filters, search,
+  newest/oldest sorting, matching totals, and previous/next pagination.
 - Sign out from the admin dashboard and confirm the tabs disappear immediately,
   the welcome screen opens, and back navigation cannot reopen admin screens.
 - Paste invalid GeoJSON in mobile Zones and confirm an in-app notification is
   shown instead of an OS alert.
 - Validate a correct GeoJSON boundary on mobile and web, confirm the region
   preview is correct, then test Save, Cancel Preview, and Cancel Edit.
+- On web, confirm Create Zone is a dedicated full-width section and the preview
+  shows an outlined boundary, vertices, grid, and coordinate bounds rather than
+  a solid green block.
 - Toggle an existing zone inactive and active and confirm the UI changes
   immediately and remains correct after refresh.
 - Open the web admin dashboard and admin-ops dashboard after a cold page load.
