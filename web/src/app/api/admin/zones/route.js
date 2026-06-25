@@ -141,6 +141,8 @@ export async function PATCH(request) {
     const isActive = body.is_active === undefined ? null : Boolean(body.is_active);
     const dispatchEnabled =
       body.dispatch_enabled === undefined ? null : Boolean(body.dispatch_enabled);
+    const hasIsActive = body.is_active !== undefined;
+    const hasDispatchEnabled = body.dispatch_enabled !== undefined;
 
     if (!zoneId) {
       return Response.json({ error: "zone_id is required" }, { status: 400 });
@@ -160,8 +162,8 @@ export async function PATCH(request) {
             SET name = COALESCE(${name}, name),
                 boundary = ST_Multi(ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify(boundary)}), 4326))::geography,
                 max_online_drivers = COALESCE(${maxOnlineDrivers}, max_online_drivers),
-                is_active = COALESCE(${isActive}, is_active),
-                dispatch_enabled = COALESCE(${dispatchEnabled}, dispatch_enabled),
+                is_active = CASE WHEN ${hasIsActive} THEN ${isActive} ELSE is_active END,
+                dispatch_enabled = CASE WHEN ${hasDispatchEnabled} THEN ${dispatchEnabled} ELSE dispatch_enabled END,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ${zoneId}
             RETURNING id, name, max_online_drivers, is_active, dispatch_enabled, created_at, updated_at
@@ -170,8 +172,8 @@ export async function PATCH(request) {
             UPDATE geo_zones
             SET name = COALESCE(${name}, name),
                 max_online_drivers = COALESCE(${maxOnlineDrivers}, max_online_drivers),
-                is_active = COALESCE(${isActive}, is_active),
-                dispatch_enabled = COALESCE(${dispatchEnabled}, dispatch_enabled),
+                is_active = CASE WHEN ${hasIsActive} THEN ${isActive} ELSE is_active END,
+                dispatch_enabled = CASE WHEN ${hasDispatchEnabled} THEN ${dispatchEnabled} ELSE dispatch_enabled END,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ${zoneId}
             RETURNING id, name, max_online_drivers, is_active, dispatch_enabled, created_at, updated_at

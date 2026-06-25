@@ -28,6 +28,7 @@ import {
   X,
 } from "lucide-react-native";
 import { ICON } from "@/theme/iconScale";
+import { toast } from "sonner-native";
 
 const PRIMARY = "#F5A623";
 const BG = "#0D0F12";
@@ -144,6 +145,9 @@ export default function AdminZones() {
   const [neLat, setNeLat] = useState("");
   const [neLng, setNeLng] = useState("");
   const [geoJson, setGeoJson] = useState("");
+  const [validatedGeoJson, setValidatedGeoJson] = useState(null);
+  const [validatedGeoJsonText, setValidatedGeoJsonText] = useState("");
+  const [geoJsonPreviewRegion, setGeoJsonPreviewRegion] = useState(null);
   const [mapPoints, setMapPoints] = useState([]);
   const [polygonPoints, setPolygonPoints] = useState([]);
   const [editingZone, setEditingZone] = useState(null);
@@ -179,6 +183,9 @@ export default function AdminZones() {
     setNeLat("");
     setNeLng("");
     setGeoJson("");
+    setValidatedGeoJson(null);
+    setValidatedGeoJsonText("");
+    setGeoJsonPreviewRegion(null);
     setMapPoints([]);
     setPolygonPoints([]);
     setEditingZone(null);
@@ -193,7 +200,10 @@ export default function AdminZones() {
 
       let boundary;
       if (mode === "geojson") {
-        boundary = parseGeoJsonBoundary(geoJson);
+        if (!validatedGeoJson || validatedGeoJsonText !== geoJson.trim()) {
+          throw new Error("Validate the GeoJSON and review its preview before saving.");
+        }
+        boundary = validatedGeoJson;
       } else if (mode === "polygon") {
         if (polygonPoints.length < 3) {
           throw new Error("Tap at least three map points to draw a polygon.");
@@ -234,9 +244,12 @@ export default function AdminZones() {
       resetZoneForm();
       setZonePage(1);
       queryClient.invalidateQueries({ queryKey: ["adminZones"] });
-      Alert.alert("Zone Saved", "Drivers can now be matched inside this boundary.");
+      toast.success("Zone saved", {
+        description: "Drivers can now be matched inside this boundary.",
+      });
     },
-    onError: (err) => Alert.alert("Zone Error", err.message),
+    onError: (err) =>
+      toast.error("Zone could not be saved", { description: err.message }),
   });
 
   const toggleZone = useMutation({
@@ -249,8 +262,28 @@ export default function AdminZones() {
       if (!res.ok) throw new Error("Failed to update zone");
       return res.json();
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["adminZones"] }),
-    onError: (err) => Alert.alert("Zone Error", err.message),
+    onMutate: async (zone) => {
+      await queryClient.cancelQueries({ queryKey: ["adminZones"] });
+      const snapshots = queryClient.getQueriesData({ queryKey: ["adminZones"] });
+      queryClient.setQueriesData({ queryKey: ["adminZones"] }, (current) => {
+        if (!current?.zones) return current;
+        return {
+          ...current,
+          zones: current.zones.map((item) =>
+            item.id === zone.id ? { ...item, is_active: !item.is_active } : item,
+          ),
+        };
+      });
+      return { snapshots };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["adminZones"] });
+      toast.success(data.zone?.is_active ? "Zone activated" : "Zone made inactive");
+    },
+    onError: (err, _zone, context) => {
+      context?.snapshots?.forEach(([key, value]) => queryClient.setQueryData(key, value));
+      toast.error("Zone status not updated", { description: err.message });
+    },
   });
 
   const deleteZone = useMutation({
@@ -271,9 +304,9 @@ export default function AdminZones() {
         setZonePage((page) => Math.max(page - 1, 1));
       }
       queryClient.invalidateQueries({ queryKey: ["adminZones"] });
-      Alert.alert("Zone Deleted", "The service zone was removed.");
+      toast.success("Zone deleted");
     },
-    onError: (err) => Alert.alert("Zone Error", err.message),
+    onError: (err) => toast.error("Zone could not be deleted", { description: err.message }),
   });
 
   const zones = data?.zones || [];
@@ -286,6 +319,41 @@ export default function AdminZones() {
   const selectedRectangle = normalizeRectangleFromPoints(mapPoints);
   const selectedPolygon = rectanglePolygon(selectedRectangle);
   const activeMapPolygon = mode === "polygon" ? polygonPoints : selectedPolygon;
+  const geoJsonPreviewPoints = polygonPointsFromBoundary(validatedGeoJson);
+
+  const validateGeoJson = () => {
+    try {
+      const boundary = parseGeoJsonBoundary(geoJson);
+      const points = polygonPointsFromBoundary(boundary);
+      if (points.length < 3) {
+        throw new Error("The selected GeoJSON region needs at least three valid points.");
+      }
+      setValidatedGeoJson(boundary);
+      setValidatedGeoJsonText(geoJson.trim());
+      toast.success("GeoJSON is valid", {
+        description: "Review the highlighted region, then save the zone.",
+      });
+      const rectangle = normalizeRectangleFromPoints(points);
+      if (rectangle) {
+        setGeoJsonPreviewRegion({
+          latitude: (rectangle.south + rectangle.north) / 2,
+          longitude: (rectangle.west + rectangle.east) / 2,
+          latitudeDelta: Math.max(rectangle.north - rectangle.south, 0.01) * 1.8,
+          longitudeDelta: Math.max(rectangle.east - rectangle.west, 0.01) * 1.8,
+        });
+      }
+    } catch (error) {
+      setValidatedGeoJson(null);
+      setValidatedGeoJsonText("");
+      toast.error("Invalid GeoJSON", { description: error.message });
+    }
+  };
+
+  const cancelGeoJsonPreview = () => {
+    setValidatedGeoJson(null);
+    setValidatedGeoJsonText("");
+    setGeoJsonPreviewRegion(null);
+  };
 
   const setRectangleFromMap = (points) => {
     setMapPoints(points);
@@ -389,6 +457,9 @@ export default function AdminZones() {
     if (nextMode !== "polygon") {
       setPolygonPoints([]);
     }
+    if (nextMode !== "geojson") {
+      cancelGeoJsonPreview();
+    }
   };
 
   const confirmDeleteZone = (zone) => {
@@ -412,6 +483,8 @@ export default function AdminZones() {
     setName(zone.name || "");
     setMaxDrivers(String(zone.max_online_drivers || 25));
     setGeoJson(JSON.stringify(zone.boundary || {}, null, 2));
+    setValidatedGeoJson(zone.boundary || null);
+    setValidatedGeoJsonText(JSON.stringify(zone.boundary || {}, null, 2).trim());
     setPolygonPoints(points);
     setMode(points.length >= 3 ? "polygon" : "geojson");
     setMapPoints([]);
@@ -801,38 +874,129 @@ export default function AdminZones() {
               )}
             </>
           ) : (
-            <TextInput
-              placeholder='Paste GeoJSON Polygon, MultiPolygon, or Feature'
-              placeholderTextColor={TEXT_SECONDARY}
-              value={geoJson}
-              onChangeText={setGeoJson}
-              multiline
-              textAlignVertical="top"
-              autoCapitalize="none"
-              style={{
-                minHeight: 150,
-                backgroundColor: BG,
-                color: TEXT,
-                borderRadius: 10,
-                padding: 12,
-                fontFamily: "monospace",
-              }}
-            />
+            <>
+              <TextInput
+                placeholder='Paste GeoJSON Polygon, MultiPolygon, or Feature'
+                placeholderTextColor={TEXT_SECONDARY}
+                value={geoJson}
+                onChangeText={(value) => {
+                  setGeoJson(value);
+                  if (value.trim() !== validatedGeoJsonText) {
+                    setValidatedGeoJson(null);
+                    setValidatedGeoJsonText("");
+                  }
+                }}
+                multiline
+                textAlignVertical="top"
+                autoCapitalize="none"
+                style={{
+                  minHeight: 150,
+                  backgroundColor: BG,
+                  color: TEXT,
+                  borderRadius: 10,
+                  padding: 12,
+                  fontFamily: "monospace",
+                }}
+              />
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                <TouchableOpacity
+                  onPress={validateGeoJson}
+                  style={{
+                    backgroundColor: PRIMARY,
+                    borderRadius: 10,
+                    flex: 1,
+                    alignItems: "center",
+                    paddingVertical: 11,
+                  }}
+                >
+                  <Text style={{ color: "#fff", fontWeight: "800" }}>
+                    Validate & Preview
+                  </Text>
+                </TouchableOpacity>
+                {validatedGeoJson ? (
+                  <TouchableOpacity
+                    onPress={cancelGeoJsonPreview}
+                    style={{
+                      backgroundColor: BG,
+                      borderColor: BORDER,
+                      borderRadius: 10,
+                      borderWidth: 1,
+                      alignItems: "center",
+                      paddingHorizontal: 14,
+                      paddingVertical: 11,
+                    }}
+                  >
+                    <Text style={{ color: TEXT, fontWeight: "800" }}>Cancel Preview</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+              {validatedGeoJson && Platform.OS !== "web" ? (
+                <View
+                  style={{
+                    height: 240,
+                    borderRadius: 12,
+                    overflow: "hidden",
+                    borderWidth: 1,
+                    borderColor: SUCCESS,
+                  }}
+                >
+                  <MapView
+                    ref={mapRef}
+                    style={{ flex: 1 }}
+                    region={geoJsonPreviewRegion || DEFAULT_REGION}
+                  >
+                    <Polygon
+                      coordinates={geoJsonPreviewPoints}
+                      strokeColor={SUCCESS}
+                      fillColor="rgba(34,197,94,0.24)"
+                      strokeWidth={3}
+                    />
+                  </MapView>
+                </View>
+              ) : null}
+            </>
           )}
-          <TouchableOpacity
-            onPress={() => saveZone.mutate()}
-            disabled={saveZone.isPending}
-            style={{
-              backgroundColor: PRIMARY,
-              borderRadius: 10,
-              paddingVertical: 13,
-              alignItems: "center",
-            }}
-          >
-            <Text style={{ color: "#fff", fontWeight: "800" }}>
-              {saveZone.isPending ? "Saving..." : editingZone ? "Save Zone" : "Create Zone"}
-            </Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            {editingZone ? (
+              <TouchableOpacity
+                onPress={resetZoneForm}
+                style={{
+                  alignItems: "center",
+                  backgroundColor: BG,
+                  borderColor: BORDER,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  flex: 1,
+                  paddingVertical: 13,
+                }}
+              >
+                <Text style={{ color: TEXT, fontWeight: "800" }}>Cancel Edit</Text>
+              </TouchableOpacity>
+            ) : null}
+            <TouchableOpacity
+              onPress={() => saveZone.mutate()}
+              disabled={
+                saveZone.isPending ||
+                (mode === "geojson" &&
+                  (!validatedGeoJson || validatedGeoJsonText !== geoJson.trim()))
+              }
+              style={{
+                backgroundColor:
+                  mode === "geojson" &&
+                  (!validatedGeoJson || validatedGeoJsonText !== geoJson.trim())
+                    ? "#7A6334"
+                    : PRIMARY,
+                borderRadius: 10,
+                paddingVertical: 13,
+                alignItems: "center",
+                flex: 1,
+              }}
+            >
+              <Text style={{ color: "#fff", fontWeight: "800" }}>
+                {saveZone.isPending ? "Saving..." : editingZone ? "Save Zone" : "Create Zone"}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View

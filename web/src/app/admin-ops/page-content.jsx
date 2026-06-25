@@ -462,6 +462,198 @@ function Timeline({ snapshot, sectionRef, loading = false }) {
   );
 }
 
+function parseZoneGeoJson(value) {
+  const parsed = JSON.parse(value);
+  const geometry = parsed?.type === "Feature" ? parsed.geometry : parsed;
+  if (!geometry || !["Polygon", "MultiPolygon"].includes(geometry.type)) {
+    throw new Error("Use a GeoJSON Polygon, MultiPolygon, or polygon Feature.");
+  }
+  const ring =
+    geometry.type === "Polygon"
+      ? geometry.coordinates?.[0]
+      : geometry.coordinates?.[0]?.[0];
+  if (!Array.isArray(ring) || ring.length < 4) {
+    throw new Error("The GeoJSON region needs at least three boundary points.");
+  }
+  const points = ring
+    .map(([lng, lat]) => ({ lat: Number(lat), lng: Number(lng) }))
+    .filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng));
+  if (points.length < 4) throw new Error("GeoJSON coordinates are invalid.");
+  return { geometry, points };
+}
+
+function geoJsonPreviewPath(points, width = 560, height = 260) {
+  if (!points?.length) return "";
+  const lats = points.map((point) => point.lat);
+  const lngs = points.map((point) => point.lng);
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  const minLng = Math.min(...lngs);
+  const maxLng = Math.max(...lngs);
+  const latRange = Math.max(maxLat - minLat, 0.000001);
+  const lngRange = Math.max(maxLng - minLng, 0.000001);
+  const padding = 20;
+  return (
+    points
+      .map((point, index) => {
+        const x = padding + ((point.lng - minLng) / lngRange) * (width - padding * 2);
+        const y = height - padding - ((point.lat - minLat) / latRange) * (height - padding * 2);
+        return `${index === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`;
+      })
+      .join(" ") + " Z"
+  );
+}
+
+function ZoneGeoJsonCreator() {
+  const queryClient = useQueryClient();
+  const [name, setName] = useState("");
+  const [maxDrivers, setMaxDrivers] = useState("25");
+  const [geoJson, setGeoJson] = useState("");
+  const [validated, setValidated] = useState(null);
+  const previewPath = useMemo(() => geoJsonPreviewPath(validated?.points), [validated]);
+
+  const reset = () => {
+    setName("");
+    setMaxDrivers("25");
+    setGeoJson("");
+    setValidated(null);
+  };
+
+  const createZone = useMutation({
+    mutationFn: async () => {
+      const cap = Number(maxDrivers);
+      if (!name.trim()) throw new Error("Enter a zone name.");
+      if (!Number.isInteger(cap) || cap < 1 || cap > 500) {
+        throw new Error("Driver capacity must be between 1 and 500.");
+      }
+      if (!validated || validated.source !== geoJson.trim()) {
+        throw new Error("Validate and review this GeoJSON before saving.");
+      }
+      const res = await fetch("/api/admin/zones", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          max_online_drivers: cap,
+          boundary: validated.geometry,
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || "Could not create zone");
+      return body;
+    },
+    onSuccess: () => {
+      reset();
+      queryClient.invalidateQueries({ queryKey: ["opsSnapshot"] });
+      toast.success("Service zone created");
+    },
+    onError: (error) => toast.error(error.message || "Could not create zone"),
+  });
+
+  const validate = () => {
+    try {
+      const result = parseZoneGeoJson(geoJson);
+      setValidated({ ...result, source: geoJson.trim() });
+      toast.success("GeoJSON is valid", {
+        description: "Review the selected region before saving.",
+      });
+    } catch (error) {
+      setValidated(null);
+      toast.error("Invalid GeoJSON", { description: error.message });
+    }
+  };
+
+  return (
+    <Card>
+      <h2 className="text-lg font-semibold" style={{ color: "var(--ar-t1)" }}>
+        Create Zone from GeoJSON
+      </h2>
+      <p className="mt-1 text-xs" style={{ color: "var(--ar-t2)" }}>
+        Validate and review the selected region before saving.
+      </p>
+      <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_160px]">
+        <input
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          placeholder="Zone name"
+          className="rounded-lg border px-3 py-2 text-sm outline-none"
+          style={{ background: "var(--ar-s1)", borderColor: "var(--ar-border)", color: "var(--ar-t1)" }}
+        />
+        <input
+          value={maxDrivers}
+          onChange={(event) => setMaxDrivers(event.target.value)}
+          type="number"
+          min="1"
+          max="500"
+          placeholder="Driver capacity"
+          className="rounded-lg border px-3 py-2 text-sm outline-none"
+          style={{ background: "var(--ar-s1)", borderColor: "var(--ar-border)", color: "var(--ar-t1)" }}
+        />
+      </div>
+      <textarea
+        value={geoJson}
+        onChange={(event) => {
+          setGeoJson(event.target.value);
+          setValidated(null);
+        }}
+        placeholder="Paste GeoJSON Polygon, MultiPolygon, or Feature"
+        rows={9}
+        className="mt-3 w-full resize-y rounded-lg border p-3 font-mono text-xs outline-none"
+        style={{ background: "var(--ar-s1)", borderColor: "var(--ar-border)", color: "var(--ar-t1)" }}
+      />
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={validate}
+          className="rounded-lg px-4 py-2 text-sm font-semibold"
+          style={{ background: "var(--ar-accent)", color: "var(--ar-bg)" }}
+        >
+          Validate & Preview
+        </button>
+        {validated ? (
+          <button
+            type="button"
+            onClick={() => setValidated(null)}
+            className="rounded-lg border px-4 py-2 text-sm font-semibold"
+            style={{ borderColor: "var(--ar-border)", color: "var(--ar-t1)" }}
+          >
+            Cancel Preview
+          </button>
+        ) : null}
+      </div>
+      {validated ? (
+        <div className="mt-4 overflow-hidden rounded-xl border" style={{ borderColor: "var(--ar-ok)", background: "var(--ar-s1)" }}>
+          <svg viewBox="0 0 560 260" className="h-64 w-full" aria-label="Validated GeoJSON region preview">
+            <path d={previewPath} fill="rgba(34,197,94,0.24)" stroke="var(--ar-ok)" strokeWidth="3" />
+          </svg>
+          <div className="border-t px-3 py-2 text-xs font-semibold" style={{ borderColor: "var(--ar-border)", color: "var(--ar-ok)" }}>
+            Region validated. Save only if the highlighted boundary is correct.
+          </div>
+        </div>
+      ) : null}
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button
+          type="button"
+          disabled={!validated || createZone.isPending}
+          onClick={() => createZone.mutate()}
+          className="rounded-lg px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+          style={{ background: "var(--ar-ok)", color: "#07120b" }}
+        >
+          {createZone.isPending ? "Saving..." : "Save Zone"}
+        </button>
+        <button
+          type="button"
+          onClick={reset}
+          className="rounded-lg border px-4 py-2 text-sm font-semibold"
+          style={{ borderColor: "var(--ar-border)", color: "var(--ar-t1)" }}
+        >
+          Cancel
+        </button>
+      </div>
+    </Card>
+  );
+}
+
 function ZoneActivity({ snapshot, sectionRef }) {
   const queryClient = useQueryClient();
   const toggleDispatch = useMutation({
@@ -1296,6 +1488,7 @@ function AdminOpsPageContent() {
               <div className="grid grid-cols-1 gap-5 2xl:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.8fr)]">
                 <Timeline snapshot={snapshot} loading={snapshotQuery.isLoading} />
                 <div ref={zonesRef} className="grid gap-5 scroll-mt-24">
+                  <ZoneGeoJsonCreator />
                   <ZoneActivity snapshot={snapshot} />
                   <Funnel snapshot={snapshot} />
                 </div>

@@ -88,6 +88,12 @@ database name before starting.
   language and show the administrator and timestamp.
 - Sign out from the admin dashboard and confirm the tabs disappear immediately,
   the welcome screen opens, and back navigation cannot reopen admin screens.
+- Paste invalid GeoJSON in mobile Zones and confirm an in-app notification is
+  shown instead of an OS alert.
+- Validate a correct GeoJSON boundary on mobile and web, confirm the region
+  preview is correct, then test Save, Cancel Preview, and Cancel Edit.
+- Toggle an existing zone inactive and active and confirm the UI changes
+  immediately and remains correct after refresh.
 - Open the web admin dashboard and admin-ops dashboard after a cold page load.
 - Confirm web ECharts keep their expected height and render after hydration
   without blank/collapsed containers or hydration warnings.

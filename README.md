@@ -239,6 +239,11 @@ fare/date sorting, and 20-item pagination. Admin activity is presented as
 readable operations instead of internal event keys. Obsolete mobile test mode
 has been removed; all role dashboards require an authenticated session.
 
+Service zones support a validate-preview-save workflow for GeoJSON on both
+mobile and web admin. Invalid JSON uses app-native notifications, validated
+boundaries are previewed before saving, edit mode has an explicit cancel action,
+and active/inactive updates use immediate UI feedback.
+
 ## Completed Backend Location Work
 
 - Server-side Ola Maps autocomplete through `GET /api/locations/autocomplete`.
