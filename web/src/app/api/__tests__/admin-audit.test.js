@@ -44,5 +44,9 @@ describe("GET /api/admin/audit", () => {
       search: "secunderabad",
       sort: "oldest",
     });
+    const executedQueries = mocks.sql.mock.calls
+      .map(([strings]) => strings.join(""))
+      .join("\n");
+    expect(executedQueries).toContain("l.target_id::text");
   });
 });

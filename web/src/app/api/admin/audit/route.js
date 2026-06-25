@@ -35,7 +35,7 @@ export async function GET(request) {
         ${search} = ''
         OR l.action ILIKE ${searchPattern}
         OR l.target_type ILIKE ${searchPattern}
-        OR COALESCE(l.target_id, '') ILIKE ${searchPattern}
+        OR COALESCE(l.target_id::text, '') ILIKE ${searchPattern}
         OR COALESCE(u.email, '') ILIKE ${searchPattern}
         OR COALESCE(u.phone, '') ILIKE ${searchPattern}
         OR l.metadata::text ILIKE ${searchPattern}
@@ -59,7 +59,7 @@ export async function GET(request) {
           ${search} = ''
           OR l.action ILIKE ${searchPattern}
           OR l.target_type ILIKE ${searchPattern}
-          OR COALESCE(l.target_id, '') ILIKE ${searchPattern}
+          OR COALESCE(l.target_id::text, '') ILIKE ${searchPattern}
           OR COALESCE(u.email, '') ILIKE ${searchPattern}
           OR COALESCE(u.phone, '') ILIKE ${searchPattern}
           OR l.metadata::text ILIKE ${searchPattern}

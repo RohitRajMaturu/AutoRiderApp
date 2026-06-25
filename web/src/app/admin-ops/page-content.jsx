@@ -1383,6 +1383,18 @@ function AuditLog({ sectionRef }) {
         />
       </div>
       <div className="overflow-x-auto">
+        {auditQuery.isError ? (
+          <div
+            className="mb-3 rounded-lg border px-4 py-3 text-sm"
+            style={{
+              background: "rgba(239, 68, 68, 0.08)",
+              borderColor: "rgba(239, 68, 68, 0.35)",
+              color: "#fca5a5",
+            }}
+          >
+            Audit activity could not be loaded. Please refresh and try again.
+          </div>
+        ) : null}
         <table className="min-w-full text-sm">
           <thead>
             <tr className="text-left text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--ar-t2)" }}>

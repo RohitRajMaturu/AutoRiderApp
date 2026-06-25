@@ -150,7 +150,7 @@ export default function AdminAudit() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const pageSize = 20;
-  const { data, isLoading, refetch, isRefetching } = useQuery({
+  const { data, isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ["adminAudit", category, sort, search, page],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -287,6 +287,22 @@ export default function AdminAudit() {
             </TouchableOpacity>
           ))}
         </ScrollView>
+        {isError ? (
+          <View
+            style={{
+              backgroundColor: "rgba(239, 68, 68, 0.08)",
+              borderColor: "rgba(239, 68, 68, 0.35)",
+              borderRadius: 10,
+              borderWidth: 1,
+              marginTop: 10,
+              padding: 11,
+            }}
+          >
+            <Text style={{ color: "#fca5a5", fontSize: 12 }}>
+              Audit activity could not be loaded. Pull down to try again.
+            </Text>
+          </View>
+        ) : null}
       </View>
 
       {isLoading ? (
