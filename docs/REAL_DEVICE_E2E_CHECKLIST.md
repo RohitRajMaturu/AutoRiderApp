@@ -85,8 +85,9 @@ database name before starting.
 - Open the web admin dashboard and admin-ops dashboard after a cold page load.
 - Confirm web ECharts keep their expected height and render after hydration
   without blank/collapsed containers or hydration warnings.
-- Open the mobile admin dashboard on Android and iOS and confirm ECharts
-  sparklines, ride flow, revenue area, and ride-health donut render and update.
+- Open the mobile admin dashboard in Expo Go on Android and iOS and confirm the
+  native sparklines, ride flow, revenue area, and ride-health donut render and
+  update without a Hermes `__extends` error.
 - Confirm admin actions create audit log entries.
 - Confirm non-admin users cannot access admin routes.
 

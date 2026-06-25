@@ -13,8 +13,8 @@ A lightweight auto-rickshaw ride connection platform for India.
 - **Passengers**: Request rides, choose fixed fare or a guided negotiated offer, adjust pickup on a native map, see driver details, share trip status through the OS share sheet, and track ride history.
 - **Drivers**: Create their account, register vehicle/license, complete KYC, toggle online/offline status, accept nearby rides, send fare counters, complete rides, and view paginated completed ride history.
 - **Admin**: Approve/reject driver applications, manage subscriptions, and
-  monitor ride, revenue, cancellation, and driver KPIs with ECharts dashboards
-  on web and mobile.
+  monitor ride, revenue, cancellation, and driver KPIs with ECharts on web and
+  Expo Go-compatible native charts on mobile.
 - **Subscription Model**: Drivers need an active subscription to go online.
 
 ## Getting Started
@@ -165,9 +165,9 @@ mid-transition. The root layout is the sole logout navigation owner and waits
 for `rootNavigationState.key` before calling `router.replace("/")`.
 
 The web admin dashboards use `echarts-for-react` with fixed-height shimmer
-placeholders while data loads. The mobile admin dashboard uses Apache ECharts
-through its React Native SVG renderer for area, bar, donut, and sparkline
-visualizations.
+placeholders while data loads. The mobile admin dashboard uses animated
+`react-native-svg` area, bar, donut, and sparkline visualizations so it remains
+compatible with Expo Go and Hermes.
 
 Admin fare totals, ride charts, driver "today" trip counts, and driver earnings
 use `Asia/Kolkata` calendar boundaries. Ride volume is bucketed by request time,

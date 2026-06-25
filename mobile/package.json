@@ -26,10 +26,8 @@
     "@shopify/react-native-skia": "2.2.12",
     "@tanstack/react-query": "5.72.2",
     "@teovilla/react-native-web-maps": "0.9.5",
-    "@wuba/react-native-echarts": "^3.0.1",
     "color2k": "2.0.3",
     "date-fns": "4.1.0",
-    "echarts": "^6.1.0",
     "expo": "^54.0.35",
     "expo-asset": "~12.0.13",
     "expo-audio": "~1.1.1",
@@ -99,7 +97,6 @@
     "three": "0.166.0",
     "yup": "1.6.1",
     "zod": "4.1.11",
-    "zrender": "^6.1.0",
     "zustand": "5.0.3"
   },
   "devDependencies": {

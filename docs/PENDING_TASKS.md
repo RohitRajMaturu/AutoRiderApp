@@ -94,8 +94,8 @@ decisions.
 - Sign out from passenger, driver, and admin role groups and confirm protected
   tab content never flashes before redirecting to the welcome screen.
 - Verify web admin/admin-ops ECharts retain their expected height after
-  hydration and mobile admin ECharts render correctly on physical iOS and
-  Android devices.
+  hydration and mobile native SVG charts render correctly in Expo Go on
+  physical iOS and Android devices.
 - Verify accepted-ride cancellation in both directions:
   - the cancelling user sees one branded in-app confirmation
   - the other party sees an in-app notice
@@ -145,7 +145,7 @@ Completed locally:
 - Compact web admin vehicle indicators use the shared auto icon. The original
   landing and passenger/driver sign-in artwork remains unchanged.
 - Admin and admin-ops use ECharts with stable loading placeholders; mobile admin
-  uses the React Native ECharts SVG renderer for sparklines, ride flow, revenue,
+  uses animated Expo Go-compatible native SVG sparklines, ride flow, revenue,
   and ride-health charts.
 - Accepted-ride chat messages are persisted with polling fallback, quick replies,
   sent/read state, and automatic chat opening for incoming messages.
