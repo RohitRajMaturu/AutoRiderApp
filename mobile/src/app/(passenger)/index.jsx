@@ -38,6 +38,7 @@ import { ICON } from "@/theme/iconScale";
 import { useAuth } from "@/utils/auth/useAuth";
 import { createRidePusher } from "@/utils/pusher";
 import { getVehicleLabel } from "@/utils/vehicles";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 const TUKTUKGO_ICON = require("../../../assets/images/icon.png");
 const PRIMARY = "#43B8B3";
@@ -140,6 +141,7 @@ function driverIdentifierImage(ride) {
 }
 
 export default function PassengerHome() {
+  const { t } = useLanguage();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const { auth } = useAuth();
@@ -903,6 +905,14 @@ export default function PassengerHome() {
   const isTripStarted =
     activeRide?.status === "accepted" && Boolean(activeRide.started_at);
   const passengerRideStatus = isTripStarted ? "in_progress" : activeRide?.status;
+  const passengerRideStatusLabel = {
+    requested: t("ride.badge.finding"),
+    negotiating: t("ride.badge.negotiating"),
+    accepted: t("ride.badge.accepted"),
+    in_progress: t("ride.badge.inProgress"),
+    completed: t("ride.badge.completed"),
+    cancelled: t("ride.badge.cancelled"),
+  }[passengerRideStatus];
   const activeRideAgeSeconds = activeRide?.created_at
     ? Math.floor((Date.now() - new Date(activeRide.created_at).getTime()) / 1000)
     : 0;
@@ -1168,17 +1178,21 @@ export default function PassengerHome() {
                     style={{ fontSize: 15, fontWeight: "700", color: TEXT }}
                   >
                     {activeRide.status === "requested"
-                      ? "Searching for drivers..."
+                      ? t("ride.finding")
                       : activeRide.status === "negotiating"
-                        ? `Negotiating fare - ${negotiationRemaining}s`
+                        ? t("ride.negotiating", { seconds: negotiationRemaining })
                       : activeRide.status === "completed"
-                        ? "Ride completed"
+                        ? t("ride.completed")
                         : isTripStarted
-                          ? "Trip in progress"
-                          : "Driver is on the way!"}
+                          ? t("ride.inProgress")
+                          : t("ride.driverComing")}
                   </Text>
                 </View>
-                <StatusBadge status={passengerRideStatus} config={RIDE_STATUS_CONFIG} />
+                <StatusBadge
+                  status={passengerRideStatus}
+                  config={RIDE_STATUS_CONFIG}
+                  label={passengerRideStatusLabel}
+                />
               </View>
 
               {Platform.OS !== "web" && activeRideMapRegion && (

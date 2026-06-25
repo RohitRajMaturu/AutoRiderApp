@@ -13,6 +13,7 @@ import queryClient from "@/utils/queryClient";
 import { Toaster } from "sonner-native";
 import { configureRideNotificationChannel, registerPushToken } from "@/utils/pushNotifications";
 import { OfflineBanner } from "@/components/OfflineBanner";
+import { LanguageProvider, useLanguage } from "@/i18n/LanguageContext";
 
 const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN;
 
@@ -41,6 +42,7 @@ function notificationTarget(data, auth) {
 }
 
 function AuthBootOverlay() {
+  const { t } = useLanguage();
   return (
     <View
       pointerEvents="none"
@@ -58,13 +60,14 @@ function AuthBootOverlay() {
     >
       <ActivityIndicator color={PRIMARY} size="large" />
       <Text style={{ color: "#586C70", fontSize: 13, fontWeight: "800", marginTop: 12 }}>
-        Loading TukTukGo...
+        {t("common.loading")}
       </Text>
     </View>
   );
 }
 
 function ConsentGate() {
+  const { t } = useLanguage();
   const { auth } = useAuth();
   const consentQueryKey = [
     "userProfile",
@@ -131,14 +134,10 @@ function ConsentGate() {
           }}
         >
           <Text style={{ color: "#17272B", fontSize: 20, fontWeight: "900" }}>
-            Data consent required
+            {t("consent.title")}
           </Text>
           <Text style={{ color: "#586C70", fontSize: 13, lineHeight: 20, marginTop: 10 }}>
-            To continue, please agree to TukTukGo collecting and storing your{" "}
-            {user?.role === "driver"
-              ? "name, phone number, vehicle, and licence details"
-              : "name and phone number"}{" "}
-            to provide ride services, in line with the Privacy Policy.
+            {t(user?.role === "driver" ? "consent.driver" : "consent.passenger")}
           </Text>
           <TouchableOpacity
             activeOpacity={0.85}
@@ -146,7 +145,7 @@ function ConsentGate() {
             style={{ marginTop: 14 }}
           >
             <Text style={{ color: "#238B86", fontSize: 13, fontWeight: "900" }}>
-              Open Privacy Policy
+              {t("common.privacy")}
             </Text>
           </TouchableOpacity>
           {acceptConsent.isError ? (
@@ -168,7 +167,7 @@ function ConsentGate() {
             }}
           >
             <Text style={{ color: "#fff", fontSize: 14, fontWeight: "900" }}>
-              {acceptConsent.isPending ? "Saving..." : "I Agree"}
+              {acceptConsent.isPending ? t("common.saving") : t("common.agree")}
             </Text>
           </TouchableOpacity>
         </View>
@@ -246,8 +245,9 @@ export default function RootLayout() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <GestureHandlerRootView style={{ flex: 1 }}>
+      <LanguageProvider>
+        <ThemeProvider>
+          <GestureHandlerRootView style={{ flex: 1 }}>
           <Stack screenOptions={{ headerShown: false }} initialRouteName="index">
             <Stack.Screen name="index" />
             <Stack.Screen name="(passenger)" options={{ headerShown: false, animation: "none" }} />
@@ -259,8 +259,9 @@ export default function RootLayout() {
           <Toaster />
           <OfflineBanner />
           {!isReady ? <AuthBootOverlay /> : null}
-        </GestureHandlerRootView>
-      </ThemeProvider>
+          </GestureHandlerRootView>
+        </ThemeProvider>
+      </LanguageProvider>
     </QueryClientProvider>
   );
 }

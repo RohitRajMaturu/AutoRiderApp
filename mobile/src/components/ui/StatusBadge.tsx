@@ -15,6 +15,7 @@ type StatusConfig = Record<
 type StatusBadgeProps = {
   status: string;
   config: StatusConfig;
+  label?: string;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -35,7 +36,7 @@ export const DRIVER_STATUS_CONFIG = {
   pending: { bg: defaultTheme.warnDim, text: defaultTheme.warn, label: "Pending" },
 } satisfies StatusConfig;
 
-export function StatusBadge({ status, config, style }: StatusBadgeProps) {
+export function StatusBadge({ status, config, label, style }: StatusBadgeProps) {
   const theme = useTheme();
   const badge = config[status] ?? {
     bg: theme.mutedSurface,
@@ -62,7 +63,9 @@ export function StatusBadge({ status, config, style }: StatusBadgeProps) {
       ]}
     >
       {badge.icon}
-      <Text style={[theme.typography.micro, { color: badge.text }]}>{badge.label}</Text>
+      <Text style={[theme.typography.micro, { color: badge.text }]}>
+        {label || badge.label}
+      </Text>
     </View>
   );
 }

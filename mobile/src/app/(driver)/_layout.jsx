@@ -2,8 +2,10 @@ import { Tabs } from "expo-router";
 import { View } from "react-native";
 import { Home, Wallet, User } from "lucide-react-native";
 import { ICON } from "@/theme/iconScale";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 export default function DriverLayout() {
+  const { t } = useLanguage();
   return (
     <View style={{ flex: 1 }}>
       <Tabs
@@ -28,7 +30,7 @@ export default function DriverLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Dashboard",
+          title: t("nav.dashboard"),
           tabBarIcon: ({ color }) => (
             <Home
               color={color}
@@ -41,7 +43,7 @@ export default function DriverLayout() {
       <Tabs.Screen
         name="wallet"
         options={{
-          title: "Subscription",
+          title: t("nav.subscription"),
           tabBarIcon: ({ color }) => (
             <Wallet
               color={color}
@@ -54,7 +56,7 @@ export default function DriverLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: "Profile",
+          title: t("nav.profile"),
           tabBarIcon: ({ color }) => (
             <User
               color={color}

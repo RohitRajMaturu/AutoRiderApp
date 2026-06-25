@@ -22,6 +22,11 @@ import { ICON } from "@/theme/iconScale";
 import AutoRideIcon from "@/components/AutoRideIcon";
 import TukTukGoLoader from "@/components/TukTukGoLoader";
 import { getVehicleLabel } from "@/utils/vehicles";
+import {
+  LANGUAGE_OPTIONS,
+  normalizeLanguage,
+  useLanguage,
+} from "@/i18n/LanguageContext";
 
 const PRIMARY = "#43B8B3";
 const PRIMARY_LIGHT = "#E7F6F4";
@@ -221,12 +226,14 @@ function SignOutSheet({ visible, onCancel, onConfirm }) {
 }
 
 export default function DriverProfile() {
+  const { setLanguage, t } = useLanguage();
   const insets = useSafeAreaInsets();
   const { signOut, auth } = useAuth();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { testMode, disableTestMode } = useAppStore();
   const [phone, setPhone] = useState("");
+  const [preferredLanguage, setPreferredLanguage] = useState("English");
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [showSignOutSheet, setShowSignOutSheet] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(null);
@@ -260,21 +267,26 @@ export default function DriverProfile() {
   useEffect(() => {
     if (!testMode) {
       setPhone(user?.phone || "");
+      setPreferredLanguage(user?.preferred_language || "English");
     }
-  }, [testMode, user?.phone]);
+  }, [testMode, user?.phone, user?.preferred_language]);
 
   const updateProfile = useMutation({
     mutationFn: async () => {
       const res = await fetch("/api/user-profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: phone.trim() }),
+        body: JSON.stringify({
+          phone: phone.trim(),
+          preferred_language: preferredLanguage,
+        }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || "Failed to save profile");
       return body;
     },
-    onSuccess: () => {
+    onSuccess: (body) => {
+      setLanguage(normalizeLanguage(body?.user?.preferred_language || preferredLanguage));
       queryClient.invalidateQueries({ queryKey: ["userProfile", authUserKey] });
       setIsProfileOpen(false);
     },
@@ -664,6 +676,43 @@ export default function DriverProfile() {
                   <Text style={{ color: TEXT_SECONDARY, fontSize: 14, fontWeight: "600" }}>
                     {testMode ? "Guest mode" : user?.email || "Not available"}
                   </Text>
+                </View>
+              </View>
+
+              <View>
+                <Text style={{ fontSize: 11, fontWeight: "700", color: TEXT_MUTED, marginBottom: 8 }}>
+                  {t("profile.preferredLanguage")}
+                </Text>
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  {LANGUAGE_OPTIONS.map((language) => {
+                    const selected = preferredLanguage === language.value;
+                    return (
+                      <TouchableOpacity
+                        key={language.code}
+                        onPress={() => setPreferredLanguage(language.value)}
+                        disabled={testMode || updateProfile.isPending}
+                        style={{
+                          alignItems: "center",
+                          backgroundColor: selected ? PRIMARY : "#F7FBFA",
+                          borderColor: selected ? PRIMARY : BORDER,
+                          borderRadius: 12,
+                          borderWidth: 1,
+                          flex: 1,
+                          paddingVertical: 11,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color: selected ? "#fff" : TEXT_SECONDARY,
+                            fontSize: 12,
+                            fontWeight: "800",
+                          }}
+                        >
+                          {language.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
               </View>
 

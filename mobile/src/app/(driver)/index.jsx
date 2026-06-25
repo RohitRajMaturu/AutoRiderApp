@@ -48,6 +48,7 @@ import { MotionPressable } from "@/components/motion";
 import { useAuth } from "@/utils/auth/useAuth";
 import { ICON } from "@/theme/iconScale";
 import { createRidePusher } from "@/utils/pusher";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 const TUKTUKGO_ICON = require("../../../assets/images/icon.png");
 const RIDE_REQUEST_CHIME = require("../../../assets/sounds/ride-request.wav");
@@ -1619,6 +1620,7 @@ function ConfirmActionModal({ config, onClose }) {
 }
 
 export default function DriverHome() {
+  const { t } = useLanguage();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const activeMutationCount = useIsMutating();
@@ -1686,16 +1688,17 @@ export default function DriverHome() {
 
   useEffect(() => {
     if (completedRideSummary) return;
-    const unratedRide = (ridesData?.rides || []).find(
-      (ride) =>
-        ride.status === "completed" &&
-        !ride.passenger_rating &&
-        !dismissedPassengerRatingRideIds.current.has(ride.id),
+    const latestCompletedRide = (ridesData?.rides || []).find(
+      (ride) => ride.status === "completed",
     );
-    if (unratedRide) {
+    if (
+      latestCompletedRide &&
+      !latestCompletedRide.passenger_rating &&
+      !dismissedPassengerRatingRideIds.current.has(latestCompletedRide.id)
+    ) {
       setPassengerRatingValue(0);
       setPassengerRatingFeedback("");
-      setCompletedRideSummary(unratedRide);
+      setCompletedRideSummary(latestCompletedRide);
     }
   }, [completedRideSummary, ridesData?.rides]);
 
@@ -2203,7 +2206,7 @@ export default function DriverHome() {
             </Text>
             <Text style={{ fontSize: 13, color: TEXT_SECONDARY, marginTop: 2 }}>
               {driver.vehicle_number} ·{" "}
-              {driver.is_online ? "You're Online" : "You're Offline"}
+              {driver.is_online ? t("driver.online") : t("driver.offline")}
             </Text>
             <Text style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 3 }}>
               {driver.is_online
@@ -2508,7 +2511,7 @@ export default function DriverHome() {
                 marginBottom: 12,
               }}
             >
-              Nearby Requests ({availableRides.length}){"\n"}
+              {t("driver.nearbyRequests")} ({availableRides.length}){"\n"}
               <Text style={{ fontSize: 12, color: TEXT_MUTED }}>
                 సమీప రైడ్లు / नज़दीकी राइड्स
               </Text>
@@ -2527,7 +2530,7 @@ export default function DriverHome() {
               >
                 <Text style={{ fontSize: 40, marginBottom: 12 }}>🔍</Text>
                 <Text style={{ fontSize: 16, fontWeight: "700", color: TEXT }}>
-                  No requests yet
+                  {t("driver.noRequests")}
                 </Text>
                 <Text
                   style={{

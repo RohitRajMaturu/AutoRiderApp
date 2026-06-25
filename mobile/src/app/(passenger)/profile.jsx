@@ -23,6 +23,11 @@ import useAppStore from "@/store/useAppStore";
 import { ICON } from "@/theme/iconScale";
 import TukTukGoLoader from "@/components/TukTukGoLoader";
 import { toast } from "sonner-native";
+import {
+  LANGUAGE_OPTIONS,
+  normalizeLanguage,
+  useLanguage,
+} from "@/i18n/LanguageContext";
 
 const PRIMARY = "#43B8B3";
 const PRIMARY_LIGHT = "#E7F6F4";
@@ -35,10 +40,6 @@ const TEXT_SECONDARY = "#586C70";
 const TEXT_MUTED = "#647678";
 const SUPPORT_WHATSAPP_URL = `https://wa.me/${process.env.EXPO_PUBLIC_SUPPORT_PHONE ?? "919999999999"}`;
 const PRIVACY_POLICY_URL = process.env.EXPO_PUBLIC_PRIVACY_URL ?? "#";
-const LANGUAGES = [
-  "English", "Hindi", "Bengali", "Gujarati", "Kannada", "Malayalam",
-  "Marathi", "Odia", "Punjabi", "Tamil", "Telugu", "Urdu",
-];
 const GENDER_OPTIONS = [
   { value: "", label: "Select (optional)" },
   { value: "woman", label: "Woman" },
@@ -703,6 +704,7 @@ function SignOutSheet({ visible, onCancel, onConfirm }) {
 }
 
 export default function PassengerProfile() {
+  const { setLanguage, t } = useLanguage();
   const insets = useSafeAreaInsets();
   const { signOut, auth } = useAuth();
   const router = useRouter();
@@ -850,6 +852,7 @@ export default function PassengerProfile() {
       return body;
     },
     onSuccess: async (body) => {
+      setLanguage(normalizeLanguage(body?.user?.preferred_language || preferredLanguage));
       queryClient.setQueryData(["userProfile", authUserKey], body);
       await queryClient.invalidateQueries({ queryKey: ["userProfile", authUserKey] });
       toast.success("Profile saved", {
@@ -1113,9 +1116,12 @@ export default function PassengerProfile() {
               />
 
               <CompactSelect
-                label="Preferred Language"
+                label={t("profile.preferredLanguage")}
                 value={preferredLanguage}
-                options={LANGUAGES.map((language) => ({ label: language, value: language }))}
+                options={LANGUAGE_OPTIONS.map((language) => ({
+                  label: language.label,
+                  value: language.value,
+                }))}
                 onChange={setPreferredLanguage}
                 disabled={testMode || updateProfile.isPending}
               />
