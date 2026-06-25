@@ -19,7 +19,6 @@ function getMobileSignupRole(role) {
 export const useAuth = () => {
   const { isReady, auth, setAuth, isSigningOut, setSigningOut } = useAuthStore();
   const { close, open } = useAuthModal();
-  const disableTestMode = useAppStore((state) => state.disableTestMode);
   const resetSessionState = useAppStore((state) => state.resetSessionState);
 
   const initiate = useCallback(() => {
@@ -75,13 +74,12 @@ export const useAuth = () => {
 
       await Promise.allSettled([
         Promise.resolve(resetSessionState()),
-        Promise.resolve(disableTestMode()),
         SecureStore.deleteItemAsync(authKey, secureStoreOptions),
       ]);
     } finally {
       setSigningOut(false);
     }
-  }, [close, disableTestMode, resetSessionState, setAuth, setSigningOut]);
+  }, [close, resetSessionState, setAuth, setSigningOut]);
 
   return {
     isReady,

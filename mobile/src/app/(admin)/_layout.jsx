@@ -2,10 +2,14 @@ import { Tabs } from "expo-router";
 import { BarChart3, FileText, Map, Users, Route } from "lucide-react-native";
 import { useTheme } from "@/theme/ThemeContext";
 import { ICON } from "@/theme/iconScale";
+import { useAuth } from "@/utils/auth/useAuth";
 
 export default function AdminLayout() {
   const theme = useTheme();
+  const { auth, isReady } = useAuth();
   const active = theme.accent;
+
+  if (!isReady || !auth) return null;
 
   return (
     <Tabs

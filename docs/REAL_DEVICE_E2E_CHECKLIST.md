@@ -82,6 +82,12 @@ database name before starting.
 ## Admin
 
 - Admin reviews drivers, KYC queue, rides, zones, and audit log.
+- In Admin Rides, verify status filters, search, sort, next/previous pagination,
+  and matching-result totals.
+- In Admin Activity, verify entries describe the action performed in plain
+  language and show the administrator and timestamp.
+- Sign out from the admin dashboard and confirm the tabs disappear immediately,
+  the welcome screen opens, and back navigation cannot reopen admin screens.
 - Open the web admin dashboard and admin-ops dashboard after a cold page load.
 - Confirm web ECharts keep their expected height and render after hydration
   without blank/collapsed containers or hydration warnings.

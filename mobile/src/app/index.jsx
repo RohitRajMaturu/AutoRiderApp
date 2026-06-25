@@ -8,22 +8,17 @@ import {
   TouchableOpacity,
   Animated,
   Image,
-  Modal,
-  Pressable,
 } from "react-native";
 import {
   ArrowRight,
-  FlaskConical,
   Gauge,
   IndianRupee,
   ShieldCheck,
   UserRound,
-  Settings,
   UserPlus,
 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import useAppStore from "../store/useAppStore";
 import TukTukGoLoader from "../components/TukTukGoLoader";
 
 const SAFFRON = "#43B8B3";
@@ -31,203 +26,13 @@ const INDIA_GREEN = "#138808";
 const DARK = "#17272B";
 const TUKTUKGO_ICON = require("../../assets/images/icon.png");
 
-function RolePickerModal({ visible, onClose, onSelect }) {
-  const roles = [
-    {
-      id: "passenger",
-      Icon: UserRound,
-      title: "Passenger",
-      desc: "Book autos, track rides, call drivers",
-      color: SAFFRON,
-      bg: "#E7F6F4",
-      border: "#BFE5E0",
-    },
-    {
-      id: "driver",
-      Icon: Gauge,
-      title: "Driver",
-      desc: "Go online, accept rides, manage subscription",
-      color: "#16A34A",
-      bg: "#F0FDF4",
-      border: "#BBF7D0",
-    },
-    {
-      id: "admin",
-      Icon: Settings,
-      title: "Admin",
-      desc: "Dashboard, driver approvals, analytics",
-      color: "#2563EB",
-      bg: "#EFF6FF",
-      border: "#BFDBFE",
-    },
-  ];
-
-  return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable
-        style={{
-          flex: 1,
-          backgroundColor: "#00000060",
-          justifyContent: "flex-end",
-        }}
-        onPress={onClose}
-      >
-        <Pressable onPress={() => {}}>
-          <View
-            style={{
-              backgroundColor: "#fff",
-              borderTopLeftRadius: 28,
-              borderTopRightRadius: 28,
-              padding: 28,
-              paddingBottom: 40,
-            }}
-          >
-            <View
-              style={{
-                width: 40,
-                height: 4,
-                borderRadius: 2,
-                backgroundColor: "#D8E4E5",
-                alignSelf: "center",
-                marginBottom: 24,
-              }}
-            />
-
-            <Text
-              style={{
-                fontSize: 20,
-                fontWeight: "800",
-                color: DARK,
-                marginBottom: 6,
-                letterSpacing: 0,
-              }}
-            >
-              Choose Role to Test
-            </Text>
-            <Text
-              style={{
-                fontSize: 13,
-                color: "#586C70",
-                marginBottom: 24,
-                lineHeight: 20,
-              }}
-            >
-              Explore each section of the app without signing in. API calls may show empty data.
-            </Text>
-
-            <View
-              style={{
-                backgroundColor: "#FFFBEB",
-                borderRadius: 12,
-                borderWidth: 1,
-                borderColor: "#FDE68A",
-                padding: 12,
-                marginBottom: 20,
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 10,
-              }}
-            >
-              <FlaskConical size={18} color="#286B68" />
-              <Text
-                style={{
-                  fontSize: 12,
-                  color: "#286B68",
-                  flex: 1,
-                  lineHeight: 18,
-                }}
-              >
-                Test mode - UI is fully functional. Sign in with a real account to use live data.
-              </Text>
-            </View>
-
-            <View style={{ gap: 12 }}>
-              {roles.map((role) => (
-                <TouchableOpacity
-                  key={role.id}
-                  onPress={() => onSelect(role.id)}
-                  style={{
-                    backgroundColor: role.bg,
-                    borderRadius: 16,
-                    borderWidth: 1.5,
-                    borderColor: role.border,
-                    padding: 16,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 16,
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <View
-                    style={{
-                      width: 52,
-                      height: 52,
-                      borderRadius: 26,
-                      backgroundColor: "#fff",
-                      justifyContent: "center",
-                      alignItems: "center",
-                      shadowColor: "#000",
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.08,
-                      shadowRadius: 6,
-                      elevation: 2,
-                    }}
-                  >
-                    <role.Icon size={26} color={role.color} strokeWidth={2.4} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={{
-                        fontSize: 16,
-                        fontWeight: "700",
-                        color: role.color,
-                      }}
-                    >
-                      {role.title}
-                    </Text>
-                    <Text
-                      style={{
-                        fontSize: 12,
-                        color: "#586C70",
-                        marginTop: 3,
-                        lineHeight: 18,
-                      }}
-                    >
-                      {role.desc}
-                    </Text>
-                  </View>
-                  <ArrowRight size={20} color={role.color} />
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
-  );
-}
-
 export default function Index() {
   const { auth, signIn, signUp, isReady, isSigningOut } = useAuth();
   const insets = useSafeAreaInsets();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(40)).current;
   const logoShineAnim = useRef(new Animated.Value(0)).current;
-  const [showRolePicker, setShowRolePicker] = useState(false);
   const [selectedRole, setSelectedRole] = useState("passenger");
-
-  const {
-    testMode,
-    testRole,
-    testModeLoaded,
-    isTestModeAllowed,
-    loadTestMode,
-    enableTestMode,
-  } = useAppStore();
-
-  useEffect(() => {
-    loadTestMode();
-  }, [loadTestMode]);
 
   useEffect(() => {
     Animated.parallel([
@@ -270,9 +75,9 @@ export default function Index() {
   });
 
   // Guard: never redirect based on stale data during or just after sign-out
-  const canRedirect = isReady && testModeLoaded && !isSigningOut && !isLoading;
+  const canRedirect = isReady && !isSigningOut && !isLoading;
 
-  if (!testModeLoaded || !isReady || isSigningOut || (auth && isLoading)) {
+  if (!isReady || isSigningOut || (auth && isLoading)) {
     return (
       <View
         style={{
@@ -287,12 +92,6 @@ export default function Index() {
         />
       </View>
     );
-  }
-
-  if (canRedirect && testMode && testRole) {
-    if (testRole === "admin") return <Redirect href="/(admin)" />;
-    if (testRole === "driver") return <Redirect href="/(driver)" />;
-    return <Redirect href="/(passenger)" />;
   }
 
   if (canRedirect && auth) {
@@ -340,15 +139,6 @@ export default function Index() {
   return (
     <View style={{ flex: 1, backgroundColor: DARK }}>
       <StatusBar style="light" />
-      <RolePickerModal
-        visible={isTestModeAllowed && showRolePicker}
-        onClose={() => setShowRolePicker(false)}
-        onSelect={async (role) => {
-          setShowRolePicker(false);
-          await enableTestMode(role);
-        }}
-      />
-
       <View style={{ flex: 1, justifyContent: "flex-end" }}>
         <View
           style={{

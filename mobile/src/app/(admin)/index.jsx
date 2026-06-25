@@ -20,7 +20,6 @@ import {
   AlertTriangle,
   IndianRupee,
   Trophy,
-  FlaskConical,
   LogOut,
 } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -33,20 +32,18 @@ import Svg, {
   Stop,
 } from "react-native-svg";
 import { useAuth } from "@/utils/auth/useAuth";
-import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { ICON } from "@/theme/iconScale";
 import AutoRideIcon from "@/components/AutoRideIcon";
-import useAppStore from "@/store/useAppStore";
 
 const PRIMARY = "#F5A623";
 const PRIMARY_DARK = "#D97706";
 const PRIMARY_LIGHT = "rgba(245,166,35,0.12)";
 const BG = "#0D0F12";
 const SURFACE = "#1C2028";
-const BORDER = "rgba(255,255,255,0.08)";
+const BORDER = "rgba(255,255,255,0.16)";
 const TEXT = "#F0F2F5";
-const TEXT_SECONDARY = "#8A8F9E";
+const TEXT_SECONDARY = "#C3C8D4";
 const SUCCESS = "#22C55E";
 const ERROR = "#EF4444";
 const GOLD = "#F59E0B";
@@ -145,7 +142,7 @@ function numberValue(value) {
 }
 
 function formatCurrency(value) {
-  return `₹${Math.round(numberValue(value)).toLocaleString("en-IN")}`;
+  return `\u20B9${Math.round(numberValue(value)).toLocaleString("en-IN")}`;
 }
 
 function formatReason(reason) {
@@ -536,8 +533,6 @@ export default function AdminDashboard() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const { signOut } = useAuth();
-  const router = useRouter();
-  const { testMode, disableTestMode } = useAppStore();
   const [chartView, setChartView] = useState("today");
   const [chartMetric, setChartMetric] = useState("rides");
   const [showSignOutSheet, setShowSignOutSheet] = useState(false);
@@ -708,45 +703,10 @@ export default function AdminDashboard() {
           }}
         >
           <Text style={{ fontSize: 11, fontWeight: "700", color: SUCCESS }}>
-            ● LIVE
+            LIVE
           </Text>
         </View>
       </View>
-
-      {testMode && (
-        <TouchableOpacity
-          onPress={async () => {
-            await disableTestMode();
-            router.replace("/");
-          }}
-          style={{
-            backgroundColor: "#FEF3C7",
-            paddingHorizontal: 16,
-            paddingVertical: 10,
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 10,
-            borderBottomWidth: 1,
-            borderBottomColor: "#FDE68A",
-          }}
-          activeOpacity={0.8}
-        >
-          <FlaskConical size={ICON.sm} color="#B88700" />
-          <Text
-            style={{
-              flex: 1,
-              fontSize: 12,
-              color: "#286B68",
-              fontWeight: "600",
-            }}
-          >
-            🧪 Test Mode - Tap to Exit & Sign In for real admin access
-          </Text>
-          <Text style={{ fontSize: 12, color: "#B88700", fontWeight: "700" }}>
-            Exit →
-          </Text>
-        </TouchableOpacity>
-      )}
 
       {isLoading ? (
         <View
@@ -789,11 +749,11 @@ export default function AdminDashboard() {
               </Text>
               <AnimatedCounter
                 to={numberValue(stats.totalFareValue)}
-                prefix="₹"
+                prefix={"\u20B9"}
                 style={{ fontSize: 32, fontWeight: "900", color: SURFACE }}
               />
               <Text style={{ fontSize: 11, color: "#FFFFFFA6", marginTop: 2 }}>
-                Today: {formatCurrency(stats.todayFareValue)} ·{" "}
+                Today: {formatCurrency(stats.todayFareValue)} {"\u00B7"}{" "}
                 {numberValue(stats.todayRides)} rides
               </Text>
             </View>
@@ -821,13 +781,13 @@ export default function AdminDashboard() {
               label="Today Rides"
               value={stats.todayRides}
               color={PRIMARY}
-              icon="🛺"
+              icon="R"
             />
             <PulseCard
               label="Pending Approval"
               value={stats.pendingDrivers}
               color={GOLD}
-              icon="⏳"
+              icon="P"
             />
           </View>
 
@@ -858,7 +818,7 @@ export default function AdminDashboard() {
                   activeColor={metricColor}
                   options={[
                     { label: "Rides", value: "rides" },
-                    { label: "₹ Fare", value: "fare" },
+                    { label: "\u20B9 Fare", value: "fare" },
                   ]}
                 />
               </View>
@@ -962,7 +922,7 @@ export default function AdminDashboard() {
                     marginTop: 24,
                   }}
                 >
-                  No cancellations yet ✓
+                  No cancellations yet
                 </Text>
               ) : (
                 cancellationReasons.map((item, index) => {
@@ -1085,7 +1045,7 @@ export default function AdminDashboard() {
                       <Text
                         style={{ fontSize: 11, color: GOLD, fontWeight: "800" }}
                       >
-                        ★ {driver.avg_driver_rating_30d}
+                        {"\u2605"} {driver.avg_driver_rating_30d}
                       </Text>
                     )}
                   </View>
@@ -1154,7 +1114,7 @@ export default function AdminDashboard() {
               </View>
               <AnimatedCounter
                 to={Math.round(avgFare)}
-                prefix="₹"
+                prefix={"\u20B9"}
                 style={{ fontSize: 28, fontWeight: "900", color: PURPLE }}
               />
               <Text style={{ fontSize: 11, color: TEXT_SECONDARY }}>
@@ -1182,7 +1142,7 @@ export default function AdminDashboard() {
                 gap: 12,
               }}
             >
-              <Text style={{ fontSize: 22 }}>⚠️</Text>
+              <Text style={{ fontSize: 22, color: GOLD, fontWeight: "900" }}>!</Text>
               <View style={{ flex: 1 }}>
                 <Text
                   style={{ fontSize: 14, fontWeight: "700", color: "#286B68" }}
@@ -1221,7 +1181,7 @@ export default function AdminDashboard() {
                   alignItems: "center",
                 }}
               >
-                <Text style={{ fontSize: 32, marginBottom: 10 }}>🛺</Text>
+                <AutoRideIcon size={32} />
                 <Text
                   style={{
                     fontSize: 15,
@@ -1292,7 +1252,7 @@ export default function AdminDashboard() {
                           color: SUCCESS,
                         }}
                       >
-                        ● ONLINE
+                        ONLINE
                       </Text>
                     </View>
                   </View>
@@ -1319,53 +1279,25 @@ export default function AdminDashboard() {
             </Text>
           </TouchableOpacity>
 
-          {testMode ? (
-            <TouchableOpacity
-              onPress={async () => {
-                await disableTestMode();
-                router.replace("/");
-              }}
-              style={{
-                backgroundColor: "#FEF3C7",
-                borderRadius: 12,
-                borderWidth: 1.5,
-                borderColor: "#FDE68A",
-                padding: 14,
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 10,
-              }}
-              activeOpacity={0.8}
-            >
-              <FlaskConical size={ICON.sm} color="#B88700" />
-              <Text
-                style={{ color: "#B88700", fontSize: 14, fontWeight: "700" }}
-              >
-                Exit Test Mode → Sign In
-              </Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              onPress={() => setShowSignOutSheet(true)}
-              style={{
-                backgroundColor: SURFACE,
-                borderRadius: 12,
-                borderWidth: 1,
-                borderColor: BORDER,
-                padding: 14,
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 10,
-              }}
-              activeOpacity={0.8}
-            >
-              <Text style={{ color: ERROR, fontSize: 14, fontWeight: "700" }}>
-                Sign Out
-              </Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            onPress={() => setShowSignOutSheet(true)}
+            style={{
+              backgroundColor: SURFACE,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: BORDER,
+              padding: 14,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 10,
+            }}
+            activeOpacity={0.8}
+          >
+            <Text style={{ color: ERROR, fontSize: 14, fontWeight: "700" }}>
+              Sign Out
+            </Text>
+          </TouchableOpacity>
         </ScrollView>
       )}
       <SignOutSheet

@@ -1,8 +1,12 @@
 import { Tabs } from "expo-router";
 import { Home, Wallet, User } from "lucide-react-native";
 import { ICON } from "@/theme/iconScale";
+import { useAuth } from "@/utils/auth/useAuth";
 
 export default function DriverLayout() {
+  const { auth, isReady } = useAuth();
+  if (!isReady || !auth) return null;
+
   return (
     <Tabs
       screenOptions={{

@@ -154,6 +154,13 @@ Completed locally:
   native cancellation alerts.
 - Driver background loading and action progress is shown with an animated top
   line while keeping the dashboard mounted.
+- Mobile admin rides use server-side pagination, status/search filters, and
+  newest/oldest/fare sorting.
+- Mobile admin activity translates internal audit keys into readable actions,
+  actor details, and timestamps.
+- Mobile test mode and persisted test-role redirects are removed. Role layouts
+  unmount immediately when authentication clears to prevent logout flashes or
+  stale dashboard reopening.
 - Admin fare/chart queries and driver daily earnings use explicit
   `Asia/Kolkata` boundaries and event-time buckets instead of database-session
   `CURRENT_DATE`.

@@ -234,6 +234,11 @@ The driver dashboard keeps its content mounted during background work and shows
 a thin animated top progress line for loading, refreshes, and driver actions,
 avoiding the previous full-screen loading flicker.
 
+Mobile admin ride management uses server-side status filtering, search,
+fare/date sorting, and 20-item pagination. Admin activity is presented as
+readable operations instead of internal event keys. Obsolete mobile test mode
+has been removed; all role dashboards require an authenticated session.
+
 ## Completed Backend Location Work
 
 - Server-side Ola Maps autocomplete through `GET /api/locations/autocomplete`.

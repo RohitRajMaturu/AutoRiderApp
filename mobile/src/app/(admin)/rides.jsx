@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   RefreshControl,
   TouchableOpacity,
   Alert,
+  TextInput,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -15,6 +16,9 @@ import {
   XCircle,
   Clock,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Search,
 } from "lucide-react-native";
 import { FlashList } from "@shopify/flash-list";
 import { StatusBar } from "expo-status-bar";
@@ -24,9 +28,9 @@ import { ICON } from "@/theme/iconScale";
 const PRIMARY = "#F5A623";
 const BG = "#0D0F12";
 const SURFACE = "#1C2028";
-const BORDER = "rgba(255,255,255,0.08)";
+const BORDER = "rgba(255,255,255,0.16)";
 const TEXT = "#F0F2F5";
-const TEXT_SECONDARY = "#8A8F9E";
+const TEXT_SECONDARY = "#C3C8D4";
 const SUCCESS = "#22C55E";
 const ERROR = "#EF4444";
 const GOLD = "#F59E0B";
@@ -35,7 +39,7 @@ const WARNING = "#F59E0B";
 function maskPhone(value) {
   const digits = String(value || "").replace(/\D/g, "");
   if (digits.length < 4) return "Masked";
-  return `•••• ${digits.slice(-4)}`;
+  return `\u2022\u2022\u2022\u2022 ${digits.slice(-4)}`;
 }
 
 const STATUS_CONFIG = {
@@ -44,6 +48,12 @@ const STATUS_CONFIG = {
     text: WARNING,
     Icon: Clock,
     label: "Searching",
+  },
+  negotiating: {
+    bg: `${GOLD}20`,
+    text: GOLD,
+    Icon: Clock,
+    label: "Negotiating",
   },
   accepted: { bg: `${PRIMARY}20`, text: PRIMARY, Icon: AutoRideIcon, label: "Accepted" },
   completed: {
@@ -132,7 +142,7 @@ function RideRow({ ride, onCancel, isCancelling }) {
                   day: "numeric",
                   month: "short",
                 })}{" "}
-                ·{" "}
+                {"\u00B7"}{" "}
                 {date.toLocaleTimeString("en-IN", {
                   hour: "2-digit",
                   minute: "2-digit",
@@ -258,7 +268,7 @@ function RideRow({ ride, onCancel, isCancelling }) {
                 </Text>
                 <Text style={{ fontSize: 12, color: TEXT }}>
                   {ride.vehicle_number}{" "}
-                  {ride.driver_phone ? `� ${maskPhone(ride.driver_phone)}` : ""}
+                  {ride.driver_phone ? `· ${maskPhone(ride.driver_phone)}` : ""}
                 </Text>
               </View>
             )}
@@ -279,7 +289,7 @@ function RideRow({ ride, onCancel, isCancelling }) {
                       fontWeight: "600",
                     }}
                   >
-                    ₹{Math.round(ride.estimated_fare)}
+                    {"\u20B9"}{Math.round(ride.estimated_fare)}
                   </Text>
                 )}
                 {ride.distance_km && (
@@ -291,7 +301,7 @@ function RideRow({ ride, onCancel, isCancelling }) {
                   <Text
                     style={{ fontSize: 12, color: GOLD, fontWeight: "700" }}
                   >
-                    ★ {ride.driver_rating}/5
+                    {"\u2605"} {ride.driver_rating}/5
                   </Text>
                 )}
               </View>
@@ -390,16 +400,36 @@ export default function AdminRides() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState("all");
+  const [sort, setSort] = useState("newest");
+  const [searchText, setSearchText] = useState("");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
-    queryKey: ["adminRides"],
+    queryKey: ["adminRides", filter, sort, search, page],
     queryFn: async () => {
-      const res = await fetch("/api/admin/rides");
+      const params = new URLSearchParams({
+        status: filter,
+        sort,
+        search,
+        page: String(page),
+        pageSize: String(pageSize),
+      });
+      const res = await fetch(`/api/admin/rides?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to fetch rides");
       return res.json();
     },
     refetchInterval: 15000,
   });
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setPage(1);
+      setSearch(searchText.trim());
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchText]);
 
   const cancelRide = useMutation({
     mutationFn: async (rideId) => {
@@ -426,16 +456,12 @@ export default function AdminRides() {
     onError: (err) => Alert.alert("Cancel Failed", err.message),
   });
 
-  const allRides = data?.rides || [];
-  const filtered =
-    filter === "all" ? allRides : allRides.filter((r) => r.status === filter);
-
-  const counts = {
-    all: allRides.length,
-    requested: allRides.filter((r) => r.status === "requested").length,
-    accepted: allRides.filter((r) => r.status === "accepted").length,
-    completed: allRides.filter((r) => r.status === "completed").length,
-    cancelled: allRides.filter((r) => r.status === "cancelled").length,
+  const rides = data?.rides || [];
+  const counts = data?.counts || {};
+  const pagination = data?.pagination || {
+    page: 1,
+    total: 0,
+    totalPages: 1,
   };
 
   return (
@@ -463,8 +489,31 @@ export default function AdminRides() {
           All Rides
         </Text>
         <Text style={{ fontSize: 13, color: TEXT_SECONDARY, marginTop: 2 }}>
-          {allRides.length} total rides · updates every 15s
+          {counts.all || 0} total rides · updates every 15s
         </Text>
+
+        <View
+          style={{
+            alignItems: "center",
+            backgroundColor: SURFACE,
+            borderColor: BORDER,
+            borderRadius: 12,
+            borderWidth: 1,
+            flexDirection: "row",
+            gap: 8,
+            marginTop: 14,
+            paddingHorizontal: 12,
+          }}
+        >
+          <Search size={ICON.sm} color={TEXT_SECONDARY} />
+          <TextInput
+            value={searchText}
+            onChangeText={setSearchText}
+            placeholder="Search ride, route, vehicle or phone"
+            placeholderTextColor={TEXT_SECONDARY}
+            style={{ color: TEXT, flex: 1, fontSize: 13, paddingVertical: 11 }}
+          />
+        </View>
 
         {/* Filter tabs */}
         <ScrollView
@@ -473,11 +522,12 @@ export default function AdminRides() {
           style={{ marginTop: 14, flexGrow: 0 }}
           contentContainerStyle={{ gap: 8 }}
         >
-          {["all", "requested", "accepted", "completed", "cancelled"].map(
+          {["all", "requested", "negotiating", "accepted", "completed", "cancelled"].map(
             (f) => {
               const colors = {
                 all: TEXT_SECONDARY,
                 requested: WARNING,
+                negotiating: GOLD,
                 accepted: PRIMARY,
                 completed: SUCCESS,
                 cancelled: ERROR,
@@ -485,7 +535,10 @@ export default function AdminRides() {
               return (
                 <TouchableOpacity
                   key={f}
-                  onPress={() => setFilter(f)}
+                  onPress={() => {
+                    setFilter(f);
+                    setPage(1);
+                  }}
                   style={{
                     paddingHorizontal: 14,
                     paddingVertical: 7,
@@ -526,6 +579,46 @@ export default function AdminRides() {
             },
           )}
         </ScrollView>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ marginTop: 10, flexGrow: 0 }}
+          contentContainerStyle={{ gap: 8 }}
+        >
+          {[
+            ["newest", "Newest"],
+            ["oldest", "Oldest"],
+            ["fare_high", "Fare: High"],
+            ["fare_low", "Fare: Low"],
+          ].map(([value, label]) => (
+            <TouchableOpacity
+              key={value}
+              onPress={() => {
+                setSort(value);
+                setPage(1);
+              }}
+              style={{
+                backgroundColor: sort === value ? `${PRIMARY}20` : SURFACE,
+                borderColor: sort === value ? PRIMARY : BORDER,
+                borderRadius: 9,
+                borderWidth: 1,
+                paddingHorizontal: 11,
+                paddingVertical: 6,
+              }}
+            >
+              <Text
+                style={{
+                  color: sort === value ? PRIMARY : TEXT_SECONDARY,
+                  fontSize: 11,
+                  fontWeight: "700",
+                }}
+              >
+                {label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </View>
 
       {isLoading ? (
@@ -536,7 +629,7 @@ export default function AdminRides() {
         </View>
       ) : (
         <FlashList
-          data={filtered}
+          data={rides}
           estimatedItemSize={250}
           keyExtractor={(ride) => String(ride.id)}
           contentContainerStyle={{ padding: 16, paddingBottom: 80 }}
@@ -565,10 +658,80 @@ export default function AdminRides() {
                 style={{ fontSize: 13, color: TEXT_SECONDARY, marginTop: 6 }}
               >
                 {filter === "all"
-                  ? "Ride activity will appear here"
+                  ? search
+                    ? "Try a different search"
+                    : "Ride activity will appear here"
                   : `No ${filter} rides`}
               </Text>
             </View>
+          }
+          ListFooterComponent={
+            pagination.total > 0 ? (
+              <View
+                style={{
+                  alignItems: "center",
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  marginTop: 8,
+                  paddingVertical: 12,
+                }}
+              >
+                <TouchableOpacity
+                  disabled={page <= 1}
+                  onPress={() => setPage((current) => Math.max(1, current - 1))}
+                  style={{
+                    alignItems: "center",
+                    backgroundColor: SURFACE,
+                    borderColor: BORDER,
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    flexDirection: "row",
+                    gap: 5,
+                    opacity: page <= 1 ? 0.4 : 1,
+                    paddingHorizontal: 12,
+                    paddingVertical: 9,
+                  }}
+                >
+                  <ChevronLeft size={ICON.xs} color={TEXT} />
+                  <Text style={{ color: TEXT, fontSize: 12, fontWeight: "700" }}>
+                    Previous
+                  </Text>
+                </TouchableOpacity>
+                <View style={{ alignItems: "center" }}>
+                  <Text style={{ color: TEXT, fontSize: 12, fontWeight: "800" }}>
+                    Page {pagination.page} of {pagination.totalPages}
+                  </Text>
+                  <Text style={{ color: TEXT_SECONDARY, fontSize: 10, marginTop: 2 }}>
+                    {pagination.total} matching rides
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  disabled={page >= pagination.totalPages}
+                  onPress={() =>
+                    setPage((current) =>
+                      Math.min(pagination.totalPages, current + 1),
+                    )
+                  }
+                  style={{
+                    alignItems: "center",
+                    backgroundColor: SURFACE,
+                    borderColor: BORDER,
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    flexDirection: "row",
+                    gap: 5,
+                    opacity: page >= pagination.totalPages ? 0.4 : 1,
+                    paddingHorizontal: 12,
+                    paddingVertical: 9,
+                  }}
+                >
+                  <Text style={{ color: TEXT, fontSize: 12, fontWeight: "700" }}>
+                    Next
+                  </Text>
+                  <ChevronRight size={ICON.xs} color={TEXT} />
+                </TouchableOpacity>
+              </View>
+            ) : null
           }
           renderItem={({ item }) => (
             <RideRow

@@ -25,6 +25,47 @@ export async function GET(request) {
   const { response } = await requireAdminSession(request);
   if (response) return response;
 
+  const searchParams = new URL(request.url).searchParams;
+  const allowedStatuses = new Set(["requested", "negotiating", "accepted", "completed", "cancelled"]);
+  const allowedSorts = new Set(["newest", "oldest", "fare_high", "fare_low"]);
+  const requestedStatus = searchParams.get("status") || "all";
+  const status = allowedStatuses.has(requestedStatus) ? requestedStatus : "all";
+  const requestedSort = searchParams.get("sort") || "newest";
+  const sort = allowedSorts.has(requestedSort) ? requestedSort : "newest";
+  const search = String(searchParams.get("search") || "").trim().slice(0, 100);
+  const page = Math.max(1, Number.parseInt(searchParams.get("page") || "1", 10) || 1);
+  const pageSize = Math.min(
+    50,
+    Math.max(10, Number.parseInt(searchParams.get("pageSize") || "20", 10) || 20),
+  );
+  const offset = (page - 1) * pageSize;
+
+  const countRows = await sql`
+    SELECT
+      COUNT(*)::int AS total,
+      COUNT(*) FILTER (WHERE r.status = 'requested')::int AS requested,
+      COUNT(*) FILTER (WHERE r.status = 'negotiating')::int AS negotiating,
+      COUNT(*) FILTER (WHERE r.status = 'accepted')::int AS accepted,
+      COUNT(*) FILTER (WHERE r.status = 'completed')::int AS completed,
+      COUNT(*) FILTER (WHERE r.status = 'cancelled')::int AS cancelled
+    FROM rides r
+    LEFT JOIN auth_users p ON r.passenger_id = p.id
+    LEFT JOIN drivers d ON r.driver_id = d.id
+    LEFT JOIN auth_users du ON d.user_id = du.id
+    WHERE (
+      ${search} = ''
+      OR r.id::text ILIKE ${`%${search}%`}
+      OR r.pickup_address ILIKE ${`%${search}%`}
+      OR r.dest_address ILIKE ${`%${search}%`}
+      OR p.phone ILIKE ${`%${search}%`}
+      OR d.vehicle_number ILIKE ${`%${search}%`}
+      OR du.phone ILIKE ${`%${search}%`}
+    )
+  `;
+  const counts = countRows[0] || {};
+  const filteredTotal =
+    status === "all" ? Number(counts.total || 0) : Number(counts[status] || 0);
+
   const rides = await sql`
     SELECT 
       r.*,
@@ -36,11 +77,44 @@ export async function GET(request) {
     LEFT JOIN auth_users p ON r.passenger_id = p.id
     LEFT JOIN drivers d ON r.driver_id = d.id
     LEFT JOIN auth_users du ON d.user_id = du.id
-    ORDER BY r.created_at DESC
-    LIMIT 100
+    WHERE (${status} = 'all' OR r.status = ${status})
+      AND (
+        ${search} = ''
+        OR r.id::text ILIKE ${`%${search}%`}
+        OR r.pickup_address ILIKE ${`%${search}%`}
+        OR r.dest_address ILIKE ${`%${search}%`}
+        OR p.phone ILIKE ${`%${search}%`}
+        OR d.vehicle_number ILIKE ${`%${search}%`}
+        OR du.phone ILIKE ${`%${search}%`}
+      )
+    ORDER BY
+      CASE WHEN ${sort} = 'oldest' THEN r.created_at END ASC,
+      CASE WHEN ${sort} = 'fare_high' THEN COALESCE(r.final_fare, r.estimated_fare, 0) END DESC,
+      CASE WHEN ${sort} = 'fare_low' THEN COALESCE(r.final_fare, r.estimated_fare, 0) END ASC,
+      CASE WHEN ${sort} = 'newest' THEN r.created_at END DESC,
+      r.created_at DESC
+    LIMIT ${pageSize}
+    OFFSET ${offset}
   `;
 
-  return Response.json({ rides });
+  return Response.json({
+    rides,
+    counts: {
+      all: Number(counts.total || 0),
+      requested: Number(counts.requested || 0),
+      negotiating: Number(counts.negotiating || 0),
+      accepted: Number(counts.accepted || 0),
+      completed: Number(counts.completed || 0),
+      cancelled: Number(counts.cancelled || 0),
+    },
+    pagination: {
+      page,
+      pageSize,
+      total: filteredTotal,
+      totalPages: Math.max(1, Math.ceil(filteredTotal / pageSize)),
+    },
+    filters: { status, sort, search },
+  });
 }
 
 export async function PATCH(request) {
