@@ -987,6 +987,28 @@ export default function DriverWallet() {
                           </Text>
                         ) : null}
                       </View>
+                      {ride.passenger_rating ? (
+                        <View style={{ marginTop: 7 }}>
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+                            <Star size={ICON.xs} color="#F3B51B" fill="#F3B51B" />
+                            <Text style={{ color: TEXT, fontSize: 11, fontWeight: "800" }}>
+                              Your passenger rating: {ride.passenger_rating}/5
+                            </Text>
+                          </View>
+                          {ride.passenger_rating_feedback ? (
+                            <Text
+                              numberOfLines={2}
+                              style={{ color: TEXT_SECONDARY, fontSize: 11, lineHeight: 16, marginTop: 3 }}
+                            >
+                              {ride.passenger_rating_feedback}
+                            </Text>
+                          ) : null}
+                        </View>
+                      ) : (
+                        <Text style={{ color: TEXT_MUTED, fontSize: 10, marginTop: 7 }}>
+                          Passenger not rated
+                        </Text>
+                      )}
                     </View>
                     <View style={{ alignItems: "flex-end" }}>
                       <Text style={{ fontSize: 14, fontWeight: "900", color: PRIMARY }}>

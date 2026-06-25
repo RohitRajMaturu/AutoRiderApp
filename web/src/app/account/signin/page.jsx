@@ -165,6 +165,7 @@ export default function SignInPage() {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [loginMode, setLoginMode] = useState("password");
+  const [identifierMode, setIdentifierMode] = useState("phone");
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
@@ -335,7 +336,9 @@ export default function SignInPage() {
   };
 
   const inputCls =
-    "h-11 w-full border-b border-[#E7EFEF] bg-transparent text-sm font-semibold text-[#17272B] outline-none transition placeholder:text-[#CCD7D8] focus:border-[#43B8B3]";
+    "h-12 w-full min-w-0 rounded-2xl border border-[#D8E4E5] bg-[#F7FBFA] px-4 text-sm font-semibold text-[#17272B] outline-none transition placeholder:text-[#9EADAF] focus:border-[#43B8B3] focus:bg-white focus:ring-2 focus:ring-[#43B8B3]/15";
+  const phoneInputCls =
+    "h-full min-w-0 flex-1 bg-transparent px-3 text-sm font-semibold text-[#17272B] outline-none placeholder:text-[#9EADAF]";
   const labelCls = "sr-only";
 
   return (
@@ -400,18 +403,66 @@ export default function SignInPage() {
                           exit={{ opacity: 0, x: 12 }}
                           transition={{ duration: 0.2 }}
                         >
+                          <div className="grid grid-cols-2 gap-1 rounded-2xl border border-[#D8E4E5] bg-[#F7FBFA] p-1">
+                            {[
+                              { id: "phone", label: "Mobile" },
+                              { id: "email", label: "Email" },
+                            ].map((item) => (
+                              <button
+                                key={item.id}
+                                type="button"
+                                onClick={() => {
+                                  setIdentifierMode(item.id);
+                                  setIdentifier("");
+                                  setError(null);
+                                }}
+                                className={`h-9 rounded-xl text-sm font-extrabold transition ${
+                                  identifierMode === item.id
+                                    ? "bg-[#43B8B3] text-white shadow-[0_6px_14px_rgba(67,184,179,0.2)]"
+                                    : "text-slate-500"
+                                }`}
+                              >
+                                {item.label}
+                              </button>
+                            ))}
+                          </div>
                           <div>
-                            <label className={labelCls}>Email or Mobile Number</label>
-                            <input
-                              type="text"
-                              inputMode="text"
-                              value={identifier}
-                              onChange={(event) => setIdentifier(event.target.value)}
-                              className={inputCls}
-                              placeholder="Email or Mobile Number"
-                              autoComplete="username"
-                              required
-                            />
+                            <label className={labelCls}>
+                              {identifierMode === "phone" ? "Mobile Number" : "Email"}
+                            </label>
+                            {identifierMode === "phone" ? (
+                              <div className="flex h-12 overflow-hidden rounded-2xl border border-[#D8E4E5] bg-[#F7FBFA] transition focus-within:border-[#43B8B3] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#43B8B3]/15">
+                                <span className="flex shrink-0 items-center border-r border-[#D8E4E5] bg-[#EDF5F4] px-3 text-sm font-extrabold text-[#286B68]">
+                                  +91
+                                </span>
+                                <input
+                                  type="tel"
+                                  inputMode="numeric"
+                                  value={identifier}
+                                  onChange={(event) =>
+                                    setIdentifier(
+                                      event.target.value.replace(/\D/g, "").slice(0, 10),
+                                    )
+                                  }
+                                  className={phoneInputCls}
+                                  placeholder="10-digit mobile number"
+                                  autoComplete="tel"
+                                  maxLength={10}
+                                  required
+                                />
+                              </div>
+                            ) : (
+                              <input
+                                type="email"
+                                inputMode="email"
+                                value={identifier}
+                                onChange={(event) => setIdentifier(event.target.value)}
+                                className={inputCls}
+                                placeholder="name@example.com"
+                                autoComplete="username"
+                                required
+                              />
+                            )}
                           </div>
                           <div>
                             <label className={labelCls}>Password</label>
@@ -438,19 +489,27 @@ export default function SignInPage() {
                           <div>
                             <label className={labelCls}>Mobile Number</label>
                             <div className="flex gap-2">
-                              <input
-                                type="tel"
-                                inputMode="tel"
-                                value={phone}
-                                onChange={(event) => {
-                                  setPhone(event.target.value);
-                                  setOtpSent(false);
-                                }}
-                                className={`${inputCls} min-w-0 flex-1`}
-                                placeholder="Mobile Number"
-                                autoComplete="tel"
-                                required
-                              />
+                              <div className="flex h-12 min-w-0 flex-1 overflow-hidden rounded-2xl border border-[#D8E4E5] bg-[#F7FBFA] transition focus-within:border-[#43B8B3] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#43B8B3]/15">
+                                <span className="flex shrink-0 items-center border-r border-[#D8E4E5] bg-[#EDF5F4] px-3 text-sm font-extrabold text-[#286B68]">
+                                  +91
+                                </span>
+                                <input
+                                  type="tel"
+                                  inputMode="numeric"
+                                  value={phone}
+                                  onChange={(event) => {
+                                    setPhone(
+                                      event.target.value.replace(/\D/g, "").slice(0, 10),
+                                    );
+                                    setOtpSent(false);
+                                  }}
+                                  className={phoneInputCls}
+                                  placeholder="10-digit mobile number"
+                                  autoComplete="tel"
+                                  maxLength={10}
+                                  required
+                                />
+                              </div>
                               <button
                                 type="button"
                                 onClick={sendOtp}
@@ -544,19 +603,27 @@ export default function SignInPage() {
                 <form onSubmit={onSignUp} className="space-y-3.5">
                   <div>
                     <label className={labelCls}>Mobile Number</label>
-                    <input
-                      type="tel"
-                      inputMode="tel"
-                      value={phone}
-                      onChange={(event) => {
-                        setPhone(event.target.value);
-                        setOtpSent(false);
-                      }}
-                      className={inputCls}
-                      placeholder="Mobile Number"
-                      autoComplete="tel"
-                      required
-                    />
+                    <div className="flex h-12 overflow-hidden rounded-2xl border border-[#D8E4E5] bg-[#F7FBFA] transition focus-within:border-[#43B8B3] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#43B8B3]/15">
+                      <span className="flex shrink-0 items-center border-r border-[#D8E4E5] bg-[#EDF5F4] px-3 text-sm font-extrabold text-[#286B68]">
+                        +91
+                      </span>
+                      <input
+                        type="tel"
+                        inputMode="numeric"
+                        value={phone}
+                        onChange={(event) => {
+                          setPhone(
+                            event.target.value.replace(/\D/g, "").slice(0, 10),
+                          );
+                          setOtpSent(false);
+                        }}
+                        className={phoneInputCls}
+                        placeholder="10-digit mobile number"
+                        autoComplete="tel"
+                        maxLength={10}
+                        required
+                      />
+                    </div>
                   </div>
 
                   {isAdminSetup ? (

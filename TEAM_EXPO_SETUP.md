@@ -58,7 +58,10 @@ npm run db:migrate
 npm run db:check
 ```
 
-Run migrations whenever new files are added under `web/db/migrations`.
+Migration rule: after every pull or branch switch, if a new file exists under
+`web/db/migrations`, run `npm run db:migrate` before starting or testing the
+apps. The author of a migration must also apply it to the configured shared
+development database and run `npm run db:check` before committing or pushing.
 
 ## 4. Configure Expo
 
