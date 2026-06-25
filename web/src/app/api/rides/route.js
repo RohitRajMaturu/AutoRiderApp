@@ -286,6 +286,24 @@ export async function GET(request) {
                 WHEN is_online = true THEN CURRENT_TIMESTAMP
                 ELSE last_heartbeat_at
               END,
+              zone_id = CASE
+                WHEN is_online = true
+                  AND last_lat IS NOT NULL
+                  AND last_lng IS NOT NULL
+                THEN COALESCE((
+                  SELECT z.id
+                  FROM geo_zones z
+                  WHERE z.is_active = true
+                    AND z.dispatch_enabled = true
+                    AND ST_Covers(
+                      z.boundary::geometry,
+                      ST_SetSRID(ST_MakePoint(last_lng, last_lat), 4326)
+                    )
+                  ORDER BY z.created_at ASC
+                  LIMIT 1
+                ), zone_id)
+                ELSE zone_id
+              END,
               location = CASE
                 WHEN last_lat IS NOT NULL AND last_lng IS NOT NULL
                 THEN ST_SetSRID(ST_MakePoint(last_lng, last_lat), 4326)::geography

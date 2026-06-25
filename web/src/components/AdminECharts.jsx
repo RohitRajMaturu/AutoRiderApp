@@ -59,42 +59,50 @@ export function ChartSkeleton({ height = 260, className = "" }) {
 
 export function Sparkline({ data, color = "#F5A623", loading = false }) {
   const values = safeValues(data);
-  const option = useMemo(
-    () => ({
-      ...theme,
-      animation: true,
-      animationDurationUpdate: 500,
-      grid: { ...theme.grid, left: 0, right: 0, top: 6, bottom: 2 },
-      xAxis: {
-        type: "category",
-        show: false,
-        boundaryGap: false,
-        data: values.map((_, index) => index),
-      },
-      yAxis: { type: "value", show: false, scale: true },
-      tooltip: { show: false },
-      series: [
-        {
-          type: "line",
-          data: values,
-          smooth: true,
-          symbol: "none",
-          silent: true,
-          lineStyle: { color, width: 2 },
-        },
-      ],
-    }),
-    [color, values],
-  );
+  const points = useMemo(() => {
+    if (values.length === 0) return "";
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const range = Math.max(max - min, 1);
+    const count = Math.max(values.length - 1, 1);
+    return values
+      .map((value, index) => {
+        const x = (index / count) * 100;
+        const y = 34 - ((value - min) / range) * 28;
+        return `${x},${y}`;
+      })
+      .join(" ");
+  }, [values]);
 
   if (loading) return <ChartSkeleton height={60} />;
   return (
-    <ReactECharts
-      option={option}
-      notMerge
-      lazyUpdate
-      style={{ height: 60, width: "100%" }}
-    />
+    <svg
+      aria-hidden="true"
+      preserveAspectRatio="none"
+      viewBox="0 0 100 40"
+      style={{ display: "block", height: 60, overflow: "visible", width: "100%" }}
+    >
+      <line
+        x1="0"
+        x2="100"
+        y1="34"
+        y2="34"
+        stroke="rgba(138, 143, 158, 0.16)"
+        strokeWidth="1"
+        vectorEffect="non-scaling-stroke"
+      />
+      {points ? (
+        <polyline
+          fill="none"
+          points={points}
+          stroke={color}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="2"
+          vectorEffect="non-scaling-stroke"
+        />
+      ) : null}
+    </svg>
   );
 }
 

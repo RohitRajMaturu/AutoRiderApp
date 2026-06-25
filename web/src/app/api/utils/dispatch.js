@@ -89,23 +89,41 @@ export async function selectZoneDrivers(
   scopedSql = sql,
 ) {
   if (!zoneId) return [];
-  const radiusMeters = getDriverRideRadiusMeters(); // PATCHED:
+  const radiusMeters = getDriverRideRadiusMeters();
   const rows = await scopedSql`
+    WITH target_zone AS (
+      SELECT id, boundary, max_online_drivers
+      FROM geo_zones
+      WHERE id = ${zoneId}
+        AND is_active = true
+        AND dispatch_enabled = true
+    ),
+    refreshed_drivers AS (
+      UPDATE drivers d
+      SET zone_id = z.id,
+          updated_at = CURRENT_TIMESTAMP
+      FROM target_zone z
+      WHERE d.is_online = true
+        AND d.location IS NOT NULL
+        AND ST_Covers(z.boundary::geometry, d.location::geometry)
+      RETURNING d.*
+    )
     SELECT d.id, d.user_id, u.phone, d.online_since, z.max_online_drivers
-    FROM drivers d
-    JOIN geo_zones z ON z.id = d.zone_id
+    FROM refreshed_drivers d
+    CROSS JOIN target_zone z
     JOIN auth_users u ON u.id = d.user_id
-    WHERE d.zone_id = ${zoneId}
-      AND z.is_active = true
-      AND z.dispatch_enabled = true
-      AND d.is_online = true
+    WHERE d.is_online = true
       AND d.is_approved = true
       AND d.vehicle_type = ${vehicleType}
       AND d.subscription_expiry > CURRENT_TIMESTAMP
       AND d.location IS NOT NULL
-      AND ST_DWithin(d.location, ST_SetSRID(ST_MakePoint(${pickupLng}, ${pickupLat}), 4326)::geography, ${radiusMeters}) -- PATCHED:
+      AND ST_DWithin(
+        d.location,
+        ST_SetSRID(ST_MakePoint(${pickupLng}, ${pickupLat}), 4326)::geography,
+        ${radiusMeters}
+      )
     ORDER BY d.online_since ASC NULLS LAST, d.updated_at ASC
-    LIMIT (SELECT max_online_drivers FROM geo_zones WHERE id = ${zoneId})
+    LIMIT (SELECT max_online_drivers FROM target_zone)
   `;
   return rows;
 }
