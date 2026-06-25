@@ -47,6 +47,7 @@ import { MotionPressable } from "@/components/motion";
 import { useAuth } from "@/utils/auth/useAuth";
 import { ICON } from "@/theme/iconScale";
 import { createRidePusher } from "@/utils/pusher";
+import { VEHICLE_OPTIONS, getVehicleLabel } from "@/utils/vehicles";
 
 const TUKTUKGO_ICON = require("../../../assets/images/icon.png");
 const RIDE_REQUEST_CHIME = require("../../../assets/sounds/ride-request.wav");
@@ -139,6 +140,7 @@ function RegistrationScreen() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const [vehicle, setVehicle] = useState("");
+  const [vehicleType, setVehicleType] = useState("auto");
   const [autoPhotoUrl, setAutoPhotoUrl] = useState("");
   const [licenseUrl, setLicenseUrl] = useState("");
   const [autoPhotoPreview, setAutoPhotoPreview] = useState("");
@@ -154,6 +156,7 @@ function RegistrationScreen() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           vehicle_number: vehicle.toUpperCase().trim(),
+          vehicle_type: vehicleType,
           auto_photo_url: autoPhotoUrl,
           license_url: licenseUrl,
           dataConsentGiven: consentGiven,
@@ -398,7 +401,7 @@ function RegistrationScreen() {
           🛺 Driver Registration
         </Text>
         <Text style={{ fontSize: 13, color: TEXT_SECONDARY, marginTop: 4 }}>
-          Start earning by registering your auto
+          Start earning by registering your vehicle
         </Text>
         <View style={{ flexDirection: "row", marginTop: 20, gap: 8 }}>
           {steps.map((s) => (
@@ -480,6 +483,42 @@ function RegistrationScreen() {
                   borderColor: vehicle ? PRIMARY_BORDER : BORDER,
                 }}
               />
+              <View style={{ marginTop: 14 }}>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontWeight: "600",
+                    color: TEXT_SECONDARY,
+                    marginBottom: 8,
+                  }}
+                >
+                  Vehicle Type
+                </Text>
+                <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
+                  {VEHICLE_OPTIONS.map((option) => {
+                    const selected = vehicleType === option.id;
+                    return (
+                      <TouchableOpacity
+                        key={option.id}
+                        onPress={() => setVehicleType(option.id)}
+                        style={{
+                          paddingHorizontal: 12,
+                          paddingVertical: 8,
+                          borderRadius: 12,
+                          backgroundColor: selected ? PRIMARY_LIGHT : "#F5F5F4",
+                          borderWidth: 1,
+                          borderColor: selected ? PRIMARY_BORDER : BORDER,
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={{ color: selected ? PRIMARY : TEXT_SECONDARY, fontWeight: "800" }}>
+                          {option.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
             </View>
             <View
               style={{
@@ -547,8 +586,8 @@ function RegistrationScreen() {
               </Text>
               {renderUploadField({
                 field: "auto",
-                title: "Auto Photo",
-                helper: "Take or choose a clear photo of your auto-rickshaw",
+                title: "Vehicle Photo",
+                helper: "Take or choose a clear photo of your vehicle",
                 value: autoPhotoUrl,
                 preview: autoPhotoPreview,
               })}
@@ -639,14 +678,15 @@ function RegistrationScreen() {
               </View>
               {[
                 { label: "Vehicle Number", value: vehicle.toUpperCase() },
-                { label: "Auto Photo", value: autoPhotoUrl || "Not provided" },
+                { label: "Vehicle Type", value: getVehicleLabel(vehicleType) },
+                { label: "Vehicle Photo", value: autoPhotoUrl || "Not provided" },
                 { label: "License URL", value: licenseUrl },
               ].map((item, i) => (
                 <View
                   key={i}
                   style={{
                     padding: 16,
-                    borderBottomWidth: i < 2 ? 1 : 0,
+                    borderBottomWidth: i < 3 ? 1 : 0,
                     borderBottomColor: "#F5F5F4",
                   }}
                 >

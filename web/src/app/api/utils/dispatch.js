@@ -79,7 +79,7 @@ export async function autoCancelGhostRides(scopedSql = sql) {
   `;
 }
 
-export async function selectZoneDrivers(zoneId, pickupLat, pickupLng, scopedSql = sql) { // PATCHED:
+export async function selectZoneDrivers(zoneId, pickupLat, pickupLng, vehicleType = "auto", scopedSql = sql) { // PATCHED:
   if (!zoneId) return [];
   const radiusMeters = getDriverRideRadiusMeters(); // PATCHED:
   const rows = await scopedSql`
@@ -92,6 +92,7 @@ export async function selectZoneDrivers(zoneId, pickupLat, pickupLng, scopedSql 
       AND z.dispatch_enabled = true
       AND d.is_online = true
       AND d.is_approved = true
+      AND d.vehicle_type = ${vehicleType}
       AND d.subscription_expiry > CURRENT_TIMESTAMP
       AND d.location IS NOT NULL
       AND ST_DWithin(d.location, ST_SetSRID(ST_MakePoint(${pickupLng}, ${pickupLat}), 4326)::geography, ${radiusMeters}) -- PATCHED:
@@ -108,7 +109,7 @@ export function createBackgroundTask(task) {
 }
 
 export async function dispatchRideRequest(ride, scopedSql = sql) {
-  const drivers = await selectZoneDrivers(ride.zone_id, ride.pickup_lat, ride.pickup_lng, scopedSql); // PATCHED:
+  const drivers = await selectZoneDrivers(ride.zone_id, ride.pickup_lat, ride.pickup_lng, ride.vehicle_type || "auto", scopedSql); // PATCHED:
   if (drivers.length === 0) {
     return 0;
   }

@@ -17,6 +17,7 @@ import { triggerRideEvent } from "@/lib/pusher/server";
 import { sendPushToUsers } from "@/app/api/utils/push-notifications";
 
 const NEGOTIATION_WINDOW_SECONDS = 45;
+const ALLOWED_VEHICLE_TYPES = new Set(["auto", "car", "truck", "bus", "bike"]);
 const PASSENGER_RIDE_FILTERS = new Set(["all", "pending", "completed", "cancelled"]);
 
 function readFare(value) {
@@ -59,6 +60,7 @@ export async function POST(request) {
       negotiation_mode,
       fare_min,
       fare_max,
+    vehicle_type,
     } = await request.json();
     const pickupLat = Number(pickup_lat);
     const pickupLng = Number(pickup_lng);
@@ -71,6 +73,11 @@ export async function POST(request) {
     const negotiationMode = negotiation_mode === "negotiated" ? "negotiated" : "fixed";
     const fareMin = readFare(fare_min);
     const fareMax = readFare(fare_max);
+    const vehicleType = readBoundedString(vehicle_type, { max: 32 }) || "auto";
+
+    if (!ALLOWED_VEHICLE_TYPES.has(vehicleType)) {
+      return Response.json({ error: "Invalid vehicle type" }, { status: 400 });
+    }
 
     if (
       !isLatitude(pickupLat) ||
@@ -179,6 +186,7 @@ export async function POST(request) {
         estimated_fare,
         route_polyline,
         route_provider,
+        vehicle_type,
         zone_id,
         status,
         negotiation_mode,
@@ -201,6 +209,7 @@ export async function POST(request) {
         ${estimate.estimatedFare},
         ${estimate.polyline},
         ${estimate.provider},
+        ${vehicleType},
         ${zone.id},
         ${negotiationMode === "negotiated" ? "negotiating" : "requested"},
         ${negotiationMode},
@@ -223,7 +232,7 @@ export async function POST(request) {
       driverUserRows.map((row) => row.user_id),
       {
         title: rows[0].status === "negotiating" ? "Fare negotiation request" : "New ride request",
-        body: "A nearby passenger is requesting an auto.",
+        body: `A nearby passenger is requesting a ${vehicleType}.`,
         data: { type: rows[0].status, rideId: rows[0].id },
       },
     );
@@ -366,6 +375,7 @@ export async function GET(request) {
           SELECT
             r.*,
             d.vehicle_number,
+            d.vehicle_type as driver_vehicle_type,
             d.auto_photo_url,
             du.name as driver_name,
             du.image as driver_image,
@@ -391,6 +401,7 @@ export async function GET(request) {
           SELECT
             r.*,
             d.vehicle_number,
+            d.vehicle_type as driver_vehicle_type,
             d.auto_photo_url,
             du.name as driver_name,
             du.image as driver_image,
@@ -416,6 +427,7 @@ export async function GET(request) {
           SELECT
             r.*,
             d.vehicle_number,
+            d.vehicle_type as driver_vehicle_type,
             d.auto_photo_url,
             du.name as driver_name,
             du.image as driver_image,

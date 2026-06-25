@@ -267,7 +267,7 @@ function RideRow({ ride, onCancel, isCancelling }) {
                   Driver
                 </Text>
                 <Text style={{ fontSize: 12, color: TEXT }}>
-                  {ride.vehicle_number}{" "}
+                  {ride.vehicle_number} - {getVehicleLabel(ride.vehicle_type)}{" "}
                   {ride.driver_phone ? `· ${maskPhone(ride.driver_phone)}` : ""}
                 </Text>
               </View>

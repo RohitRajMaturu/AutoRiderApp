@@ -2,6 +2,8 @@ import sql from "@/app/api/utils/sql";
 import { resolveDriverUploadUrls } from "@/app/api/utils/object-storage";
 import { auth } from "@/auth";
 
+const ALLOWED_VEHICLE_TYPES = new Set(["auto", "car", "truck", "bus", "bike"]);
+
 function readString(value) {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -24,16 +26,21 @@ export async function POST(request) {
       vehicle_number,
       auto_photo_url,
       license_url,
+      vehicle_type,
       dataConsentGiven,
       dataConsentAt,
       dataConsentVersion,
-    } =
-      await request.json();
+    } = await request.json();
     const vehicleNumber = readString(vehicle_number).toUpperCase();
     const autoPhotoUrl = readString(auto_photo_url) || null;
     const licenseUrl = readString(license_url);
+    const vehicleType = readString(vehicle_type) || "auto";
     const consentAt = readString(dataConsentAt) || new Date().toISOString();
     const consentVersion = readString(dataConsentVersion) || "v1";
+
+    if (!ALLOWED_VEHICLE_TYPES.has(vehicleType)) {
+      return Response.json({ error: "Invalid vehicle type" }, { status: 400 });
+    }
 
     if (dataConsentGiven !== true) {
       return Response.json(
@@ -62,6 +69,7 @@ export async function POST(request) {
       INSERT INTO drivers (
         user_id,
         vehicle_number,
+        vehicle_type,
         auto_photo_url,
         license_url,
         data_consent_given,
@@ -71,6 +79,7 @@ export async function POST(request) {
       VALUES (
         ${session.user.id},
         ${vehicleNumber},
+        ${vehicleType},
         ${autoPhotoUrl},
         ${licenseUrl},
         true,

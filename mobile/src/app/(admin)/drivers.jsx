@@ -93,7 +93,7 @@ function DriverCard({ driver, onApprove, onReject, isUpdating }) {
                 style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 2 }}
                 numberOfLines={1}
               >
-                {driver.phone || driver.email}
+                {getVehicleLabel(driver.vehicle_type)} - {driver.phone || driver.email}
               </Text>
             </View>
           </View>
@@ -429,6 +429,7 @@ export default function AdminDrivers() {
     const matchesSearch =
       !search ||
       d.vehicle_number?.toLowerCase().includes(search.toLowerCase()) ||
+      getVehicleLabel(d.vehicle_type).toLowerCase().includes(search.toLowerCase()) ||
       d.email?.toLowerCase().includes(search.toLowerCase()) ||
       d.phone?.includes(search);
     const matchesFilter =

@@ -37,6 +37,7 @@ import { Button, RIDE_STATUS_CONFIG, StatusBadge } from "@/components/ui";
 import { ICON } from "@/theme/iconScale";
 import { useAuth } from "@/utils/auth/useAuth";
 import { createRidePusher } from "@/utils/pusher";
+import { VEHICLE_OPTIONS, getVehicleLabel } from "@/utils/vehicles";
 
 const TUKTUKGO_ICON = require("../../../assets/images/icon.png");
 const PRIMARY = "#43B8B3";
@@ -161,6 +162,7 @@ export default function PassengerHome() {
     CANCEL_REASONS[0].value,
   );
   const [otherCancelReason, setOtherCancelReason] = useState("");
+  const [vehicleType, setVehicleType] = useState("auto");
   const [negotiationMode, setNegotiationMode] = useState("fixed");
   const [fareMin, setFareMin] = useState("");
   const [fareMax, setFareMax] = useState("");
@@ -630,6 +632,7 @@ export default function PassengerHome() {
           dest_lng: destinationCoords.lng,
           pickup_place_id: pickupPlaceId,
           dest_place_id: destinationPlaceId,
+          vehicle_type: vehicleType,
           negotiation_mode: negotiationMode,
           fare_min: negotiationMode === "negotiated" ? Number(fareMin) : undefined,
           fare_max: negotiationMode === "negotiated" ? Number(fareMax) : undefined,
@@ -1073,7 +1076,7 @@ export default function PassengerHome() {
               Where to?
             </Text>
             <Text style={{ fontSize: 13, color: TEXT_SECONDARY, marginTop: 2 }}>
-              Book your auto in seconds
+              Book the right ride in seconds
             </Text>
             </View>
           </View>
@@ -1481,7 +1484,7 @@ export default function PassengerHome() {
                               letterSpacing: 0.6,
                             }}
                           >
-                            Your auto is assigned
+                            Your vehicle is assigned
                           </Text>
                           <Text
                             style={{
@@ -1491,7 +1494,7 @@ export default function PassengerHome() {
                               marginTop: 4,
                             }}
                           >
-                            {activeRide.vehicle_number || "Driver on the way"}
+                            {activeRide.vehicle_number ? `${activeRide.vehicle_number} - ${getVehicleLabel(activeRide.vehicle_type)}` : "Driver on the way"}
                           </Text>
                           <Text style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 4, lineHeight: 17 }}>
                             Match this photo and plate before boarding.
@@ -1520,7 +1523,7 @@ export default function PassengerHome() {
                         >
                           <AutoRideIcon size={ICON.sm} />
                           <Text style={{ color: TEXT, fontSize: 12, fontWeight: "800" }}>
-                            {activeRide.vehicle_number || "Verify auto"}
+                            {activeRide.vehicle_number ? `${activeRide.vehicle_number} - ${getVehicleLabel(activeRide.vehicle_type)}` : "Verify vehicle"}
                           </Text>
                         </View>
                         <Text style={{ flex: 1, color: TEXT_SECONDARY, fontSize: 12, textAlign: "right" }}>
@@ -2049,6 +2052,36 @@ export default function PassengerHome() {
                 })}
               </View>
 
+              <View style={{ marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: BORDER }}>
+                <Text style={{ fontSize: 11, fontWeight: "800", color: TEXT_MUTED, textTransform: "uppercase", marginBottom: 10 }}>
+                  Vehicle type
+                </Text>
+                <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
+                  {VEHICLE_OPTIONS.map((option) => {
+                    const selected = vehicleType === option.id;
+                    return (
+                      <TouchableOpacity
+                        key={option.id}
+                        onPress={() => setVehicleType(option.id)}
+                        style={{
+                          borderRadius: 10,
+                          borderWidth: 1,
+                          borderColor: selected ? PRIMARY_BORDER : BORDER,
+                          backgroundColor: selected ? PRIMARY_LIGHT : "#F5F5F4",
+                          paddingHorizontal: 12,
+                          paddingVertical: 9,
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={{ fontSize: 12, fontWeight: "900", color: selected ? PRIMARY : TEXT_SECONDARY }}>
+                          {option.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
               {(tripEstimateLoading || hasTripEstimate) && (
                 <View
                   style={{
@@ -2225,9 +2258,9 @@ export default function PassengerHome() {
               style={{
                 marginTop: 16,
               }}
-              accessibilityLabel="Request auto-rickshaw"
+              accessibilityLabel={`Request ${getVehicleLabel(vehicleType)}`}
             >
-              Request Auto
+              Request {getVehicleLabel(vehicleType)}
             </Button>
           </View>
         )}

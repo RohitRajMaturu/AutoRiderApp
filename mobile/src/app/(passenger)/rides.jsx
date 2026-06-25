@@ -187,7 +187,7 @@ const RideCard = memo(function RideCard({ ride }) {
           >
             <AutoRideIcon size={ICON.sm} />
             <Text style={[theme.typography.micro, { color: theme.textSecondary, fontWeight: "800" }]}>
-              {ride.vehicle_number}
+              {ride.vehicle_number} - {getVehicleLabel(ride.vehicle_type)}
             </Text>
           </View>
         ) : null}

@@ -479,7 +479,7 @@ export default function DriverProfile() {
           >
             <AutoRideIcon size={ICON.xs} />
             <Text style={{ fontSize: 12, fontWeight: "700", color: "#fff" }}>
-              {testMode ? "Test Vehicle" : driver?.vehicle_number || "Registration pending"}
+              {testMode ? "Test Vehicle" : driver ? `${driver.vehicle_number} - ${getVehicleLabel(driver.vehicle_type)}` : "Registration pending"}
             </Text>
           </View>
 
