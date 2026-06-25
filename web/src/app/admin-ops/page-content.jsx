@@ -17,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import "leaflet/dist/leaflet.css";
 import AdminShell from "@/components/AdminShell";
 import AutoRideIcon from "@/components/AutoRideIcon";
 import {
@@ -492,32 +493,58 @@ function parseZoneGeoJson(value) {
   return { geometry, points };
 }
 
-function geoJsonPreviewPoints(points, width = 560, height = 260) {
-  if (!points?.length) return [];
-  const lats = points.map((point) => point.lat);
-  const lngs = points.map((point) => point.lng);
-  const minLat = Math.min(...lats);
-  const maxLat = Math.max(...lats);
-  const minLng = Math.min(...lngs);
-  const maxLng = Math.max(...lngs);
-  const latRange = Math.max(maxLat - minLat, 0.000001);
-  const lngRange = Math.max(maxLng - minLng, 0.000001);
-  const padding = 20;
-  return points.map((point) => ({
-    x: padding + ((point.lng - minLng) / lngRange) * (width - padding * 2),
-    y: height - padding - ((point.lat - minLat) / latRange) * (height - padding * 2),
-  }));
-}
+function ZoneMapPreview({ geometry }) {
+  const containerRef = useRef(null);
+  const [mapError, setMapError] = useState("");
 
-function geoJsonPreviewPath(points, width = 560, height = 260) {
-  const projected = geoJsonPreviewPoints(points, width, height);
-  if (!projected.length) return "";
+  useEffect(() => {
+    if (!containerRef.current || !geometry) return undefined;
+    let disposed = false;
+    let map;
+
+    import("leaflet")
+      .then(({ default: L }) => {
+        if (disposed || !containerRef.current) return;
+        map = L.map(containerRef.current, {
+          scrollWheelZoom: false,
+          zoomControl: true,
+        });
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+          maxZoom: 19,
+        }).addTo(map);
+        const boundary = L.geoJSON(geometry, {
+          style: {
+            color: "#22C55E",
+            fillColor: "#22C55E",
+            fillOpacity: 0.18,
+            opacity: 1,
+            weight: 4,
+          },
+        }).addTo(map);
+        const bounds = boundary.getBounds();
+        if (bounds.isValid()) map.fitBounds(bounds, { padding: [28, 28], maxZoom: 16 });
+        setMapError("");
+      })
+      .catch(() => {
+        if (!disposed) setMapError("The map could not be loaded. Check the internet connection and retry.");
+      });
+
+    return () => {
+      disposed = true;
+      map?.remove();
+    };
+  }, [geometry]);
+
   return (
-    projected
-      .map((point, index) =>
-        `${index === 0 ? "M" : "L"}${point.x.toFixed(2)},${point.y.toFixed(2)}`,
-      )
-      .join(" ") + " Z"
+    <div className="relative h-72 w-full bg-[#111820]">
+      <div ref={containerRef} className="h-full w-full" aria-label="Validated GeoJSON region map preview" />
+      {mapError ? (
+        <div className="absolute inset-0 flex items-center justify-center px-6 text-center text-sm text-red-300">
+          {mapError}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -527,11 +554,6 @@ function ZoneGeoJsonCreator() {
   const [maxDrivers, setMaxDrivers] = useState("25");
   const [geoJson, setGeoJson] = useState("");
   const [validated, setValidated] = useState(null);
-  const previewPath = useMemo(() => geoJsonPreviewPath(validated?.points), [validated]);
-  const previewPoints = useMemo(
-    () => geoJsonPreviewPoints(validated?.points),
-    [validated],
-  );
   const previewBounds = useMemo(() => {
     if (!validated?.points?.length) return null;
     const lats = validated.points.map((point) => point.lat);
@@ -655,26 +677,7 @@ function ZoneGeoJsonCreator() {
       </div>
       {validated ? (
         <div className="mt-4 overflow-hidden rounded-xl border" style={{ borderColor: "var(--ar-ok)", background: "#111820" }}>
-          <svg viewBox="0 0 560 260" className="h-64 w-full" aria-label="Validated GeoJSON region preview">
-            <defs>
-              <pattern id="zone-grid" width="28" height="28" patternUnits="userSpaceOnUse">
-                <path d="M 28 0 L 0 0 0 28" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
-              </pattern>
-            </defs>
-            <rect width="560" height="260" fill="url(#zone-grid)" />
-            <path d={previewPath} fill="rgba(34,197,94,0.08)" stroke="var(--ar-ok)" strokeWidth="4" />
-            {previewPoints.map((point, index) => (
-                <circle
-                  key={`${point.x}-${point.y}-${index}`}
-                  cx={point.x}
-                  cy={point.y}
-                  r="4"
-                  fill="#ffffff"
-                  stroke="var(--ar-ok)"
-                  strokeWidth="2"
-                />
-            ))}
-          </svg>
+          <ZoneMapPreview geometry={validated.geometry} />
           <div className="grid border-t px-3 py-2 text-xs sm:grid-cols-2" style={{ borderColor: "var(--ar-border)", color: "var(--ar-t2)" }}>
             <span>North/South: {previewBounds?.north.toFixed(5)} / {previewBounds?.south.toFixed(5)}</span>
             <span>East/West: {previewBounds?.east.toFixed(5)} / {previewBounds?.west.toFixed(5)}</span>

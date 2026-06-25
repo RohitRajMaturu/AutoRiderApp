@@ -4,7 +4,6 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   RefreshControl,
   Animated,
   Easing,
@@ -469,7 +468,16 @@ function RankBadge({ rank }) {
 function PulseCard({ label, value, color, icon }) {
   return (
     <Card style={{ flex: 1, padding: 12 }}>
-      <Text style={{ fontSize: 17, marginBottom: 8 }}>{icon}</Text>
+      <Text
+        style={{
+          color,
+          fontSize: 17,
+          fontWeight: "900",
+          marginBottom: 8,
+        }}
+      >
+        {icon === "R" || icon === "P" ? icon : "\u25CF"}
+      </Text>
       <AnimatedCounter
         to={numberValue(value)}
         style={{ fontSize: 23, fontWeight: "900", color }}
@@ -486,6 +494,57 @@ function PulseCard({ label, value, color, icon }) {
         {label}
       </Text>
     </Card>
+  );
+}
+
+function AdminLineLoader({ visible }) {
+  const progress = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!visible) {
+      progress.stopAnimation();
+      progress.setValue(0);
+      return undefined;
+    }
+    const animation = Animated.loop(
+      Animated.timing(progress, {
+        toValue: 1,
+        duration: 1100,
+        easing: Easing.inOut(Easing.ease),
+        useNativeDriver: true,
+      }),
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [progress, visible]);
+
+  if (!visible) return null;
+  return (
+    <View
+      style={{
+        backgroundColor: "rgba(245,166,35,0.12)",
+        height: 3,
+        overflow: "hidden",
+        width: "100%",
+      }}
+    >
+      <Animated.View
+        style={{
+          backgroundColor: PRIMARY,
+          borderRadius: 3,
+          height: 3,
+          transform: [
+            {
+              translateX: progress.interpolate({
+                inputRange: [0, 1],
+                outputRange: [-140, 420],
+              }),
+            },
+          ],
+          width: 140,
+        }}
+      />
+    </View>
   );
 }
 
@@ -536,6 +595,7 @@ export default function AdminDashboard() {
   const [chartView, setChartView] = useState("today");
   const [chartMetric, setChartMetric] = useState("rides");
   const [showSignOutSheet, setShowSignOutSheet] = useState(false);
+  const [manualRefreshing, setManualRefreshing] = useState(false);
   const webUrl = (
     process.env.EXPO_PUBLIC_WEB_URL || "http://localhost:4000"
   ).replace(/\/$/, "");
@@ -543,8 +603,8 @@ export default function AdminDashboard() {
   const {
     data: statsData,
     isLoading: statsLoading,
+    isFetching: statsFetching,
     refetch: refetchStats,
-    isRefetching: statsRefetching,
   } = useQuery({
     queryKey: ["adminStats"],
     queryFn: async () => {
@@ -555,7 +615,12 @@ export default function AdminDashboard() {
     refetchInterval: 30000,
   });
 
-  const { data: driversData, isLoading: driversLoading } = useQuery({
+  const {
+    data: driversData,
+    isLoading: driversLoading,
+    isFetching: driversFetching,
+    refetch: refetchDrivers,
+  } = useQuery({
     queryKey: ["adminDrivers"],
     queryFn: async () => {
       const res = await fetch("/api/admin/drivers");
@@ -590,6 +655,15 @@ export default function AdminDashboard() {
   const pendingDrivers = drivers.filter((d) => !d.is_approved);
   const onlineDrivers = drivers.filter((d) => d.is_online && d.is_approved);
   const isLoading = statsLoading || driversLoading;
+  const isFetching = statsFetching || driversFetching;
+  const refreshDashboard = async () => {
+    setManualRefreshing(true);
+    try {
+      await Promise.all([refetchStats(), refetchDrivers()]);
+    } finally {
+      setManualRefreshing(false);
+    }
+  };
 
   const hourlyTimeline = useMemo(
     () =>
@@ -708,23 +782,14 @@ export default function AdminDashboard() {
         </View>
       </View>
 
-      {isLoading ? (
-        <View
-          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
-        >
-          <ActivityIndicator size="large" color={PRIMARY} />
-          <Text style={{ color: TEXT_SECONDARY, marginTop: 12, fontSize: 14 }}>
-            Loading analytics...
-          </Text>
-        </View>
-      ) : (
-        <ScrollView
+      <AdminLineLoader visible={isLoading || isFetching} />
+      <ScrollView
           contentContainerStyle={{ padding: 16, paddingBottom: 80, gap: 14 }}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
-              refreshing={statsRefetching}
-              onRefresh={refetchStats}
+              refreshing={manualRefreshing}
+              onRefresh={refreshDashboard}
               tintColor={PRIMARY}
             />
           }
@@ -1299,7 +1364,6 @@ export default function AdminDashboard() {
             </Text>
           </TouchableOpacity>
         </ScrollView>
-      )}
       <SignOutSheet
         visible={showSignOutSheet}
         onCancel={() => setShowSignOutSheet(false)}
