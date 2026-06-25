@@ -117,6 +117,7 @@ function buildMapRegion(points) {
 function buildTripStatusMessage(ride) {
   return [
     "TukTukGo trip status",
+    ride.started_at ? "Status: Trip in progress" : "Status: Driver is on the way",
     `Pickup: ${ride.pickup_address}`,
     `Destination: ${ride.dest_address}`,
     ride.vehicle_number ? `Vehicle: ${ride.vehicle_number}` : null,
@@ -492,7 +493,12 @@ export default function PassengerHome() {
   }, [activeRide?.id]);
 
   useEffect(() => {
-    if (!activeRide || activeRide.status !== "negotiating") return;
+    if (
+      !activeRide ||
+      !["requested", "negotiating"].includes(activeRide.status)
+    ) {
+      return;
+    }
 
     const pusher = createRidePusher({ jwt: auth?.jwt });
     if (!pusher) return;
@@ -524,6 +530,7 @@ export default function PassengerHome() {
     };
 
     channel.bind("ride-locked", refreshRide);
+    channel.bind("ride-accepted", refreshRide);
     channel.bind("negotiation-expired", refreshRide);
     channel.bind("pusher:subscription_error", refreshRide);
 
@@ -559,6 +566,12 @@ export default function PassengerHome() {
       queryClient.invalidateQueries({ queryKey: ["passengerRides"] });
       queryClient.invalidateQueries({ queryKey: ["latestPassengerCancelledRide"] });
     });
+    const refreshRideLifecycle = () => {
+      queryClient.invalidateQueries({ queryKey: ["activeRide"] });
+      queryClient.invalidateQueries({ queryKey: ["passengerRides"] });
+    };
+    channel.bind("ride-started", refreshRideLifecycle);
+    channel.bind("ride-completed", refreshRideLifecycle);
     setActiveRideChannel(channel);
 
     return () => {
@@ -679,7 +692,10 @@ export default function PassengerHome() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "cancel", reason }),
       });
-      if (!res.ok) throw new Error("Failed to cancel");
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        throw new Error(error.error || "Failed to cancel");
+      }
       return res.json();
     },
     onSuccess: (data) => {
@@ -691,9 +707,9 @@ export default function PassengerHome() {
       queryClient.invalidateQueries({ queryKey: ["activeRide"] });
       queryClient.invalidateQueries({ queryKey: ["passengerRides"] });
     },
-    onError: () =>
+    onError: (err) =>
       toast("Could not cancel the ride", {
-        description: "Please try again.",
+        description: err.message || "Please try again.",
         duration: 3500,
       }),
   });
@@ -884,6 +900,9 @@ export default function PassengerHome() {
     dismissedRatingRideIds.has(activeRide.id)
       ? null
       : activeRide;
+  const isTripStarted =
+    activeRide?.status === "accepted" && Boolean(activeRide.started_at);
+  const passengerRideStatus = isTripStarted ? "in_progress" : activeRide?.status;
   const activeRideAgeSeconds = activeRide?.created_at
     ? Math.floor((Date.now() - new Date(activeRide.created_at).getTime()) / 1000)
     : 0;
@@ -1110,7 +1129,9 @@ export default function PassengerHome() {
               <View
                 style={{
                   backgroundColor:
-                    activeRide.status === "accepted"
+                    isTripStarted
+                      ? SUCCESS_LIGHT
+                      : activeRide.status === "accepted"
                       ? PRIMARY_LIGHT
                       : "#FFFBEB",
                   paddingHorizontal: 20,
@@ -1120,7 +1141,9 @@ export default function PassengerHome() {
                   alignItems: "center",
                   borderBottomWidth: 1,
                   borderBottomColor:
-                    activeRide.status === "accepted"
+                    isTripStarted
+                      ? "#BBF7D0"
+                      : activeRide.status === "accepted"
                       ? PRIMARY_BORDER
                       : "#FDE68A",
                 }}
@@ -1150,10 +1173,12 @@ export default function PassengerHome() {
                         ? `Negotiating fare - ${negotiationRemaining}s`
                       : activeRide.status === "completed"
                         ? "Ride completed"
-                        : "Driver is on the way!"}
+                        : isTripStarted
+                          ? "Trip in progress"
+                          : "Driver is on the way!"}
                   </Text>
                 </View>
-                <StatusBadge status={activeRide.status} config={RIDE_STATUS_CONFIG} />
+                <StatusBadge status={passengerRideStatus} config={RIDE_STATUS_CONFIG} />
               </View>
 
               {Platform.OS !== "web" && activeRideMapRegion && (
@@ -1463,7 +1488,7 @@ export default function PassengerHome() {
                               letterSpacing: 0.6,
                             }}
                           >
-                            Your vehicle is assigned
+                            {isTripStarted ? "Trip started" : "Your vehicle is assigned"}
                           </Text>
                           <Text
                             style={{
@@ -1473,10 +1498,16 @@ export default function PassengerHome() {
                               marginTop: 4,
                             }}
                           >
-                            {activeRide.vehicle_number ? `${activeRide.vehicle_number} - ${getVehicleLabel(activeRide.vehicle_type)}` : "Driver on the way"}
+                            {activeRide.vehicle_number
+                              ? `${activeRide.vehicle_number} - ${getVehicleLabel(activeRide.vehicle_type)}`
+                              : isTripStarted
+                                ? "Trip in progress"
+                                : "Driver on the way"}
                           </Text>
                           <Text style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 4, lineHeight: 17 }}>
-                            Match this photo and plate before boarding.
+                            {isTripStarted
+                              ? "You are on the way to your destination."
+                              : "Match this photo and plate before boarding."}
                           </Text>
                         </View>
                       </View>
@@ -1506,7 +1537,11 @@ export default function PassengerHome() {
                           </Text>
                         </View>
                         <Text style={{ flex: 1, color: TEXT_SECONDARY, fontSize: 12, textAlign: "right" }}>
-                          {activeRide.can_call ? "Need help? Call securely." : "Driver details confirmed."}
+                          {isTripStarted
+                            ? "Trip is underway."
+                            : activeRide.can_call
+                              ? "Need help? Call securely."
+                              : "Driver details confirmed."}
                         </Text>
                       </View>
                     </View>

@@ -70,13 +70,72 @@ export async function PATCH(request, { params }) {
 
     const driverRows =
       await sql`
-        SELECT id, zone_id, is_online, is_approved, subscription_expiry
-        FROM drivers
+        UPDATE drivers
+        SET zone_id = CASE
+              WHEN location IS NOT NULL THEN COALESCE((
+                SELECT z.id
+                FROM geo_zones z
+                WHERE z.is_active = true
+                  AND z.dispatch_enabled = true
+                  AND ST_Covers(z.boundary::geometry, location::geometry)
+                ORDER BY z.created_at ASC
+                LIMIT 1
+              ), zone_id)
+              ELSE zone_id
+            END,
+            updated_at = CASE
+              WHEN is_online = true THEN CURRENT_TIMESTAMP
+              ELSE updated_at
+            END
         WHERE user_id = ${session.user.id}
-        LIMIT 1
+        RETURNING id, zone_id, is_online, is_approved, subscription_expiry
       `;
     const driver = driverRows[0];
-    const driverId = driver?.id;
+    const driverId = driver?.id || null;
+
+    if (action === "rate_passenger") {
+      const passengerRating = Number(body.passenger_rating);
+      const passengerFeedback = readRatingFeedback(
+        body.passenger_rating_feedback,
+      );
+      if (
+        !driverId ||
+        !Number.isInteger(passengerRating) ||
+        passengerRating < 1 ||
+        passengerRating > 5 ||
+        passengerFeedback === undefined
+      ) {
+        return Response.json(
+          {
+            error:
+              "passenger_rating must be 1-5 and feedback must be 280 characters or fewer",
+          },
+          { status: 400 },
+        );
+      }
+
+      const result = await sql`
+        UPDATE rides
+        SET passenger_rating = ${passengerRating},
+            passenger_rating_feedback = ${passengerFeedback},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ${id}
+          AND driver_id = ${driverId}
+          AND status = 'completed'
+          AND passenger_rating IS NULL
+        RETURNING *
+      `;
+      if (result.length === 0) {
+        return Response.json(
+          {
+            error:
+              "Passenger cannot be rated because the ride is not completed, already rated, or not assigned to this driver",
+          },
+          { status: 409 },
+        );
+      }
+      return Response.json({ ride: result[0] });
+    }
 
     if (action === "accept") {
       if (!driverId)
@@ -172,6 +231,10 @@ export async function PATCH(request, { params }) {
         body: "Your driver is heading to the pickup location.",
         data: { type: "ride_accepted", rideId: result[0].id },
       });
+      await triggerRideEvent(result[0].id, "ride-accepted", {
+        rideId: result[0].id,
+        acceptedAt: result[0].accepted_at,
+      });
       return Response.json({ ride: result[0] });
     }
 
@@ -205,6 +268,10 @@ export async function PATCH(request, { params }) {
         body: "Your trip has been marked complete.",
         data: { type: "ride_completed", rideId: result[0].id },
       });
+      await triggerRideEvent(result[0].id, "ride-completed", {
+        rideId: result[0].id,
+        completedAt: result[0].completed_at,
+      });
       return Response.json({ ride: result[0] });
     }
 
@@ -234,6 +301,10 @@ export async function PATCH(request, { params }) {
         title: "Ride started",
         body: "Your trip has started.",
         data: { type: "ride_started", rideId: result[0].id },
+      });
+      await triggerRideEvent(result[0].id, "ride-started", {
+        rideId: result[0].id,
+        startedAt: result[0].started_at,
       });
       return Response.json({ ride: result[0] });
     }

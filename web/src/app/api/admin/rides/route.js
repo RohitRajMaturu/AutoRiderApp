@@ -139,7 +139,7 @@ export async function PATCH(request) {
             cancellation_reason = ${cancellationReason},
             updated_at = CURRENT_TIMESTAMP
         WHERE id = ${ride_id}
-          AND status IN ('requested', 'accepted')
+          AND status IN ('requested', 'negotiating', 'accepted')
         RETURNING *
       `;
       if (updated.length > 0) {

@@ -27,6 +27,7 @@ import {
   Camera,
   Image as ImageIcon,
   IndianRupee,
+  Star,
 } from "lucide-react-native";
 import {
   useIsMutating,
@@ -1324,7 +1325,16 @@ function ActiveRideCard({
 }
 
 // ─── Main Driver Home ─────────────────────────────────────────────────────────
-function CompletedRideSummary({ ride, onDismiss }) {
+function CompletedRideSummary({
+  ride,
+  onDismiss,
+  onRate,
+  ratingValue,
+  setRatingValue,
+  ratingFeedback,
+  setRatingFeedback,
+  isRating,
+}) {
   if (!ride) return null;
 
   return (
@@ -1352,13 +1362,40 @@ function CompletedRideSummary({ ride, onDismiss }) {
         </Text>
       </View>
       <View style={{ padding: 16, gap: 12 }}>
+        <View
+          style={{
+            alignItems: "center",
+            backgroundColor: SUCCESS_LIGHT,
+            borderColor: "#BBF7D0",
+            borderRadius: 14,
+            borderWidth: 1,
+            padding: 16,
+          }}
+        >
+          <Text
+            style={{
+              color: SUCCESS,
+              fontSize: 12,
+              fontWeight: "900",
+              textTransform: "uppercase",
+            }}
+          >
+            Collect from passenger
+          </Text>
+          <Text style={{ color: TEXT, fontSize: 34, fontWeight: "900", marginTop: 4 }}>
+            {formatCurrency(rideFare(ride))}
+          </Text>
+          <Text style={{ color: TEXT_SECONDARY, fontSize: 12, marginTop: 4 }}>
+            Confirm payment directly with the passenger.
+          </Text>
+        </View>
         <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 12 }}>
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 11, fontWeight: "800", color: TEXT_MUTED, textTransform: "uppercase" }}>
-              Fare
+              Ride status
             </Text>
-            <Text style={{ fontSize: 24, fontWeight: "900", color: TEXT, marginTop: 2 }}>
-              {formatCurrency(rideFare(ride))}
+            <Text style={{ fontSize: 16, fontWeight: "900", color: SUCCESS, marginTop: 5 }}>
+              Payment due
             </Text>
           </View>
           <View style={{ flex: 1 }}>
@@ -1373,20 +1410,84 @@ function CompletedRideSummary({ ride, onDismiss }) {
         <Text style={{ fontSize: 12, color: TEXT_SECONDARY }} numberOfLines={2}>
           {ride.pickup_address} to {ride.dest_address}
         </Text>
-        <TouchableOpacity
-          onPress={onDismiss}
-          style={{
-            alignItems: "center",
-            borderRadius: 10,
-            borderWidth: 1,
-            borderColor: BORDER,
-            paddingVertical: 10,
-          }}
-        >
-          <Text style={{ fontSize: 13, fontWeight: "800", color: TEXT_SECONDARY }}>
-            Dismiss
-          </Text>
-        </TouchableOpacity>
+        {!ride.passenger_rating ? (
+          <View
+            style={{
+              backgroundColor: "#FFFBEB",
+              borderColor: "#FDE68A",
+              borderRadius: 14,
+              borderWidth: 1,
+              padding: 14,
+            }}
+          >
+            <Text style={{ color: TEXT, fontSize: 14, fontWeight: "900" }}>
+              Rate the passenger
+            </Text>
+            <Text style={{ color: TEXT_SECONDARY, fontSize: 12, marginTop: 3 }}>
+              Help keep the TukTukGo community reliable.
+            </Text>
+            <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
+              {[1, 2, 3, 4, 5].map((value) => (
+                <TouchableOpacity key={value} onPress={() => setRatingValue(value)}>
+                  <Star
+                    size={ICON.xl}
+                    color={value <= ratingValue ? "#F3B51B" : TEXT_MUTED}
+                    fill={value <= ratingValue ? "#F3B51B" : "none"}
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TextInput
+              value={ratingFeedback}
+              onChangeText={(value) => setRatingFeedback(value.slice(0, 280))}
+              placeholder="Optional passenger feedback"
+              placeholderTextColor={TEXT_MUTED}
+              multiline
+              maxLength={280}
+              style={{
+                backgroundColor: SURFACE,
+                borderColor: "#FDE68A",
+                borderRadius: 10,
+                borderWidth: 1,
+                color: TEXT,
+                marginTop: 12,
+                minHeight: 68,
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+                textAlignVertical: "top",
+              }}
+            />
+            <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
+              <Button
+                variant="secondary"
+                size="md"
+                onPress={onDismiss}
+                style={{ flex: 1 }}
+              >
+                Later
+              </Button>
+              <Button
+                variant="primary"
+                size="md"
+                onPress={() => onRate(ride.id)}
+                loading={isRating}
+                disabled={ratingValue === 0 || isRating}
+                style={{ flex: 2 }}
+              >
+                Submit Rating
+              </Button>
+            </View>
+          </View>
+        ) : (
+          <View style={{ alignItems: "center", gap: 10 }}>
+            <Text style={{ color: SUCCESS, fontSize: 13, fontWeight: "900" }}>
+              Passenger rated {ride.passenger_rating}/5
+            </Text>
+            <Button variant="secondary" size="md" onPress={onDismiss}>
+              Done
+            </Button>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -1525,6 +1626,9 @@ export default function DriverHome() {
   const notifiedRideRequestIds = useRef(new Set());
   const [lockedRideIds, setLockedRideIds] = useState(() => new Set());
   const [completedRideSummary, setCompletedRideSummary] = useState(null);
+  const [passengerRatingValue, setPassengerRatingValue] = useState(0);
+  const [passengerRatingFeedback, setPassengerRatingFeedback] = useState("");
+  const dismissedPassengerRatingRideIds = useRef(new Set());
   const [visibleRequestCount, setVisibleRequestCount] = useState(5);
   const [confirmAction, setConfirmAction] = useState(null);
   const [activeRideChannel, setActiveRideChannel] = useState(null);
@@ -1579,6 +1683,21 @@ export default function DriverHome() {
   const activeRideForChatId = (ridesData?.rides || []).find(
     (ride) => ride.status === "accepted",
   )?.id;
+
+  useEffect(() => {
+    if (completedRideSummary) return;
+    const unratedRide = (ridesData?.rides || []).find(
+      (ride) =>
+        ride.status === "completed" &&
+        !ride.passenger_rating &&
+        !dismissedPassengerRatingRideIds.current.has(ride.id),
+    );
+    if (unratedRide) {
+      setPassengerRatingValue(0);
+      setPassengerRatingFeedback("");
+      setCompletedRideSummary(unratedRide);
+    }
+  }, [completedRideSummary, ridesData?.rides]);
 
   useEffect(() => {
     Animated.spring(onlineToggleAnim, {
@@ -1831,8 +1950,35 @@ export default function DriverHome() {
       queryClient.invalidateQueries({ queryKey: ["driverEarnings", authUserKey] });
       queryClient.invalidateQueries({ queryKey: ["driverRideHistory", authUserKey] });
       setCompletedRideSummary(data.ride);
+      setPassengerRatingValue(0);
+      setPassengerRatingFeedback("");
       showDriverNotice("Ride completed", `Fare: ${formatCurrency(rideFare(data.ride))}`);
     },
+  });
+
+  const ratePassenger = useMutation({
+    mutationFn: async (rideId) => {
+      const res = await fetch(`/api/rides/${rideId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "rate_passenger",
+          passenger_rating: passengerRatingValue,
+          passenger_rating_feedback: passengerRatingFeedback,
+        }),
+      });
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        throw new Error(error.error || "Failed to rate passenger");
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setCompletedRideSummary(data.ride);
+      queryClient.invalidateQueries({ queryKey: ["driverRides", authUserKey] });
+      showDriverNotice("Rating submitted", "Thank you for your feedback.");
+    },
+    onError: (err) => showDriverNotice("Rating failed", err.message),
   });
 
   const startRide = useMutation({
@@ -2242,7 +2388,18 @@ export default function DriverHome() {
         {!activeRide && completedRideSummary && (
           <CompletedRideSummary
             ride={completedRideSummary}
-            onDismiss={() => setCompletedRideSummary(null)}
+            ratingValue={passengerRatingValue}
+            setRatingValue={setPassengerRatingValue}
+            ratingFeedback={passengerRatingFeedback}
+            setRatingFeedback={setPassengerRatingFeedback}
+            isRating={ratePassenger.isPending}
+            onRate={(rideId) => ratePassenger.mutate(rideId)}
+            onDismiss={() => {
+              dismissedPassengerRatingRideIds.current.add(
+                completedRideSummary.id,
+              );
+              setCompletedRideSummary(null);
+            }}
           />
         )}
 

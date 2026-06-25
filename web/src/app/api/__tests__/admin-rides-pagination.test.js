@@ -3,17 +3,22 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   auth: vi.fn(),
   sql: vi.fn(),
+  writeAdminAudit: vi.fn(),
 }));
 
 vi.mock("@/auth", () => ({ auth: mocks.auth }));
 vi.mock("@/app/api/utils/sql", () => ({ default: mocks.sql }));
-vi.mock("@/app/api/utils/admin", () => ({ writeAdminAudit: vi.fn() }));
+vi.mock("@/app/api/utils/admin", () => ({
+  writeAdminAudit: mocks.writeAdminAudit,
+}));
 
 describe("GET /api/admin/rides", () => {
   beforeEach(() => {
     vi.resetModules();
     mocks.auth.mockReset();
     mocks.sql.mockReset();
+    mocks.writeAdminAudit.mockReset();
+    mocks.sql.transaction = vi.fn((callback) => callback(mocks.sql));
   });
 
   it("returns server-side pagination, filters, sorting, and counts", async () => {
@@ -52,5 +57,32 @@ describe("GET /api/admin/rides", () => {
       sort: "fare_high",
       search: "station",
     });
+  });
+
+  it("allows an admin to cancel a negotiating ride", async () => {
+    mocks.auth.mockResolvedValue({ user: { id: "admin-1" } });
+    mocks.sql
+      .mockResolvedValueOnce([{ role: "admin" }])
+      .mockResolvedValueOnce([{ id: "ride-1", status: "cancelled" }])
+      .mockResolvedValueOnce([]);
+    const { PATCH } = await import("@/app/api/admin/rides/route.js");
+
+    const response = await PATCH(
+      new Request("http://localhost/api/admin/rides", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ride_id: "ride-1",
+          action: "cancel",
+          reason: "admin_cancelled",
+        }),
+      }),
+    );
+    const body = await response.json();
+    const cancellationQuery = mocks.sql.mock.calls[1][0].join(" ");
+
+    expect(response.status).toBe(200);
+    expect(body.ride.id).toBe("ride-1");
+    expect(cancellationQuery).toContain("'negotiating'");
   });
 });

@@ -126,6 +126,8 @@ describe("ride detail route", () => {
     );
 
     expect(response.status).toBe(200);
+    const cancellationValues = mocks.sql.mock.calls[1].slice(1);
+    expect(cancellationValues).toContain(null);
     expect(mocks.sendPushToUsers).toHaveBeenCalledWith(
       ["driver-user-1"],
       expect.objectContaining({
@@ -171,6 +173,79 @@ describe("ride detail route", () => {
 
     expect(response.status).toBe(200);
     expect(body.ride.driver_rating).toBe(5);
+  });
+
+  it("publishes a realtime event when the driver starts the ride", async () => {
+    mocks.auth.mockResolvedValue({ user: { id: "driver-user-1" } });
+    mocks.sql
+      .mockResolvedValueOnce([{
+        id: "driver-1",
+        zone_id: "zone-1",
+        is_online: true,
+        is_approved: true,
+        subscription_expiry: "2099-01-01T00:00:00.000Z",
+      }])
+      .mockResolvedValueOnce([{
+        id: "ride-1",
+        passenger_id: "passenger-1",
+        status: "accepted",
+        started_at: "2026-06-26T08:00:00.000Z",
+      }]);
+    const { PATCH } = await import("@/app/api/rides/[id]/route.js");
+
+    const response = await PATCH(
+      new Request("http://localhost/api/rides/ride-1", {
+        method: "PATCH",
+        body: JSON.stringify({ action: "start" }),
+      }),
+      { params: { id: "ride-1" } },
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.triggerRideEvent).toHaveBeenCalledWith(
+      "ride-1",
+      "ride-started",
+      {
+        rideId: "ride-1",
+        startedAt: "2026-06-26T08:00:00.000Z",
+      },
+    );
+  });
+
+  it("allows the assigned driver to rate the passenger once", async () => {
+    mocks.auth.mockResolvedValue({ user: { id: "driver-user-1" } });
+    mocks.sql
+      .mockResolvedValueOnce([{
+        id: "driver-1",
+        zone_id: "zone-1",
+        is_online: true,
+        is_approved: true,
+        subscription_expiry: "2099-01-01T00:00:00.000Z",
+      }])
+      .mockResolvedValueOnce([{
+        id: "ride-1",
+        status: "completed",
+        driver_id: "driver-1",
+        passenger_rating: 5,
+        passenger_rating_feedback: "Ready on time",
+      }]);
+    const { PATCH } = await import("@/app/api/rides/[id]/route.js");
+
+    const response = await PATCH(
+      new Request("http://localhost/api/rides/ride-1", {
+        method: "PATCH",
+        body: JSON.stringify({
+          action: "rate_passenger",
+          passenger_rating: 5,
+          passenger_rating_feedback: "Ready on time",
+        }),
+      }),
+      { params: { id: "ride-1" } },
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.ride.passenger_rating).toBe(5);
   });
 
   it("rejects invalid ride ratings before updating data", async () => {

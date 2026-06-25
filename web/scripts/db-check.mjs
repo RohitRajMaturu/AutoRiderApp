@@ -43,6 +43,8 @@ const REQUIRED_COLUMNS = {
     "fare_min",
     "fare_max",
     "negotiation_expires_at",
+    "passenger_rating",
+    "passenger_rating_feedback",
   ],
 };
 
@@ -120,6 +122,55 @@ async function main() {
             AS non_auto_rides
       `,
     );
+    const rideLifecycleHealth = await pool.query(
+      `
+        SELECT
+          (SELECT count(*)::int
+           FROM drivers
+           WHERE is_online = true
+             AND (zone_id IS NULL OR location IS NULL))
+            AS online_drivers_missing_dispatch_data,
+          (SELECT count(*)::int
+           FROM rides
+           WHERE status = 'accepted'
+             AND driver_id IS NULL)
+            AS accepted_rides_without_driver,
+          (SELECT count(*)::int
+           FROM rides
+           WHERE status = 'completed'
+             AND completed_at IS NULL)
+            AS completed_rides_without_timestamp,
+          (SELECT count(*)::int
+           FROM rides
+           WHERE status = 'cancelled'
+             AND cancelled_at IS NULL)
+            AS cancelled_rides_without_timestamp,
+          (SELECT count(*)::int
+           FROM rides r
+           WHERE r.status IN ('requested', 'negotiating')
+             AND EXISTS (
+               SELECT 1
+               FROM drivers d
+               WHERE d.zone_id = r.zone_id
+                 AND d.is_online = true
+                 AND d.is_approved = true
+                 AND d.subscription_expiry > CURRENT_TIMESTAMP
+                 AND d.location IS NOT NULL
+                 AND ST_DWithin(
+                   d.location,
+                   ST_SetSRID(ST_MakePoint(r.pickup_lng, r.pickup_lat), 4326)::geography,
+                   8000
+                 )
+             )
+             AND NOT EXISTS (
+               SELECT 1
+               FROM ride_driver_notifications n
+               WHERE n.ride_id = r.id
+                 AND n.status IN ('pending', 'sent')
+             ))
+            AS dispatchable_rides_without_notification
+      `,
+    );
 
     const found = new Set(tables.rows.map((row) => row.table_name));
     const missing = REQUIRED_TABLES.filter((table) => !found.has(table));
@@ -149,6 +200,7 @@ async function main() {
           missingColumns,
           serviceZones: zoneReadiness.rows[0],
           vehicleTypes: vehicleTypeReadiness.rows[0],
+          rideLifecycle: rideLifecycleHealth.rows[0],
         },
         null,
         2,

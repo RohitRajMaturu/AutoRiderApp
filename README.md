@@ -84,6 +84,22 @@ Passenger and driver accounts are self-service from the mobile welcome screen.
 Admins do not create driver login accounts; they approve/reject driver
 applications and KYC after the driver signs up and submits details.
 
+### Driver Zone Assignment
+
+Drivers are mapped to service zones automatically from their current GPS
+coordinates. No manual driver-to-zone mapping is required:
+
+1. The driver grants location access and goes online.
+2. `/api/drivers/status` finds the active zone containing those coordinates and
+   stores its `zone_id`.
+3. Ride dispatch and driver polling re-evaluate the stored location and repair
+   a missing or stale `zone_id` before matching rides.
+4. Drivers outside every active dispatch-enabled zone cannot go online.
+
+If an online driver does not receive a nearby request, verify approval,
+subscription expiry, current coordinates, service-zone boundaries, and the
+configured dispatch radius rather than manually editing `drivers.zone_id`.
+
 ### Test Accounts
 Seeded test users from `web/scripts/seed-test-users.mjs` use temporary password `12345` after running `007_seed_account_passwords.sql`:
 - Admin: `admin7893725929@autoride.test` or phone `7893725929`
