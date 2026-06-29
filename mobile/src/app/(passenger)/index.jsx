@@ -11,6 +11,8 @@ import {
   Linking,
   Platform,
   Share,
+  Pressable,
+  Modal,
 } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import BottomSheet, { BottomSheetBackdrop, BottomSheetView } from "@gorhom/bottom-sheet";
@@ -34,6 +36,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
 import * as Location from "expo-location";
+import * as Haptics from "expo-haptics";
 import { toast } from "sonner-native";
 import TukTukGoLoader from "@/components/TukTukGoLoader";
 import AutoRideIcon from "@/components/AutoRideIcon";
@@ -57,6 +60,19 @@ const TEXT_SECONDARY = "#586C70";
 const TEXT_MUTED = "#647678";
 const SUCCESS = "#16A34A";
 const SUCCESS_LIGHT = "#DCFCE7";
+
+function scheduleWindowError(value, now = Date.now()) {
+  if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
+    return "Choose a valid pickup date and time.";
+  }
+  if (value.getTime() < now + 15 * 60 * 1000) {
+    return "Please choose a pickup at least 15 minutes from now so a driver has time to prepare.";
+  }
+  if (value.getTime() > now + 24 * 60 * 60 * 1000) {
+    return "Rides can be scheduled up to 24 hours ahead. Please choose an earlier pickup time.";
+  }
+  return null;
+}
 
 function openGoogleMaps(destLat, destLng, destLabel) {
   const label = encodeURIComponent(destLabel || "Destination");
@@ -186,6 +202,7 @@ export default function PassengerHome() {
   const [isScheduling, setIsScheduling] = useState(false);
   const [scheduledFor, setScheduledFor] = useState(null);
   const [schedulePickerMode, setSchedulePickerMode] = useState(null);
+  const [scheduleDraft, setScheduleDraft] = useState(null);
   const lastActiveRideIdRef = useRef(null);
   const selfCancelledRideIdsRef = useRef(new Set());
   const notifiedCancelledRideIdsRef = useRef(new Set());
@@ -193,6 +210,9 @@ export default function PassengerHome() {
     () => new Set(),
   );
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const counterPulseAnim = useRef(new Animated.Value(1)).current;
+  const lastIncomingCounterCountRef = useRef(0);
+  const negotiationWarningRef = useRef(null);
   const pulseRef = useRef(null);
   const cancelSheetRef = useRef(null);
   const cancelSnapPoints = useMemo(() => ["62%", "86%"], []);
@@ -565,7 +585,21 @@ export default function PassengerHome() {
 
   useEffect(() => {
     setIncomingOffers([]);
+    lastIncomingCounterCountRef.current = 0;
+    negotiationWarningRef.current = null;
   }, [activeRide?.id]);
+
+  useEffect(() => {
+    if (incomingOffers.length <= lastIncomingCounterCountRef.current) return;
+    lastIncomingCounterCountRef.current = incomingOffers.length;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    Animated.sequence([
+      Animated.timing(counterPulseAnim, { toValue: 1.03, duration: 150, useNativeDriver: true }),
+      Animated.timing(counterPulseAnim, { toValue: 1, duration: 150, useNativeDriver: true }),
+      Animated.timing(counterPulseAnim, { toValue: 1.03, duration: 150, useNativeDriver: true }),
+      Animated.timing(counterPulseAnim, { toValue: 1, duration: 150, useNativeDriver: true }),
+    ]).start();
+  }, [counterPulseAnim, incomingOffers.length]);
 
   useEffect(() => {
     if (
@@ -684,6 +718,10 @@ export default function PassengerHome() {
     const tick = () => {
       const remaining = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
       setNegotiationRemaining(remaining);
+      if (remaining === 10 && negotiationWarningRef.current !== activeRideId) {
+        negotiationWarningRef.current = activeRideId;
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      }
       if (remaining === 0 && !expireNegotiationPending) {
         expireNegotiation(activeRideId);
       }
@@ -758,6 +796,7 @@ export default function PassengerHome() {
       setIsScheduling(false);
       setScheduledFor(null);
       setSchedulePickerMode(null);
+      setScheduleDraft(null);
       setFocusedField(null);
     },
     onError: (err) => Alert.alert("Request Failed", err.message),
@@ -911,6 +950,7 @@ export default function PassengerHome() {
     setFareMax(String(Math.round(value)));
   };
 
+  const scheduleError = isScheduling ? scheduleWindowError(scheduledFor) : null;
   const canRequest =
     pickup.trim().length > 0 &&
     destination.trim().length > 0 &&
@@ -924,12 +964,15 @@ export default function PassengerHome() {
         (!hasSuggestedFareRange ||
           (fareMinNumber >= Number(suggestedMinFare) &&
             fareMaxNumber <= Number(suggestedMaxFare))))) &&
-    (!isScheduling || (
-      scheduledFor &&
-      scheduledFor.getTime() >= Date.now() + 15 * 60 * 1000 &&
-      scheduledFor.getTime() <= Date.now() + 24 * 60 * 60 * 1000
-    )) &&
     !requestRide.isPending;
+
+  const submitRideRequest = () => {
+    if (scheduleError) {
+      Alert.alert("Choose a pickup time", scheduleError);
+      return;
+    }
+    requestRide.mutate();
+  };
 
   const approveCounter = useMutation({
     mutationFn: async ({ rideId, driverId }) => {
@@ -1472,13 +1515,30 @@ export default function PassengerHome() {
                           Drivers can accept this fare or send one counter.
                         </Text>
                       </View>
-                      <Text style={{ fontSize: 18, fontWeight: "900", color: "#0369A1" }}>
+                      <Text
+                        style={{
+                          fontSize: 18,
+                          fontWeight: "900",
+                          color:
+                            negotiationRemaining <= 10
+                              ? "#DC2626"
+                              : negotiationRemaining <= 20
+                                ? "#D97706"
+                                : "#0369A1",
+                        }}
+                      >
                         {negotiationRemaining}s
                       </Text>
                     </View>
 
                     {counterOffers.length > 0 && (
-                      <View style={{ marginTop: 12, gap: 10 }}>
+                      <Animated.View style={{ marginTop: 12, gap: 10, transform: [{ scale: counterPulseAnim }] }}>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#0369A1" }} />
+                          <Text style={{ fontSize: 11, fontWeight: "800", color: "#0369A1", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                            {counterOffers.length} driver counter{counterOffers.length > 1 ? "s" : ""} — tap to accept
+                          </Text>
+                        </View>
                         {counterOffers.map((offer) => (
                           <View
                             key={offer.id || offer.driver_id}
@@ -1501,27 +1561,34 @@ export default function PassengerHome() {
                                 Approving locks this driver for your ride.
                               </Text>
                             </View>
-                            <Button
-                              variant="primary"
-                              size="sm"
-                              onPress={() =>
+                            <Pressable
+                              onPress={async () => {
+                                await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                                 approveCounter.mutate({
                                   rideId: activeRide.id,
                                   driverId: offer.driver_id,
-                                })
-                              }
-                              loading={approveCounter.isPending}
-                              disabled={approveCounter.isPending}
-                              style={{
-                                minWidth: 86,
+                                });
                               }}
-                              accessibilityLabel="Accept driver counter offer"
+                              disabled={approveCounter.isPending}
+                              accessibilityLabel={`Accept driver counter offer of ${formatCurrency(offer.offered_fare)}`}
+                              accessibilityRole="button"
+                              style={({ pressed }) => ({
+                                borderRadius: 12,
+                                backgroundColor: pressed ? "#38A89D" : PRIMARY,
+                                paddingVertical: 14,
+                                paddingHorizontal: 20,
+                                alignItems: "center",
+                                opacity: approveCounter.isPending ? 0.7 : 1,
+                                minWidth: 100,
+                              })}
                             >
-                              Accept
-                            </Button>
+                              <Text style={{ color: "#fff", fontSize: 15, fontWeight: "900" }}>
+                                {approveCounter.isPending ? "…" : "Accept ✓"}
+                              </Text>
+                            </Pressable>
                           </View>
                         ))}
-                      </View>
+                      </Animated.View>
                     )}
                   </View>
                 )}
@@ -2440,48 +2507,152 @@ export default function PassengerHome() {
                 </View>
               </TouchableOpacity>
               {isScheduling && scheduledFor ? (
-                <View style={{ marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: BORDER, gap: 8 }}>
-                  <Text style={{ fontSize: 12, fontWeight: "800", color: PRIMARY }}>
-                    Pickup: {scheduledFor.toLocaleString("en-IN", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}
-                  </Text>
-                  <View style={{ flexDirection: "row", gap: 10 }}>
-                    <TouchableOpacity onPress={() => setSchedulePickerMode("date")} style={{ flex: 1, borderRadius: 10, borderWidth: 1, borderColor: PRIMARY_BORDER, backgroundColor: PRIMARY_LIGHT, paddingVertical: 10, alignItems: "center" }}>
-                      <Text style={{ color: PRIMARY, fontSize: 12, fontWeight: "800" }}>Change date</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => setSchedulePickerMode("time")} style={{ flex: 1, borderRadius: 10, borderWidth: 1, borderColor: PRIMARY_BORDER, backgroundColor: PRIMARY_LIGHT, paddingVertical: 10, alignItems: "center" }}>
-                      <Text style={{ color: PRIMARY, fontSize: 12, fontWeight: "800" }}>Change time</Text>
-                    </TouchableOpacity>
+                <View style={{ marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: BORDER, gap: 12 }}>
+                  <View style={{ borderRadius: 14, backgroundColor: PRIMARY_LIGHT, borderWidth: 1, borderColor: PRIMARY_BORDER, padding: 14 }}>
+                    <Text style={{ fontSize: 10, fontWeight: "800", color: PRIMARY, textTransform: "uppercase", letterSpacing: 0.7 }}>Selected pickup</Text>
+                    <Text style={{ fontSize: 17, fontWeight: "900", color: TEXT, marginTop: 5 }}>
+                      {scheduledFor.toLocaleString("en-IN", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}
+                    </Text>
                   </View>
-                  {schedulePickerMode ? (
-                    <DateTimePicker
-                      value={scheduledFor}
-                      mode={schedulePickerMode}
-                      minimumDate={new Date(Date.now() + 15 * 60 * 1000)}
-                      maximumDate={new Date(Date.now() + 24 * 60 * 60 * 1000)}
-                      onChange={(_, date) => {
-                        if (Platform.OS !== "ios") setSchedulePickerMode(null);
-                        if (!date) return;
-                        const next = new Date(scheduledFor);
-                        if (schedulePickerMode === "date") {
-                          next.setFullYear(date.getFullYear(), date.getMonth(), date.getDate());
-                        } else {
-                          next.setHours(date.getHours(), date.getMinutes(), 0, 0);
-                        }
-                        const minimum = Date.now() + 15 * 60 * 1000;
-                        const maximum = Date.now() + 24 * 60 * 60 * 1000;
-                        setScheduledFor(new Date(Math.min(Math.max(next.getTime(), minimum), maximum)));
-                      }}
-                    />
+
+                  <View>
+                    <Text style={{ fontSize: 11, fontWeight: "800", color: TEXT_MUTED, marginBottom: 8 }}>Quick choices</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
+                      {[
+                        { label: "30 min", minutes: 30 },
+                        { label: "1 hour", minutes: 60 },
+                        { label: "2 hours", minutes: 120 },
+                        { label: "4 hours", minutes: 240 },
+                      ].map((option) => (
+                        <TouchableOpacity
+                          key={option.label}
+                          onPress={() => {
+                            setScheduledFor(new Date(Date.now() + option.minutes * 60 * 1000));
+                            Haptics.selectionAsync();
+                          }}
+                          style={{ borderRadius: 999, borderWidth: 1, borderColor: PRIMARY_BORDER, backgroundColor: SURFACE, paddingHorizontal: 14, paddingVertical: 10 }}
+                        >
+                          <Text style={{ color: PRIMARY, fontSize: 12, fontWeight: "800" }}>{option.label}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+
+                  <View style={{ flexDirection: "row", gap: 10 }}>
+                    {[
+                      { mode: "date", label: "Date", value: scheduledFor.toLocaleDateString("en-IN", { day: "numeric", month: "short" }) },
+                      { mode: "time", label: "Time", value: scheduledFor.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" }) },
+                    ].map((item) => (
+                      <TouchableOpacity
+                        key={item.mode}
+                        onPress={() => {
+                          setScheduleDraft(new Date(scheduledFor));
+                          setSchedulePickerMode(item.mode);
+                        }}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Change pickup ${item.label.toLowerCase()}`}
+                        style={{ flex: 1, borderRadius: 13, borderWidth: 1, borderColor: BORDER, backgroundColor: SURFACE, padding: 13 }}
+                      >
+                        <Text style={{ fontSize: 10, fontWeight: "800", color: TEXT_MUTED, textTransform: "uppercase" }}>{item.label}</Text>
+                        <Text style={{ fontSize: 15, fontWeight: "900", color: TEXT, marginTop: 4 }}>{item.value}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+
+                  <View style={{ flexDirection: "row", gap: 8, borderRadius: 12, backgroundColor: "#FFF7ED", borderWidth: 1, borderColor: "#FED7AA", padding: 11 }}>
+                    <Clock size={ICON.sm} color="#C2410C" />
+                    <Text style={{ flex: 1, color: "#9A3412", fontSize: 11, lineHeight: 17, fontWeight: "700" }}>
+                      Need a later ride? TukTukGo currently accepts schedules up to 24 hours ahead for reliable driver availability.
+                    </Text>
+                  </View>
+
+                  {scheduleError ? (
+                    <Text style={{ color: "#DC2626", fontSize: 12, fontWeight: "700" }}>{scheduleError}</Text>
                   ) : null}
                 </View>
               ) : null}
             </View>
 
+            <Modal
+              visible={!!schedulePickerMode}
+              transparent
+              animationType="fade"
+              onRequestClose={() => setSchedulePickerMode(null)}
+            >
+              <Pressable
+                onPress={() => setSchedulePickerMode(null)}
+                style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(23,39,43,0.45)" }}
+              >
+                <Pressable onPress={() => {}} style={{ backgroundColor: SURFACE, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 32 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                    <View>
+                      <Text style={{ fontSize: 19, fontWeight: "900", color: TEXT }}>
+                        Choose pickup {schedulePickerMode}
+                      </Text>
+                      <Text style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 3 }}>15 minutes to 24 hours from now</Text>
+                    </View>
+                    <TouchableOpacity onPress={() => setSchedulePickerMode(null)} hitSlop={10}>
+                      <X size={ICON.md} color={TEXT_MUTED} />
+                    </TouchableOpacity>
+                  </View>
+
+                  {scheduleDraft ? (
+                    <View style={{ borderRadius: 16, backgroundColor: "#F7FBFA", borderWidth: 1, borderColor: BORDER, paddingVertical: Platform.OS === "ios" ? 4 : 14, alignItems: "center" }}>
+                      <DateTimePicker
+                        value={scheduleDraft}
+                        mode={schedulePickerMode || "date"}
+                        display={Platform.OS === "ios" ? "spinner" : "default"}
+                        minimumDate={new Date(Date.now() + 15 * 60 * 1000)}
+                        maximumDate={new Date(Date.now() + 24 * 60 * 60 * 1000)}
+                        onChange={(_, date) => {
+                          if (!date) return;
+                          const next = new Date(scheduleDraft);
+                          if (schedulePickerMode === "date") {
+                            next.setFullYear(date.getFullYear(), date.getMonth(), date.getDate());
+                          } else {
+                            next.setHours(date.getHours(), date.getMinutes(), 0, 0);
+                          }
+                          if (Platform.OS !== "ios") {
+                            const error = scheduleWindowError(next);
+                            setSchedulePickerMode(null);
+                            if (error) {
+                              Alert.alert("Choose a pickup time", error);
+                              return;
+                            }
+                            setScheduledFor(next);
+                            Haptics.selectionAsync();
+                            return;
+                          }
+                          setScheduleDraft(next);
+                        }}
+                      />
+                    </View>
+                  ) : null}
+
+                  <TouchableOpacity
+                    onPress={() => {
+                      const error = scheduleWindowError(scheduleDraft);
+                      if (error) {
+                        Alert.alert("Choose a pickup time", error);
+                        return;
+                      }
+                      setScheduledFor(scheduleDraft);
+                      setSchedulePickerMode(null);
+                      Haptics.selectionAsync();
+                    }}
+                    style={{ marginTop: 16, borderRadius: 14, backgroundColor: PRIMARY, paddingVertical: 15, alignItems: "center" }}
+                  >
+                    <Text style={{ color: "#fff", fontSize: 15, fontWeight: "900" }}>Use this pickup time</Text>
+                  </TouchableOpacity>
+                </Pressable>
+              </Pressable>
+            </Modal>
+
             {/* Request button */}
             <Button
               variant="primary"
               size="lg"
-              onPress={() => requestRide.mutate()}
+              onPress={submitRideRequest}
               loading={requestRide.isPending}
               disabled={!canRequest}
               style={{

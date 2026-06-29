@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -12,6 +12,8 @@ import {
   RefreshControl,
   Image as RNImage,
   Modal,
+  Pressable,
+  Keyboard,
   useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -39,6 +41,7 @@ import { FlashList } from "@shopify/flash-list";
 import { StatusBar } from "expo-status-bar";
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
+import * as Haptics from "expo-haptics";
 import { Audio } from "expo-av";
 import { toast } from "sonner-native";
 import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedView";
@@ -904,11 +907,27 @@ function RideRequestCard({
 
   return (
     <View style={{ backgroundColor: SURFACE, borderRadius: 16, borderWidth: 1, borderColor: BORDER, marginBottom: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3, overflow: "hidden" }}>
-      <View style={{ padding: 14, borderBottomWidth: 1, borderBottomColor: "#F5F5F4", flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+      <View style={{ padding: isNegotiating ? 16 : 14, borderBottomWidth: 1, borderBottomColor: "#F5F5F4", flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: isNegotiating ? "#0369A1" : "#22C55E" }} />
-          <Text style={{ fontSize: 12, fontWeight: "700", color: isNegotiating ? "#0369A1" : SUCCESS }}>
-            {isWaitingForPassenger ? "Waiting for Passenger" : isNegotiating ? "Fare Negotiation" : "New Request"}
+          <View
+            style={{
+              width: 10,
+              height: 10,
+              borderRadius: 5,
+              backgroundColor: isNegotiating ? "#0369A1" : "#22C55E",
+              shadowColor: isNegotiating ? "#0369A1" : "#22C55E",
+              shadowOffset: { width: 0, height: 0 },
+              shadowOpacity: 0.6,
+              shadowRadius: 4,
+              elevation: 2,
+            }}
+          />
+          <Text style={{ fontSize: isNegotiating ? 14 : 12, fontWeight: "900", color: isNegotiating ? "#0369A1" : SUCCESS }}>
+            {isWaitingForPassenger
+              ? "Waiting for Passenger"
+              : isNegotiating
+                ? "⚡ Fare Negotiation — Respond Now"
+                : "New Ride Request"}
           </Text>
         </View>
         <Text style={{ fontSize: 11, color: TEXT_MUTED }}>{timeAgo()}</Text>
@@ -945,27 +964,77 @@ function RideRequestCard({
                 <Text style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 4, lineHeight: 18 }}>Waiting for the passenger to accept. This card will update when they respond.</Text>
               </View>
             ) : (
-              <View style={{ gap: 8, marginTop: 12 }}>
-                <TextInput
-                  value={counterFare}
-                  onChangeText={(value) => setCounterFare(value.replace(/[^\d]/g, ""))}
-                  placeholder="Counter fare"
-                  placeholderTextColor={TEXT_MUTED}
-                  keyboardType="number-pad"
-                  editable={!isOffering && !isLocked && !hasDeclined}
-                  style={{ borderRadius: 10, borderWidth: 1, borderColor: BORDER, backgroundColor: SURFACE, paddingHorizontal: 12, paddingVertical: 12, minHeight: 48, color: TEXT, fontWeight: "700", fontSize: 16 }}
-                />
-                <Button
-                  variant="primary"
-                  size="md"
-                  onPress={() => onFareOffer(ride.id, { offerType: "counter", offeredFare: Number(counterFare) })}
-                  loading={isOffering}
-                  disabled={isOffering || isLocked || !counterFare || hasDeclined}
-                  accessibilityLabel="Send counter fare"
-                >
-                  Send Counter
-                </Button>
-              </View>
+              (() => {
+                const passengerOffer = Number(ride.fare_max || 0);
+                const counterNum = Number(counterFare);
+                const isBelowOffer = counterFare !== "" && counterNum <= passengerOffer;
+                const isDisabled = !counterFare || isBelowOffer || isOffering || isLocked || hasDeclined;
+
+                return (
+                  <View style={{ gap: 10, marginTop: 12 }}>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        borderRadius: 14,
+                        borderWidth: 2,
+                        borderColor: isBelowOffer ? "#DC2626" : counterFare ? PRIMARY : BORDER,
+                        backgroundColor: SURFACE,
+                        overflow: "hidden",
+                      }}
+                    >
+                      <View style={{ paddingHorizontal: 14, paddingVertical: 16, borderRightWidth: 1, borderRightColor: BORDER, backgroundColor: isBelowOffer ? "#FEF2F2" : PRIMARY_LIGHT }}>
+                        <Text style={{ fontSize: 22, fontWeight: "900", color: isBelowOffer ? "#DC2626" : PRIMARY_DARK }}>₹</Text>
+                      </View>
+                      <TextInput
+                        value={counterFare}
+                        onChangeText={(value) => setCounterFare(value.replace(/[^\d]/g, ""))}
+                        placeholder={String(passengerOffer + 10)}
+                        placeholderTextColor={TEXT_MUTED}
+                        keyboardType="number-pad"
+                        editable={!isOffering && !isLocked && !hasDeclined}
+                        returnKeyType="done"
+                        onSubmitEditing={Keyboard.dismiss}
+                        style={{ flex: 1, paddingHorizontal: 16, paddingVertical: 16, color: TEXT, fontWeight: "800", fontSize: 26, minHeight: 64 }}
+                        accessibilityLabel="Enter your counter fare amount in rupees"
+                        accessibilityHint={`Passenger offered ${formatCurrency(ride.fare_max)}. Enter a higher amount.`}
+                      />
+                    </View>
+
+                    {isBelowOffer ? (
+                      <Text style={{ fontSize: 12, color: "#DC2626", fontWeight: "700", paddingHorizontal: 4 }}>
+                        Counter must be higher than passenger&apos;s ₹{passengerOffer} offer
+                      </Text>
+                    ) : counterFare ? (
+                      <Text style={{ fontSize: 12, color: TEXT_MUTED, paddingHorizontal: 4 }}>
+                        You&apos;ll earn ₹{counterNum} if accepted
+                      </Text>
+                    ) : null}
+
+                    <Pressable
+                      onPress={() => {
+                        if (isDisabled) return;
+                        Keyboard.dismiss();
+                        onFareOffer(ride.id, { offerType: "counter", offeredFare: counterNum });
+                      }}
+                      disabled={isDisabled}
+                      accessibilityLabel="Send counter fare to passenger"
+                      accessibilityRole="button"
+                      style={({ pressed }) => ({
+                        borderRadius: 14,
+                        backgroundColor: isDisabled ? BORDER : pressed ? "#38A89D" : PRIMARY,
+                        paddingVertical: 16,
+                        alignItems: "center",
+                        opacity: isOffering ? 0.7 : 1,
+                      })}
+                    >
+                      <Text style={{ fontSize: 16, fontWeight: "900", color: isDisabled ? TEXT_MUTED : "#FFFFFF" }}>
+                        {isOffering ? "Sending…" : "Send Counter Fare"}
+                      </Text>
+                    </Pressable>
+                  </View>
+                );
+              })()
             )}
           </View>
         )}
@@ -985,19 +1054,26 @@ function RideRequestCard({
         )}
 
         {isNegotiating && !isWaitingForPassenger && !hasDeclined && (
-          <MotionPressable
-            onPress={() => onFareOffer(ride.id, { offerType: "decline" })}
-            disabled={isOffering || isLocked}
-            style={{
-              alignItems: "center",
-              alignSelf: "center",
-              marginTop: 10,
-              paddingHorizontal: 20,
-              paddingVertical: 8,
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onFareOffer(ride.id, { offerType: "decline" });
             }}
+            disabled={isOffering || isLocked}
+            accessibilityLabel="Decline this ride request"
+            accessibilityRole="button"
+            style={({ pressed }) => ({
+              marginTop: 10,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: "#FECACA",
+              backgroundColor: pressed ? "#FEF2F2" : SURFACE,
+              paddingVertical: 14,
+              alignItems: "center",
+            })}
           >
-            <Text style={{ color: "#DC2626", fontSize: 13, fontWeight: "700" }}>Decline</Text>
-          </MotionPressable>
+            <Text style={{ color: "#DC2626", fontSize: 15, fontWeight: "700" }}>Decline Request</Text>
+          </Pressable>
         )}
 
         {hasDeclined && (
@@ -1625,6 +1701,7 @@ export default function DriverHome() {
   const queryClient = useQueryClient();
   const activeMutationCount = useIsMutating();
   const notifiedCancelledRideIds = useRef(new Set());
+  const cancellationNoticesInitialized = useRef(false);
   const notifiedRideRequestIds = useRef(new Set());
   const [lockedRideIds, setLockedRideIds] = useState(() => new Set());
   const [completedRideSummary, setCompletedRideSummary] = useState(null);
@@ -1723,11 +1800,26 @@ export default function DriverHome() {
   }, [driverData?.driver?.is_online, onlineToggleAnim]);
 
   useEffect(() => {
-    const cancelledRide = (ridesData?.rides || []).find(
+    notifiedCancelledRideIds.current.clear();
+    cancellationNoticesInitialized.current = false;
+  }, [authUserKey]);
+
+  useEffect(() => {
+    if (!Array.isArray(ridesData?.rides)) return;
+    const cancelledRides = ridesData.rides.filter(
       (ride) =>
         ride.status === "cancelled" &&
-        ride.driver_id &&
-        !notifiedCancelledRideIds.current.has(ride.id),
+        ride.driver_id,
+    );
+
+    if (!cancellationNoticesInitialized.current) {
+      cancelledRides.forEach((ride) => notifiedCancelledRideIds.current.add(ride.id));
+      cancellationNoticesInitialized.current = true;
+      return;
+    }
+
+    const cancelledRide = cancelledRides.find(
+      (ride) => !notifiedCancelledRideIds.current.has(ride.id),
     );
     if (!cancelledRide) return;
     notifiedCancelledRideIds.current.add(cancelledRide.id);
@@ -1933,6 +2025,7 @@ export default function DriverHome() {
       if (variables.offerType === "accept") {
         showDriverNotice("Ride accepted", "Head to the pickup location now.");
       } else if (variables.offerType === "counter") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         showDriverNotice("Counter sent", "The passenger can now approve your fare.");
       }
     },
@@ -2056,6 +2149,33 @@ export default function DriverHome() {
     onError: (err) => showDriverNotice("Cancel failed", err.message),
   });
 
+  const rides = useMemo(() => ridesData?.rides || [], [ridesData?.rides]);
+  const activeRide = rides.find((ride) => ride.status === "accepted");
+  const negotiatingRidesForDriver = useMemo(
+    () =>
+      rides.filter((ride) => {
+        const driverOffer = Array.isArray(ride.fare_offers)
+          ? ride.fare_offers.find((offer) => offer.driver_id === driverData?.driver?.id)
+          : null;
+        return (
+          ride.status === "negotiating" &&
+          !ride.driver_id &&
+          driverOffer?.offer_type !== "decline"
+        );
+      }),
+    [driverData?.driver?.id, rides],
+  );
+  const nonNegotiatingRides = useMemo(
+    () => rides.filter((ride) => ride.status === "requested" && !ride.driver_id),
+    [rides],
+  );
+  const availableRides = [...negotiatingRidesForDriver, ...nonNegotiatingRides];
+  const visibleNonNegotiatingRides = nonNegotiatingRides.slice(0, visibleRequestCount);
+  const hiddenAvailableRideCount = Math.max(
+    nonNegotiatingRides.length - visibleNonNegotiatingRides.length,
+    0,
+  );
+
   if (driverLoading && !driverData) {
     return (
       <View
@@ -2131,25 +2251,6 @@ export default function DriverHome() {
   }
   if (!driver.is_approved) return <PendingScreen />;
 
-  const rides = ridesData?.rides || [];
-  const activeRide = rides.find((r) => r.status === "accepted");
-  const availableRides = rides.filter(
-    (r) => {
-      const driverOffer = Array.isArray(r.fare_offers)
-        ? r.fare_offers.find((offer) => offer.driver_id === driver.id)
-        : null;
-      return (
-        (r.status === "requested" || r.status === "negotiating") &&
-        !r.driver_id &&
-        driverOffer?.offer_type !== "decline"
-      );
-    },
-  );
-  const visibleAvailableRides = availableRides.slice(0, visibleRequestCount);
-  const hiddenAvailableRideCount = Math.max(
-    availableRides.length - visibleAvailableRides.length,
-    0,
-  );
   const expiryDate = driver.subscription_expiry
     ? new Date(driver.subscription_expiry)
     : null;
@@ -2435,7 +2536,7 @@ export default function DriverHome() {
       </View>
 
       <FlashList
-        data={driver.is_online && availableRides.length > 0 ? visibleAvailableRides : []}
+        data={driver.is_online && nonNegotiatingRides.length > 0 ? visibleNonNegotiatingRides : []}
         keyExtractor={(ride) => String(ride.id)}
         estimatedItemSize={180}
         contentContainerStyle={{ padding: 16, paddingBottom: 80 }}
@@ -2503,6 +2604,30 @@ export default function DriverHome() {
             }}
           />
         )}
+
+        {driver.is_online && negotiatingRidesForDriver.length > 0 ? (
+          <View style={{ marginBottom: 12 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8, paddingHorizontal: 2 }}>
+              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#0369A1" }} />
+              <Text style={{ fontSize: 12, fontWeight: "800", color: "#0369A1", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                {negotiatingRidesForDriver.length} Fare Negotiation
+                {negotiatingRidesForDriver.length > 1 ? "s" : ""} — Action needed
+              </Text>
+            </View>
+            {negotiatingRidesForDriver.map((ride) => (
+              <RideRequestCard
+                key={ride.id}
+                ride={ride}
+                driverId={driver.id}
+                onAccept={(id) => acceptRide.mutate(id)}
+                isAccepting={acceptRide.isPending}
+                onFareOffer={(rideId, offer) => fareOffer.mutate({ rideId, ...offer })}
+                isOffering={fareOffer.isPending}
+                isLocked={!!activeRide || lockedRideIds.has(ride.id)}
+              />
+            ))}
+          </View>
+        ) : null}
 
         {!driver.is_online ? (
           <View style={{ alignItems: "center", paddingVertical: 60 }}>
