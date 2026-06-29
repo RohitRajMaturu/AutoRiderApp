@@ -133,12 +133,15 @@ npx expo export --platform web
 
 Manual alternative: run `npm run dev:lan` in `web` and `npm start` in `mobile`.
 
+`run-local.ps1` detects the current LAN address and passes the same origin to Auth.js and Expo for that run. It intentionally stops with a clear error when port 4000 is already occupied; allowing the backend to fall through to another port breaks the WebView cookie and login callback origin.
+
 Troubleshooting:
 
 - Verify `http://YOUR_LAN_IP:4000` opens on the phone.
 - Allow Node.js and ports 4000/8081 through Windows Firewall.
 - Restart web and Expo after environment changes.
 - Use `run-local.ps1 -ClearExpoCache` if Metro retains old values.
+- If port 4000 is reported as occupied, stop the old web process before launching; do not let the backend move to port 4001 while Expo still targets port 4000.
 - Run migrations before debugging API errors after a pull or branch switch.
 
 ## Database and backend

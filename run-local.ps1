@@ -101,6 +101,23 @@ function Wait-ForBackend {
   Write-Warning "Backend did not respond within 30 seconds. Expo will still start, but API calls may fail."
 }
 
+function Test-TcpPort {
+  param(
+    [string]$HostName,
+    [int]$Port
+  )
+
+  $Client = [System.Net.Sockets.TcpClient]::new()
+  try {
+    $Connect = $Client.ConnectAsync($HostName, $Port)
+    return $Connect.Wait(400) -and $Client.Connected
+  } catch {
+    return $false
+  } finally {
+    $Client.Dispose()
+  }
+}
+
 Ensure-Command "node"
 Ensure-Command "npm.cmd"
 
@@ -111,8 +128,12 @@ $LanIp = Get-LanIpAddress
 $BackendUrl = "http://${LanIp}:4000"
 $BackendLocalUrl = "http://127.0.0.1:4000"
 
+if (Test-TcpPort -HostName "127.0.0.1" -Port 4000) {
+  throw "Port 4000 is already in use. Stop the existing TukTukGo/web process, then run this launcher again. The backend must not silently move to another port because mobile authentication callbacks require the exact same origin."
+}
+
 Write-Step "Starting web app and API"
-$BackendCommand = "Set-Location '$WebDir'; npm.cmd run dev:lan"
+$BackendCommand = "`$env:AUTH_URL='$BackendUrl'; `$env:NEXTAUTH_URL='$BackendUrl'; Set-Location '$WebDir'; npm.cmd run dev:lan"
 Start-Process powershell.exe -ArgumentList "-NoExit", "-Command", $BackendCommand
 
 Wait-ForBackend -Url $BackendLocalUrl
@@ -130,6 +151,7 @@ $env:EXPO_PUBLIC_BASE_URL = $BackendUrl
 $env:EXPO_PUBLIC_APP_URL = $BackendUrl
 $env:EXPO_PUBLIC_PROXY_BASE_URL = $BackendUrl
 $env:EXPO_PUBLIC_HOST = "${LanIp}:4000"
+$env:EXPO_PUBLIC_WEB_URL = $BackendUrl
 
 Push-Location $MobileDir
 try {

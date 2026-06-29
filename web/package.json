@@ -4,7 +4,7 @@
 	"type": "module",
 	"scripts": {
 		"dev": "react-router dev",
-		"dev:lan": "react-router dev --host 0.0.0.0 --port 4000",
+		"dev:lan": "react-router dev --host 0.0.0.0 --port 4000 --strictPort",
 		"typecheck": "react-router typegen && tsc --noEmit",
 		"test:api": "vitest run --config src/app/api/vitest.config.ts",
 		"db:check": "node scripts/db-check.mjs",
