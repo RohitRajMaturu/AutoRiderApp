@@ -1682,6 +1682,17 @@ export default function DriverHome() {
     enabled: !!driverData?.driver,
     staleTime: 30000,
   });
+  const { data: incentiveData } = useQuery({
+    queryKey: ["driverIncentives", authUserKey],
+    queryFn: async () => {
+      const res = await fetch("/api/drivers/incentives");
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!auth,
+    refetchInterval: 60000,
+    staleTime: 30000,
+  });
   const activeRideForChatId = (ridesData?.rides || []).find(
     (ride) => ride.status === "accepted",
   )?.id;
@@ -2332,6 +2343,67 @@ export default function DriverHome() {
             ))}
           </View>
         </View>
+
+        {incentiveData?.daily ? (
+          incentiveData.daily.achieved ? (
+            <View
+              style={{
+                marginTop: 12,
+                borderRadius: 14,
+                borderWidth: 1,
+                borderColor: "#BBF7D0",
+                backgroundColor: SUCCESS_LIGHT,
+                padding: 14,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 10,
+              }}
+            >
+              <Star size={ICON.md} color={SUCCESS} fill={SUCCESS} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 14, fontWeight: "900", color: SUCCESS }}>Daily target achieved!</Text>
+                <Text style={{ fontSize: 11, color: "#166534", marginTop: 3 }}>
+                  {incentiveData.daily.completed}/{incentiveData.daily.target} rides — ₹{incentiveData.daily.bonus} bonus earned
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <View
+              style={{
+                marginTop: 12,
+                borderRadius: 14,
+                borderWidth: 1,
+                borderColor: BORDER,
+                backgroundColor: SURFACE,
+                padding: 14,
+              }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                <View style={{ width: 34, height: 34, borderRadius: 12, backgroundColor: "#FFF7ED", alignItems: "center", justifyContent: "center" }}>
+                  <Star size={ICON.sm} color="#EA580C" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14, fontWeight: "900", color: TEXT }}>
+                    {incentiveData.daily.remaining} more rides → ₹{incentiveData.daily.bonus} bonus
+                  </Text>
+                  <Text style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 3 }}>
+                    {incentiveData.daily.completed}/{incentiveData.daily.target} completed today
+                  </Text>
+                </View>
+              </View>
+              <View style={{ height: 7, borderRadius: 999, backgroundColor: "#E7ECEC", marginTop: 12, overflow: "hidden" }}>
+                <View
+                  style={{
+                    height: "100%",
+                    borderRadius: 999,
+                    backgroundColor: PRIMARY,
+                    width: `${Math.min((incentiveData.daily.completed / incentiveData.daily.target) * 100, 100)}%`,
+                  }}
+                />
+              </View>
+            </View>
+          )
+        ) : null}
 
         {isExpired && (
           <View
