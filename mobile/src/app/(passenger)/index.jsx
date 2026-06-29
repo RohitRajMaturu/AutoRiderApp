@@ -46,6 +46,7 @@ import { useAuth } from "@/utils/auth/useAuth";
 import { createRidePusher } from "@/utils/pusher";
 import { getVehicleLabel } from "@/utils/vehicles";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { addInAppNotification, notificationOwnerKey } from "@/store/useNotificationStore";
 
 const TUKTUKGO_ICON = require("../../../assets/images/icon.png");
 const PRIMARY = "#43B8B3";
@@ -179,6 +180,20 @@ export default function PassengerHome() {
   const queryClient = useQueryClient();
   const { auth } = useAuth();
   const authUserKey = auth?.user?.id || auth?.user?.email || auth?.user?.phone || "anonymous";
+  const notificationUserKey = notificationOwnerKey(auth);
+  const notifyPassenger = useCallback(
+    ({ title, body, type, rideId, dedupeKey }) => {
+      addInAppNotification({
+        ownerKey: notificationUserKey,
+        title,
+        body,
+        type,
+        rideId,
+        dedupeKey,
+      });
+    },
+    [notificationUserKey],
+  );
   const [pickup, setPickup] = useState("");
   const [destination, setDestination] = useState("");
   const [pickupCoords, setPickupCoords] = useState(null);
@@ -365,7 +380,14 @@ export default function PassengerHome() {
       description: "Please request another ride when you are ready.",
       duration: 4000,
     });
-  }, [latestCancelledRide]);
+    notifyPassenger({
+      title: "Driver cancelled the ride",
+      body: "Please request another ride when you are ready.",
+      type: "ride_cancelled",
+      rideId: latestCancelledRide.id,
+      dedupeKey: `ride_cancelled:${latestCancelledRide.id}`,
+    });
+  }, [latestCancelledRide, notifyPassenger]);
 
   const { data: tripEstimate, isFetching: tripEstimateLoading } = useQuery({
     queryKey: [
@@ -626,6 +648,13 @@ export default function PassengerHome() {
     const channel = pusher.subscribe(channelName);
 
     channel.bind("counter-offer", (data) => {
+      notifyPassenger({
+        title: "New fare offer",
+        body: `A driver offered ${formatCurrency(data?.offeredFare)} for your ride.`,
+        type: "counter_offer",
+        rideId: activeRideId,
+        dedupeKey: `counter_offer:${activeRideId}`,
+      });
       setIncomingOffers((prev) => {
         if (prev.some((offer) => offer.driver_id === data.driverId || offer.driverId === data.driverId)) {
           return prev;
@@ -649,7 +678,16 @@ export default function PassengerHome() {
     };
 
     channel.bind("ride-locked", refreshRide);
-    channel.bind("ride-accepted", refreshRide);
+    channel.bind("ride-accepted", (data) => {
+      notifyPassenger({
+        title: "Driver accepted your booking",
+        body: "Your driver is heading to the pickup location.",
+        type: "ride_accepted",
+        rideId: data?.rideId || activeRideId,
+        dedupeKey: `ride_accepted:${data?.rideId || activeRideId}`,
+      });
+      refreshRide();
+    });
     channel.bind("negotiation-expired", refreshRide);
     channel.bind("pusher:subscription_error", refreshRide);
 
@@ -658,7 +696,7 @@ export default function PassengerHome() {
       pusher.unsubscribe(channelName);
       pusher.disconnect();
     };
-  }, [activeRideId, activeRideStatus, auth?.jwt, queryClient]);
+  }, [activeRideId, activeRideStatus, auth?.jwt, notifyPassenger, queryClient]);
 
   useEffect(() => {
     if (!activeRideId || activeRideStatus !== "accepted") {
@@ -681,6 +719,13 @@ export default function PassengerHome() {
         description: "Please request another ride when you are ready.",
         duration: 4000,
       });
+      notifyPassenger({
+        title: "Driver cancelled the ride",
+        body: "Please request another ride when you are ready.",
+        type: "ride_cancelled",
+        rideId: data?.rideId || activeRideId,
+        dedupeKey: `ride_cancelled:${data?.rideId || activeRideId}`,
+      });
       queryClient.invalidateQueries({ queryKey: ["activeRide"] });
       queryClient.invalidateQueries({ queryKey: ["passengerRides"] });
       queryClient.invalidateQueries({ queryKey: ["latestPassengerCancelledRide"] });
@@ -689,8 +734,26 @@ export default function PassengerHome() {
       queryClient.invalidateQueries({ queryKey: ["activeRide"] });
       queryClient.invalidateQueries({ queryKey: ["passengerRides"] });
     };
-    channel.bind("ride-started", refreshRideLifecycle);
-    channel.bind("ride-completed", refreshRideLifecycle);
+    channel.bind("ride-started", (data) => {
+      notifyPassenger({
+        title: "Ride started",
+        body: "Your trip is now in progress.",
+        type: "ride_started",
+        rideId: data?.rideId || activeRideId,
+        dedupeKey: `ride_started:${data?.rideId || activeRideId}`,
+      });
+      refreshRideLifecycle();
+    });
+    channel.bind("ride-completed", (data) => {
+      notifyPassenger({
+        title: "Ride completed",
+        body: "You have reached your destination. Thank you for riding with TukTukGo.",
+        type: "ride_completed",
+        rideId: data?.rideId || activeRideId,
+        dedupeKey: `ride_completed:${data?.rideId || activeRideId}`,
+      });
+      refreshRideLifecycle();
+    });
     setActiveRideChannel(channel);
 
     return () => {
@@ -699,7 +762,7 @@ export default function PassengerHome() {
       pusher.unsubscribe(channelName);
       pusher.disconnect();
     };
-  }, [activeRideId, activeRideStatus, auth?.jwt, queryClient]);
+  }, [activeRideId, activeRideStatus, auth?.jwt, notifyPassenger, queryClient]);
 
   const { mutate: expireNegotiation, isPending: expireNegotiationPending } = useMutation({
     mutationFn: async (rideId) => {

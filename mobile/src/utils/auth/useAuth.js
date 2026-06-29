@@ -2,6 +2,7 @@ import * as SecureStore from 'expo-secure-store';
 import { useCallback, useEffect } from 'react';
 import { useAuthModal, useAuthStore, authKey, secureStoreOptions } from './store';
 import useAppStore from '@/store/useAppStore';
+import useNotificationStore from '@/store/useNotificationStore';
 import queryClient from '@/utils/queryClient';
 
 const MOBILE_SIGNUP_ROLES = new Set(['passenger', 'driver']);
@@ -20,6 +21,7 @@ export const useAuth = () => {
   const { isReady, auth, setAuth, isSigningOut, setSigningOut } = useAuthStore();
   const { close, open } = useAuthModal();
   const resetSessionState = useAppStore((state) => state.resetSessionState);
+  const resetNotifications = useNotificationStore((state) => state.resetNotifications);
 
   const initiate = useCallback(() => {
     // The auth state machine must always reach a terminal state. SecureStore
@@ -74,12 +76,13 @@ export const useAuth = () => {
 
       await Promise.allSettled([
         Promise.resolve(resetSessionState()),
+        Promise.resolve(resetNotifications()),
         SecureStore.deleteItemAsync(authKey, secureStoreOptions),
       ]);
     } finally {
       setSigningOut(false);
     }
-  }, [close, resetSessionState, setAuth, setSigningOut]);
+  }, [close, resetNotifications, resetSessionState, setAuth, setSigningOut]);
 
   return {
     isReady,

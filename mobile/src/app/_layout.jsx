@@ -14,6 +14,7 @@ import { Toaster } from "sonner-native";
 import { configureRideNotificationChannel, registerPushToken } from "@/utils/pushNotifications";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { LanguageProvider, useLanguage } from "@/i18n/LanguageContext";
+import { addInAppNotification, notificationOwnerKey } from "@/store/useNotificationStore";
 
 const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN;
 
@@ -39,6 +40,26 @@ function notificationTarget(data, auth) {
     return role === "passenger" ? "/(passenger)" : "/(driver)";
   }
   return null;
+}
+
+function savePushNotification(notification, auth) {
+  const ownerKey = notificationOwnerKey(auth);
+  if (!ownerKey) return;
+  const content = notification?.request?.content || {};
+  const data = content.data || {};
+  const requestId = notification?.request?.identifier;
+  addInAppNotification({
+    ownerKey,
+    title: content.title || "TukTukGo update",
+    body: content.body || "Open TukTukGo for the latest ride update.",
+    type: data.type || "push",
+    rideId: data.rideId || null,
+    dedupeKey: data.type && data.rideId
+      ? `${data.type}:${data.rideId}`
+      : requestId
+        ? `push:${requestId}`
+        : null,
+  });
 }
 
 function AuthBootOverlay() {
@@ -225,9 +246,19 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
+    if (!notificationOwnerKey(auth)) return undefined;
+
+    const subscription = Notifications.addNotificationReceivedListener((notification) => {
+      savePushNotification(notification, auth);
+    });
+    return () => subscription.remove();
+  }, [auth]);
+
+  useEffect(() => {
     if (!rootNavigationState?.key || !isReady || !auth) return;
 
     const openFromResponse = (response) => {
+      savePushNotification(response?.notification, auth);
       const data = response?.notification?.request?.content?.data || {};
       const target = notificationTarget(data, auth);
       if (target) router.push(target);

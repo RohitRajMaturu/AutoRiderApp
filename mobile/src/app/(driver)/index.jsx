@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -52,6 +52,7 @@ import { useAuth } from "@/utils/auth/useAuth";
 import { ICON } from "@/theme/iconScale";
 import { createRidePusher } from "@/utils/pusher";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { addInAppNotification, notificationOwnerKey } from "@/store/useNotificationStore";
 
 const TUKTUKGO_ICON = require("../../../assets/images/icon.png");
 const RIDE_REQUEST_CHIME = require("../../../assets/sounds/ride-request.wav");
@@ -1703,6 +1704,8 @@ export default function DriverHome() {
   const notifiedCancelledRideIds = useRef(new Set());
   const cancellationNoticesInitialized = useRef(false);
   const notifiedRideRequestIds = useRef(new Set());
+  const acceptedNoticesInitialized = useRef(false);
+  const notifiedAcceptedRideIds = useRef(new Set());
   const [lockedRideIds, setLockedRideIds] = useState(() => new Set());
   const [completedRideSummary, setCompletedRideSummary] = useState(null);
   const [passengerRatingValue, setPassengerRatingValue] = useState(0);
@@ -1715,6 +1718,20 @@ export default function DriverHome() {
   const { auth } = useAuth();
   const authUserKey =
     auth?.user?.id || auth?.user?.email || auth?.user?.phone || "anonymous";
+  const notificationUserKey = notificationOwnerKey(auth);
+  const notifyDriver = useCallback(
+    ({ title, body, type, rideId, dedupeKey }) => {
+      addInAppNotification({
+        ownerKey: notificationUserKey,
+        title,
+        body,
+        type,
+        rideId,
+        dedupeKey,
+      });
+    },
+    [notificationUserKey],
+  );
 
   const {
     data: driverData,
@@ -1802,6 +1819,9 @@ export default function DriverHome() {
   useEffect(() => {
     notifiedCancelledRideIds.current.clear();
     cancellationNoticesInitialized.current = false;
+    notifiedRideRequestIds.current.clear();
+    notifiedAcceptedRideIds.current.clear();
+    acceptedNoticesInitialized.current = false;
   }, [authUserKey]);
 
   useEffect(() => {
@@ -1827,7 +1847,36 @@ export default function DriverHome() {
       "Passenger cancelled the ride",
       formatCancellationReason(cancelledRide.cancellation_reason),
     );
-  }, [ridesData?.rides]);
+    notifyDriver({
+      title: "Passenger cancelled the ride",
+      body: formatCancellationReason(cancelledRide.cancellation_reason),
+      type: "ride_cancelled",
+      rideId: cancelledRide.id,
+      dedupeKey: `ride_cancelled:${cancelledRide.id}`,
+    });
+  }, [notifyDriver, ridesData?.rides]);
+
+  useEffect(() => {
+    if (!Array.isArray(ridesData?.rides)) return;
+    const acceptedRides = ridesData.rides.filter((ride) => ride.status === "accepted");
+    if (!acceptedNoticesInitialized.current) {
+      acceptedRides.forEach((ride) => notifiedAcceptedRideIds.current.add(ride.id));
+      acceptedNoticesInitialized.current = true;
+      return;
+    }
+    const acceptedRide = acceptedRides.find(
+      (ride) => !notifiedAcceptedRideIds.current.has(ride.id),
+    );
+    if (!acceptedRide) return;
+    notifiedAcceptedRideIds.current.add(acceptedRide.id);
+    notifyDriver({
+      title: "Booking confirmed",
+      body: "This ride is assigned to you. Head to the pickup location.",
+      type: "ride_accepted",
+      rideId: acceptedRide.id,
+      dedupeKey: `ride_accepted:${acceptedRide.id}`,
+    });
+  }, [notifyDriver, ridesData?.rides]);
 
   useEffect(() => {
     const requestedRides = (ridesData?.rides || []).filter(
@@ -1842,8 +1891,15 @@ export default function DriverHome() {
     requestedRides.forEach((ride) => notifiedRideRequestIds.current.add(ride.id));
     if (newRide) {
       playRideRequestChime();
+      notifyDriver({
+        title: "New ride request",
+        body: `${newRide.pickup_address || "Pickup location"} to ${newRide.dest_address || "destination"}`,
+        type: "ride_request",
+        rideId: newRide.id,
+        dedupeKey: `ride_request:${newRide.id}`,
+      });
     }
-  }, [ridesData?.rides]);
+  }, [notifyDriver, ridesData?.rides]);
 
   useEffect(() => {
     const openRideCount = (ridesData?.rides || []).filter(
@@ -1915,6 +1971,13 @@ export default function DriverHome() {
         "Passenger cancelled the ride",
         formatCancellationReason(data?.reason),
       );
+      notifyDriver({
+        title: "Passenger cancelled the ride",
+        body: formatCancellationReason(data?.reason),
+        type: "ride_cancelled",
+        rideId: data?.rideId || activeRideForChatId,
+        dedupeKey: `ride_cancelled:${data?.rideId || activeRideForChatId}`,
+      });
       queryClient.invalidateQueries({ queryKey: ["driverRides", authUserKey] });
     });
     setActiveRideChannel(channel);
@@ -1925,7 +1988,7 @@ export default function DriverHome() {
       pusher.unsubscribe(channelName);
       pusher.disconnect();
     };
-  }, [activeRideForChatId, auth?.jwt, authUserKey, queryClient]);
+  }, [activeRideForChatId, auth?.jwt, authUserKey, notifyDriver, queryClient]);
 
   const toggleStatus = useMutation({
     mutationFn: async (online) => {
@@ -1994,9 +2057,16 @@ export default function DriverHome() {
       }
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["driverRides", authUserKey] });
       showDriverNotice("Ride accepted", "Head to the pickup location now.");
+      notifyDriver({
+        title: "Ride accepted",
+        body: "Head to the pickup location now.",
+        type: "ride_accepted",
+        rideId: data?.ride?.id,
+        dedupeKey: `ride_accepted:${data?.ride?.id}`,
+      });
     },
     onError: (err) => {
       queryClient.invalidateQueries({ queryKey: ["driverRides", authUserKey] });
@@ -2020,13 +2090,27 @@ export default function DriverHome() {
       }
       return res.json();
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["driverRides", authUserKey] });
       if (variables.offerType === "accept") {
         showDriverNotice("Ride accepted", "Head to the pickup location now.");
+        notifyDriver({
+          title: "Ride accepted",
+          body: "Head to the pickup location now.",
+          type: "ride_accepted",
+          rideId: data?.ride?.id || variables.rideId,
+          dedupeKey: `ride_accepted:${data?.ride?.id || variables.rideId}`,
+        });
       } else if (variables.offerType === "counter") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         showDriverNotice("Counter sent", "The passenger can now approve your fare.");
+        notifyDriver({
+          title: "Counter offer sent",
+          body: "The passenger can now approve your fare.",
+          type: "counter_offer_sent",
+          rideId: variables.rideId,
+          dedupeKey: `counter_offer_sent:${variables.rideId}`,
+        });
       }
     },
     onError: (err) => {
@@ -2060,6 +2144,13 @@ export default function DriverHome() {
       setPassengerRatingValue(0);
       setPassengerRatingFeedback("");
       showDriverNotice("Ride completed", `Fare: ${formatCurrency(rideFare(data.ride))}`);
+      notifyDriver({
+        title: "Ride completed",
+        body: `Fare: ${formatCurrency(rideFare(data.ride))}`,
+        type: "ride_completed",
+        rideId: data?.ride?.id,
+        dedupeKey: `ride_completed:${data?.ride?.id}`,
+      });
     },
   });
 
@@ -2101,10 +2192,17 @@ export default function DriverHome() {
       }
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       setCompletedRideSummary(null);
       queryClient.invalidateQueries({ queryKey: ["driverRides", authUserKey] });
       Alert.alert("Ride Started", "Navigate to the drop-off location.");
+      notifyDriver({
+        title: "Ride started",
+        body: "Navigate to the drop-off location.",
+        type: "ride_started",
+        rideId: data?.ride?.id,
+        dedupeKey: `ride_started:${data?.ride?.id}`,
+      });
     },
     onError: (err) => Alert.alert("Start Failed", err.message),
   });
@@ -2145,6 +2243,13 @@ export default function DriverHome() {
       if (data?.ride?.id) notifiedCancelledRideIds.current.add(data.ride.id);
       queryClient.invalidateQueries({ queryKey: ["driverRides", authUserKey] });
       showDriverNotice("Ride cancelled", "The passenger has been notified.");
+      notifyDriver({
+        title: "Ride cancelled",
+        body: "The passenger has been notified.",
+        type: "ride_cancelled",
+        rideId: data?.ride?.id,
+        dedupeKey: `ride_cancelled:${data?.ride?.id}`,
+      });
     },
     onError: (err) => showDriverNotice("Cancel failed", err.message),
   });

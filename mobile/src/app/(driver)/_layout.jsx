@@ -1,11 +1,18 @@
 import { Tabs } from "expo-router";
 import { View } from "react-native";
-import { Home, Wallet, User } from "lucide-react-native";
+import { Bell, Home, Wallet, User } from "lucide-react-native";
 import { ICON } from "@/theme/iconScale";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { useAuth } from "@/utils/auth/useAuth";
+import useNotificationStore, { notificationOwnerKey } from "@/store/useNotificationStore";
 
 export default function DriverLayout() {
   const { t } = useLanguage();
+  const { auth } = useAuth();
+  const ownerKey = notificationOwnerKey(auth);
+  const unreadCount = useNotificationStore((state) =>
+    state.notifications.filter((item) => item.ownerKey === ownerKey && !item.read).length,
+  );
   return (
     <View style={{ flex: 1 }}>
       <Tabs
@@ -46,6 +53,21 @@ export default function DriverLayout() {
           title: t("nav.subscription"),
           tabBarIcon: ({ color }) => (
             <Wallet
+              color={color}
+              size={ICON.lg}
+              strokeWidth={color === "#43B8B3" ? 2.5 : 1.5}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="notifications"
+        options={{
+          title: "Alerts",
+          tabBarBadge: unreadCount ? (unreadCount > 99 ? "99+" : unreadCount) : undefined,
+          tabBarBadgeStyle: { backgroundColor: "#DC2626", color: "#FFFFFF", fontSize: 10 },
+          tabBarIcon: ({ color }) => (
+            <Bell
               color={color}
               size={ICON.lg}
               strokeWidth={color === "#43B8B3" ? 2.5 : 1.5}
