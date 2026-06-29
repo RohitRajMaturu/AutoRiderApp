@@ -44,6 +44,12 @@ function createStatusConfig(theme) {
       Icon: Clock,
       label: "Searching",
     },
+    scheduled: {
+      bg: "#EDE9FE",
+      text: "#7C3AED",
+      Icon: Clock,
+      label: "Scheduled",
+    },
     accepted: {
       bg: theme.primaryLight,
       text: theme.primaryDark,
@@ -74,11 +80,12 @@ function createStatusConfig(theme) {
 const RideCard = memo(function RideCard({ ride }) {
   const theme = useTheme();
   const statusConfig = useMemo(() => createStatusConfig(theme), [theme]);
-  const config = statusConfig[ride.status] || statusConfig.requested;
+  const displayStatus = ride.status === "requested" && ride.scheduled_for ? "scheduled" : ride.status;
+  const config = statusConfig[displayStatus] || statusConfig.requested;
   const { Icon } = config;
   const fare = formatCurrency(rideFare(ride));
   const distance = Number(ride.distance_km);
-  const date = new Date(ride.created_at);
+  const date = new Date(ride.scheduled_for || ride.created_at);
   const formattedDate = date.toLocaleDateString("en-IN", {
     day: "numeric",
     month: "short",
@@ -90,7 +97,7 @@ const RideCard = memo(function RideCard({ ride }) {
   });
 
   const badgeConfig = {
-    [ride.status]: {
+    [displayStatus]: {
       bg: config.bg,
       text: config.text,
       label: config.label,
@@ -99,7 +106,9 @@ const RideCard = memo(function RideCard({ ride }) {
   const rating = Number(ride.driver_rating);
   const safeRating = Number.isInteger(rating) ? Math.min(Math.max(rating, 0), 5) : 0;
   const titleText =
-    ride.status === "completed"
+    displayStatus === "scheduled"
+      ? "Ride scheduled"
+      : ride.status === "completed"
       ? "Trip completed"
       : ride.status === "cancelled"
         ? "Trip cancelled"
@@ -146,7 +155,7 @@ const RideCard = memo(function RideCard({ ride }) {
             </Text>
           </View>
         </View>
-        <StatusBadge status={ride.status} config={badgeConfig} />
+        <StatusBadge status={displayStatus} config={badgeConfig} />
       </View>
 
       <View style={{ marginTop: theme.spacing[3], gap: theme.spacing[1] }}>

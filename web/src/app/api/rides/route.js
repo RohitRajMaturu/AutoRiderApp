@@ -74,6 +74,7 @@ export async function POST(request) {
       negotiation_mode,
       fare_min,
       fare_max,
+      scheduledFor,
     } = await request.json();
     const pickupLat = Number(pickup_lat);
     const pickupLng = Number(pickup_lng);
@@ -87,6 +88,27 @@ export async function POST(request) {
     const fareMin = readFare(fare_min);
     const fareMax = readFare(fare_max);
     const vehicleType = DEFAULT_VEHICLE_TYPE;
+    let scheduledDate = null;
+    if (scheduledFor !== undefined && scheduledFor !== null) {
+      if (typeof scheduledFor !== "string" || !/^\d{4}-\d{2}-\d{2}T/.test(scheduledFor)) {
+        return Response.json({ error: "scheduledFor must be an ISO timestamp" }, { status: 400 });
+      }
+      scheduledDate = new Date(scheduledFor);
+      const scheduledTime = scheduledDate.getTime();
+      const now = Date.now();
+      if (Number.isNaN(scheduledTime)) {
+        return Response.json({ error: "scheduledFor must be an ISO timestamp" }, { status: 400 });
+      }
+      if (scheduledTime < now + 15 * 60 * 1000) {
+        return Response.json({ error: "Scheduled rides must be at least 15 minutes from now" }, { status: 400 });
+      }
+      if (scheduledTime > now + 24 * 60 * 60 * 1000) {
+        return Response.json({ error: "Scheduled rides must be within 24 hours" }, { status: 400 });
+      }
+      if (negotiationMode === "negotiated") {
+        return Response.json({ error: "Scheduled rides currently use the fixed estimated fare" }, { status: 400 });
+      }
+    }
 
     if (
       !isLatitude(pickupLat) ||
@@ -201,7 +223,8 @@ export async function POST(request) {
         negotiation_mode,
         fare_min,
         fare_max,
-        negotiation_expires_at
+        negotiation_expires_at,
+        scheduled_for
       )
       VALUES (
         ${session.user.id},
@@ -224,12 +247,13 @@ export async function POST(request) {
         ${negotiationMode},
         ${negotiationMode === "negotiated" ? fareMin : null},
         ${negotiationMode === "negotiated" ? fareMax : null},
-        ${negotiationMode === "negotiated" ? new Date(Date.now() + NEGOTIATION_WINDOW_SECONDS * 1000) : null}
+        ${negotiationMode === "negotiated" ? new Date(Date.now() + NEGOTIATION_WINDOW_SECONDS * 1000) : null},
+        ${scheduledDate}
       )
       RETURNING *
     `;
 
-    const dispatchedDrivers = await dispatchRideRequest(rows[0]);
+    const dispatchedDrivers = scheduledDate ? 0 : await dispatchRideRequest(rows[0]);
     const driverUserRows = await sql`
       SELECT d.user_id
       FROM ride_driver_notifications n
@@ -337,6 +361,7 @@ export async function GET(request) {
         FROM rides r
         JOIN drivers d ON d.id = ${driver.id}
         WHERE r.status IN ('requested', 'negotiating')
+          AND r.scheduled_for IS NULL
           AND r.driver_id IS NULL
           AND r.zone_id = d.zone_id
           AND d.is_online = true

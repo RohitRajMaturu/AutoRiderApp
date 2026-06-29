@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import BottomSheet, { BottomSheetBackdrop, BottomSheetView } from "@gorhom/bottom-sheet";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import {
@@ -28,6 +29,7 @@ import {
   IndianRupee,
   ShieldAlert,
   ExternalLink,
+  Clock,
 } from "lucide-react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
@@ -181,6 +183,8 @@ export default function PassengerHome() {
   const [sosActive, setSosActive] = useState(false);
   const [sosTrackingUrl, setSosTrackingUrl] = useState(null);
   const [sosPending, setSosPending] = useState(false);
+  const [isScheduling, setIsScheduling] = useState(false);
+  const [scheduledFor, setScheduledFor] = useState(null);
   const lastActiveRideIdRef = useRef(null);
   const selfCancelledRideIdsRef = useRef(new Set());
   const notifiedCancelledRideIdsRef = useRef(new Set());
@@ -716,6 +720,7 @@ export default function PassengerHome() {
           negotiation_mode: negotiationMode,
           fare_min: negotiationMode === "negotiated" ? Number(fareMin) : undefined,
           fare_max: negotiationMode === "negotiated" ? Number(fareMax) : undefined,
+          ...(isScheduling && scheduledFor ? { scheduledFor: scheduledFor.toISOString() } : {}),
         }),
       });
       if (!res.ok) {
@@ -748,6 +753,8 @@ export default function PassengerHome() {
       setFareMax("");
       setFareOfferEdited(false);
       setFareInputError("");
+      setIsScheduling(false);
+      setScheduledFor(null);
       setFocusedField(null);
     },
     onError: (err) => Alert.alert("Request Failed", err.message),
@@ -914,6 +921,11 @@ export default function PassengerHome() {
         (!hasSuggestedFareRange ||
           (fareMinNumber >= Number(suggestedMinFare) &&
             fareMaxNumber <= Number(suggestedMaxFare))))) &&
+    (!isScheduling || (
+      scheduledFor &&
+      scheduledFor.getTime() >= Date.now() + 15 * 60 * 1000 &&
+      scheduledFor.getTime() <= Date.now() + 24 * 60 * 60 * 1000
+    )) &&
     !requestRide.isPending;
 
   const approveCounter = useMutation({
@@ -2388,6 +2400,77 @@ export default function PassengerHome() {
               )}
             </View>
 
+            <View
+              style={{
+                marginTop: 16,
+                borderRadius: 16,
+                borderWidth: 1,
+                borderColor: isScheduling ? PRIMARY_BORDER : BORDER,
+                backgroundColor: SURFACE,
+                padding: 14,
+              }}
+            >
+              <TouchableOpacity
+                onPress={() => {
+                  setIsScheduling((value) => {
+                    const next = !value;
+                    if (next) {
+                      if (!scheduledFor) setScheduledFor(new Date(Date.now() + 30 * 60 * 1000));
+                      setNegotiationMode("fixed");
+                    }
+                    return next;
+                  });
+                }}
+                style={{ flexDirection: "row", alignItems: "center", gap: 10 }}
+              >
+                <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: PRIMARY_LIGHT, alignItems: "center", justifyContent: "center" }}>
+                  <Clock size={ICON.sm} color={PRIMARY} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14, fontWeight: "800", color: TEXT }}>Schedule for later</Text>
+                  <Text style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 2 }}>15 minutes to 24 hours from now</Text>
+                </View>
+                <View style={{ width: 44, height: 26, borderRadius: 999, padding: 3, backgroundColor: isScheduling ? PRIMARY : BORDER, alignItems: isScheduling ? "flex-end" : "flex-start" }}>
+                  <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: "#fff" }} />
+                </View>
+              </TouchableOpacity>
+              {isScheduling && scheduledFor ? (
+                <View style={{ marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: BORDER, gap: 8 }}>
+                  <Text style={{ fontSize: 12, fontWeight: "800", color: PRIMARY }}>
+                    Pickup: {scheduledFor.toLocaleString("en-IN", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}
+                  </Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-around" }}>
+                    <DateTimePicker
+                      value={scheduledFor}
+                      mode="date"
+                      minimumDate={new Date(Date.now() + 15 * 60 * 1000)}
+                      maximumDate={new Date(Date.now() + 24 * 60 * 60 * 1000)}
+                      onChange={(_, date) => {
+                        if (!date) return;
+                        const next = new Date(scheduledFor);
+                        next.setFullYear(date.getFullYear(), date.getMonth(), date.getDate());
+                        setScheduledFor(next);
+                      }}
+                    />
+                    <DateTimePicker
+                      value={scheduledFor}
+                      mode="time"
+                      minimumDate={new Date(Date.now() + 15 * 60 * 1000)}
+                      maximumDate={new Date(Date.now() + 24 * 60 * 60 * 1000)}
+                      onChange={(_, date) => {
+                        if (!date) return;
+                        const next = new Date(scheduledFor);
+                        next.setHours(date.getHours(), date.getMinutes(), 0, 0);
+                        const minimum = Date.now() + 15 * 60 * 1000;
+                        const maximum = Date.now() + 24 * 60 * 60 * 1000;
+                        setScheduledFor(new Date(Math.min(Math.max(next.getTime(), minimum), maximum)));
+                      }}
+                    />
+                  </View>
+                </View>
+              ) : null}
+            </View>
+
             {/* Request button */}
             <Button
               variant="primary"
@@ -2398,9 +2481,9 @@ export default function PassengerHome() {
               style={{
                 marginTop: 16,
               }}
-              accessibilityLabel="Request ride"
+              accessibilityLabel={isScheduling ? "Schedule ride" : "Request ride"}
             >
-              Request Ride
+              {isScheduling ? "Schedule Ride" : "Request Ride"}
             </Button>
           </View>
         )}
