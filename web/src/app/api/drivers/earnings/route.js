@@ -28,6 +28,11 @@ export async function GET(request) {
     const [totals, recentRides] = await Promise.all([
       sql`
         SELECT
+          COUNT(*) FILTER (
+            WHERE completed_at >= date_trunc('day', NOW() AT TIME ZONE 'Asia/Kolkata')
+              AT TIME ZONE 'Asia/Kolkata'
+              AND status = 'completed'
+          )::int AS rides_today,
           COALESCE(SUM(COALESCE(final_fare, estimated_fare)) FILTER (
             WHERE completed_at >= date_trunc('day', NOW() AT TIME ZONE 'Asia/Kolkata')
               AT TIME ZONE 'Asia/Kolkata'
@@ -60,6 +65,7 @@ export async function GET(request) {
       today: toNumber(totals[0]?.today),
       week: toNumber(totals[0]?.week),
       month: toNumber(totals[0]?.month),
+      ridesToday: Number(totals[0]?.rides_today ?? 0),
       recentRides: recentRides.map((ride) => ({
         ...ride,
         fare: toNumber(ride.fare),

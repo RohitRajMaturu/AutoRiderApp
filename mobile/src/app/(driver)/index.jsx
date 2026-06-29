@@ -2275,35 +2275,61 @@ export default function DriverHome() {
         <View
           style={{
             marginTop: 14,
-            borderRadius: 14,
+            borderRadius: 16,
             borderWidth: 1,
             borderColor: PRIMARY_BORDER,
             backgroundColor: PRIMARY_LIGHT,
-            padding: 12,
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 10,
+            padding: 14,
           }}
         >
-          <View
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: 12,
-              backgroundColor: SURFACE,
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-          >
-            <IndianRupee size={ICON.md} color={PRIMARY_DARK} />
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <View
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 11,
+                backgroundColor: SURFACE,
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <IndianRupee size={ICON.sm} color={PRIMARY_DARK} />
+            </View>
+            <Text style={{ fontSize: 13, color: TEXT, fontWeight: "800" }}>
+              Earnings summary
+            </Text>
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 11, color: TEXT_MUTED, fontWeight: "700" }}>
-              Today earnings
-            </Text>
-            <Text style={{ fontSize: 18, color: TEXT, fontWeight: "800", marginTop: 1 }}>
-              {earningsLoading ? "Loading..." : formatCurrency(earningsData?.today)}
-            </Text>
+          <View style={{ flexDirection: "row" }}>
+            {[
+              { label: "Today", value: earningsData?.today, rides: `${earningsData?.ridesToday ?? 0} rides` },
+              { label: "This Week", value: earningsData?.week },
+              { label: "This Month", value: earningsData?.month },
+            ].map((item, index) => (
+              <View
+                key={item.label}
+                style={{
+                  flex: 1,
+                  paddingHorizontal: index === 0 ? 0 : 10,
+                  borderLeftWidth: index === 0 ? 0 : 1,
+                  borderLeftColor: PRIMARY_BORDER,
+                }}
+              >
+                <Text style={{ fontSize: 10, color: TEXT_MUTED, fontWeight: "700" }}>
+                  {item.label}
+                </Text>
+                <Text
+                  numberOfLines={1}
+                  style={{ fontSize: 15, color: TEXT, fontWeight: "900", marginTop: 4 }}
+                >
+                  {earningsLoading ? "--" : formatCurrency(item.value)}
+                </Text>
+                {item.rides ? (
+                  <Text style={{ fontSize: 10, color: PRIMARY_DARK, fontWeight: "700", marginTop: 3 }}>
+                    {item.rides}
+                  </Text>
+                ) : null}
+              </View>
+            ))}
           </View>
         </View>
 
