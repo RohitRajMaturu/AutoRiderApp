@@ -15,6 +15,7 @@ import {
 import MapView, { Marker } from "react-native-maps";
 import BottomSheet, { BottomSheetBackdrop, BottomSheetView } from "@gorhom/bottom-sheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 import {
   MapPin,
   Navigation,
@@ -25,6 +26,8 @@ import {
   Clock3,
   Star,
   IndianRupee,
+  ShieldAlert,
+  ExternalLink,
 } from "lucide-react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
@@ -143,6 +146,7 @@ function driverIdentifierImage(ride) {
 export default function PassengerHome() {
   const { t } = useLanguage();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const { auth } = useAuth();
   const authUserKey = auth?.user?.id || auth?.user?.email || auth?.user?.phone || "anonymous";
@@ -174,6 +178,9 @@ export default function PassengerHome() {
   const [incomingOffers, setIncomingOffers] = useState([]);
   const [negotiationRemaining, setNegotiationRemaining] = useState(0);
   const [activeRideChannel, setActiveRideChannel] = useState(null);
+  const [sosActive, setSosActive] = useState(false);
+  const [sosTrackingUrl, setSosTrackingUrl] = useState(null);
+  const [sosPending, setSosPending] = useState(false);
   const lastActiveRideIdRef = useRef(null);
   const selfCancelledRideIdsRef = useRef(new Set());
   const notifiedCancelledRideIdsRef = useRef(new Set());
@@ -244,6 +251,53 @@ export default function PassengerHome() {
     staleTime: 30000,
   });
   const savedPlaces = profileData?.savedPlaces ?? profileData?.user?.savedPlaces ?? [];
+
+  const startSos = async () => {
+    if (!activeRide?.id) return;
+    if (!profileData?.user?.emergency_contact_phone) {
+      Alert.alert("Emergency contact needed", "Add an emergency contact in your profile before using SOS.", [
+        { text: "Cancel", style: "cancel" },
+        { text: "Open Profile", onPress: () => router.push("/(passenger)/profile") },
+      ]);
+      return;
+    }
+    setSosPending(true);
+    try {
+      const res = await fetch(`/api/rides/${activeRide.id}/sos`, { method: "POST" });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(result.error || "Could not start SOS");
+      setSosActive(true);
+      setSosTrackingUrl(result.trackingUrl);
+      Alert.alert("SOS link sent", "One SMS with your live tracking link was sent to your emergency contact.");
+    } catch (err) {
+      Alert.alert("SOS Failed", err.message);
+    } finally {
+      setSosPending(false);
+    }
+  };
+
+  const stopSos = async () => {
+    if (!activeRide?.id) return;
+    setSosPending(true);
+    try {
+      const res = await fetch(`/api/rides/${activeRide.id}/sos`, { method: "DELETE" });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(result.error || "Could not stop SOS");
+      setSosActive(false);
+      setSosTrackingUrl(null);
+    } catch (err) {
+      Alert.alert("Stop SOS Failed", err.message);
+    } finally {
+      setSosPending(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!activeRide || activeRide.status !== "accepted") {
+      setSosActive(false);
+      setSosTrackingUrl(null);
+    }
+  }, [activeRide, activeRide?.id, activeRide?.status]);
 
   useEffect(() => {
     if (activeRideId) lastActiveRideIdRef.current = activeRideId;
@@ -1610,29 +1664,67 @@ export default function PassengerHome() {
                 ) : null}
 
                 {activeRide.status === "accepted" && (
-                  <TouchableOpacity
-                    onPress={() => shareTripStatus(activeRide)}
-                    style={{
-                      marginTop: 16,
-                      backgroundColor: SUCCESS_LIGHT,
-                      borderRadius: 12,
-                      paddingVertical: 13,
-                      alignItems: "center",
-                      borderWidth: 1,
-                      borderColor: "#BBF7D0",
-                    }}
-                    activeOpacity={0.85}
-                  >
-                    <Text
+                  <View style={{ marginTop: 16, gap: 10 }}>
+                    <TouchableOpacity
+                      onPress={() => shareTripStatus(activeRide)}
                       style={{
-                        color: SUCCESS,
-                        fontSize: 14,
-                        fontWeight: "700",
+                        backgroundColor: SUCCESS_LIGHT,
+                        borderRadius: 12,
+                        paddingVertical: 13,
+                        alignItems: "center",
+                        borderWidth: 1,
+                        borderColor: "#BBF7D0",
+                      }}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={{ color: SUCCESS, fontSize: 14, fontWeight: "700" }}>
+                        Share Trip Status
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      disabled={sosPending}
+                      onPress={() => Alert.alert(
+                        sosActive ? "Yes, I’m Safe" : "Send SOS Link",
+                        sosActive
+                          ? "Stop live safety tracking for your emergency contact?"
+                          : "Send one SMS with a live tracking link to your emergency contact?",
+                        [
+                          { text: "Cancel", style: "cancel" },
+                          {
+                            text: sosActive ? "Stop SOS" : "Send Link",
+                            style: sosActive ? "destructive" : "default",
+                            onPress: sosActive ? stopSos : startSos,
+                          },
+                        ],
+                      )}
+                      style={{
+                        backgroundColor: sosActive ? "#FEF2F2" : "#DC2626",
+                        borderRadius: 12,
+                        paddingVertical: 13,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexDirection: "row",
+                        gap: 8,
+                        borderWidth: 1,
+                        borderColor: sosActive ? "#FECACA" : "#DC2626",
+                        opacity: sosPending ? 0.6 : 1,
                       }}
                     >
-                      Share Trip Status
-                    </Text>
-                  </TouchableOpacity>
+                      <ShieldAlert size={ICON.sm} color={sosActive ? "#DC2626" : "#fff"} />
+                      <Text style={{ color: sosActive ? "#DC2626" : "#fff", fontSize: 14, fontWeight: "800" }}>
+                        {sosPending ? "Please wait..." : sosActive ? "Yes, I’m Safe — Stop SOS" : "SOS — Send Live Link"}
+                      </Text>
+                    </TouchableOpacity>
+                    {sosActive && sosTrackingUrl ? (
+                      <TouchableOpacity
+                        onPress={() => Share.share({ message: `Track my TukTukGo ride: ${sosTrackingUrl}`, url: sosTrackingUrl })}
+                        style={{ borderRadius: 12, paddingVertical: 12, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8, borderWidth: 1, borderColor: BORDER, backgroundColor: SURFACE }}
+                      >
+                        <ExternalLink size={ICON.sm} color={TEXT_SECONDARY} />
+                        <Text style={{ color: TEXT_SECONDARY, fontSize: 13, fontWeight: "800" }}>Share tracking link</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
                 )}
 
                 {activeRide.status === "completed" && (
