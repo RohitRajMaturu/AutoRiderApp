@@ -60,6 +60,7 @@ describe("fare negotiation race handling", () => {
           negotiation_expires_at: "2099-01-01T00:00:00Z",
         }];
       }
+      if (text.includes("status = 'accepted'")) return [];
       if (text.includes("FROM ride_fare_offers")) return [];
       if (text.includes("UPDATE rides")) return [];
       throw new Error(`Unexpected SQL: ${text}`);
@@ -80,10 +81,38 @@ describe("fare negotiation race handling", () => {
     expect(mocks.triggerRideEvent).not.toHaveBeenCalled();
   });
 
+  it("rejects a fare response while the driver is completing another ride", async () => {
+    mocks.auth.mockResolvedValue({ user: { id: "driver-user-2" } });
+    mocks.sql.mockImplementation(async (strings) => {
+      const text = textOf(strings);
+      if (text.includes("FROM drivers")) {
+        return [{ id: "driver-2", is_online: true, is_approved: true, subscription_expiry: "2099-01-01T00:00:00Z" }];
+      }
+      if (text.includes("status = 'accepted'")) return [{ id: "ride-in-progress" }];
+      throw new Error(`Unexpected SQL: ${text}`);
+    });
+
+    const { POST } = await import("@/app/api/rides/[id]/fare-offer/route.js");
+    const response = await POST(
+      new Request("http://localhost/api/rides/ride-2/fare-offer", {
+        method: "POST",
+        body: JSON.stringify({ offerType: "counter", offeredFare: 200 }),
+      }),
+      { params: { id: "ride-2" } },
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(body.code).toBe("DRIVER_ACTIVE_RIDE");
+    expect(mocks.triggerRideEvent).not.toHaveBeenCalled();
+  });
+
   it("returns 409 when the passenger approves a counter after the ride already locked", async () => {
     mocks.auth.mockResolvedValue({ user: { id: "passenger-1" } });
     mocks.sql.mockImplementation(async (strings) => {
       const text = textOf(strings);
+      if (text.includes("FROM drivers")) return [{ id: "driver-1" }];
+      if (text.includes("status = 'accepted'")) return [];
       if (text.includes("FROM ride_fare_offers")) {
         return [{ ride_id: "ride-1", driver_id: "driver-1", offer_type: "counter", offered_fare: 175 }];
       }

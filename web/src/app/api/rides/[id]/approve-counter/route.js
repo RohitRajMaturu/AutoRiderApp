@@ -18,6 +18,28 @@ export async function POST(request, { params }) {
     }
 
     const result = await sql.transaction(async (tx) => {
+      await tx`
+        SELECT id
+        FROM drivers
+        WHERE id = ${driverId}
+        FOR UPDATE
+      `;
+      const activeRideRows = await tx`
+        SELECT id
+        FROM rides
+        WHERE driver_id = ${driverId}
+          AND status = 'accepted'
+          AND id <> ${id}
+        LIMIT 1
+      `;
+      if (activeRideRows.length > 0) {
+        return {
+          status: 409,
+          code: "DRIVER_ACTIVE_RIDE",
+          error: "This driver is completing another ride. Please choose a different offer.",
+        };
+      }
+
       const offerRows = await tx`
         SELECT o.*
         FROM ride_fare_offers o
@@ -58,12 +80,24 @@ export async function POST(request, { params }) {
         WHERE ride_id = ${id}
           AND status IN ('pending', 'sent')
       `;
+      await tx`
+        UPDATE ride_driver_notifications
+        SET status = 'skipped',
+            error = 'Driver is completing another ride',
+            delivered_at = COALESCE(delivered_at, CURRENT_TIMESTAMP)
+        WHERE driver_id = ${driverId}
+          AND ride_id <> ${id}
+          AND status IN ('pending', 'sent')
+      `;
 
       return { status: 200, ride: rideRows[0], offer };
     });
 
     if (result.error) {
-      return Response.json({ error: result.error }, { status: result.status });
+      return Response.json(
+        { error: result.error, code: result.code },
+        { status: result.status },
+      );
     }
 
     await triggerRideEvent(id, "ride-locked", {

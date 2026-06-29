@@ -77,6 +77,7 @@ export async function autoCancelGhostRides(scopedSql = sql) {
         cancellation_reason = 'accepted_timeout',
         updated_at = CURRENT_TIMESTAMP
     WHERE status = 'accepted'
+      AND started_at IS NULL
       AND accepted_at < CURRENT_TIMESTAMP - make_interval(mins => ${timeoutMinutes})
   `;
 }
@@ -117,6 +118,12 @@ export async function selectZoneDrivers(
       AND d.vehicle_type = ${vehicleType}
       AND d.subscription_expiry > CURRENT_TIMESTAMP
       AND d.location IS NOT NULL
+      AND NOT EXISTS (
+        SELECT 1
+        FROM rides active_ride
+        WHERE active_ride.driver_id = d.id
+          AND active_ride.status = 'accepted'
+      )
       AND ST_DWithin(
         d.location,
         ST_SetSRID(ST_MakePoint(${pickupLng}, ${pickupLat}), 4326)::geography,

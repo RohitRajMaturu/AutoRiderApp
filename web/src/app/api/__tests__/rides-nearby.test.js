@@ -44,12 +44,16 @@ describe("driver zone ride filtering", () => {
     const body = await response.json();
     const notificationQueryValues = mocks.sql.mock.calls[2].slice(1);
     const rideQueryValues = mocks.sql.mock.calls[3].slice(1);
+    const notificationQueryText = mocks.sql.mock.calls[2][0].join(" ");
+    const rideQueryText = mocks.sql.mock.calls[3][0].join(" ");
 
     expect(response.status).toBe(200);
     expect(body).toEqual({ rides: [] });
     expect(notificationQueryValues).toContain("driver-1");
     expect(rideQueryValues).toContain("driver-1");
     expect(rideQueryValues).toContain("zone-1");
+    expect(notificationQueryText).toContain("active_ride.status = 'accepted'");
+    expect(rideQueryText).toContain("active_ride.status = 'accepted'");
   });
 
   it("returns no ride discovery rows when the driver profile is missing", async () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { selectZoneDrivers } from "@/app/api/utils/dispatch";
+import { autoCancelGhostRides, selectZoneDrivers } from "@/app/api/utils/dispatch";
 
 describe("driver dispatch zone recovery", () => {
   it("refreshes a driver's stored zone from their live location before selection", async () => {
@@ -20,5 +20,14 @@ describe("driver dispatch zone recovery", () => {
     expect(query).toContain("refreshed_drivers");
     expect(query).toContain("ST_Covers");
     expect(query).toContain("SET zone_id");
+  });
+
+  it("never expires a ride that has already started", async () => {
+    const scopedSql = vi.fn().mockResolvedValue([]);
+
+    await autoCancelGhostRides(scopedSql);
+
+    const query = scopedSql.mock.calls[0][0].join(" ");
+    expect(query).toContain("started_at IS NULL");
   });
 });

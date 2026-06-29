@@ -156,7 +156,26 @@ export async function PATCH(request, { params }) {
         );
       }
 
-      const result = await sql.transaction(async (tx) => {
+      const acceptance = await sql.transaction(async (tx) => {
+        await tx`
+          SELECT id
+          FROM drivers
+          WHERE id = ${driverId}
+          FOR UPDATE
+        `;
+        const activeRideRows = await tx`
+          SELECT id, started_at
+          FROM rides
+          WHERE driver_id = ${driverId}
+            AND status = 'accepted'
+            AND id <> ${id}
+          ORDER BY started_at DESC NULLS LAST, accepted_at ASC
+          LIMIT 1
+        `;
+        if (activeRideRows.length > 0) {
+          return { busyRide: activeRideRows[0], rows: [] };
+        }
+
         const rows = await tx`
           UPDATE rides 
           SET driver_id = ${driverId}, 
@@ -185,9 +204,30 @@ export async function PATCH(request, { params }) {
             SET status = 'sent', delivered_at = CURRENT_TIMESTAMP
             WHERE ride_id = ${id} AND driver_id = ${driverId} AND channel = 'websocket'
           `;
+          await tx`
+            UPDATE ride_driver_notifications
+            SET status = 'skipped',
+                error = 'Driver is completing another ride',
+                delivered_at = COALESCE(delivered_at, CURRENT_TIMESTAMP)
+            WHERE driver_id = ${driverId}
+              AND ride_id <> ${id}
+              AND status IN ('pending', 'sent')
+          `;
         }
-        return rows;
+        return { busyRide: null, rows };
       });
+
+      if (acceptance.busyRide) {
+        return Response.json(
+          {
+            error: "Finish your current ride before accepting another request",
+            code: "DRIVER_ACTIVE_RIDE",
+            activeRideId: acceptance.busyRide.id,
+          },
+          { status: 409 },
+        );
+      }
+      const result = acceptance.rows;
 
       if (result.length === 0) {
         const rideRows = await sql`

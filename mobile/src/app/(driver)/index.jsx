@@ -99,6 +99,17 @@ function rideFare(ride) {
   return ride?.final_fare ?? ride?.estimated_fare ?? 0;
 }
 
+function pickPrimaryActiveRide(rides) {
+  const accepted = (rides || []).filter((ride) => ride.status === "accepted");
+  const started = accepted
+    .filter((ride) => ride.started_at)
+    .sort((a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime());
+  if (started.length > 0) return started[0];
+  return accepted.sort(
+    (a, b) => new Date(a.accepted_at || a.created_at).getTime() - new Date(b.accepted_at || b.created_at).getTime(),
+  )[0] || null;
+}
+
 async function readApiError(response, fallback) {
   const error = await response.json().catch(() => ({}));
   const message = error.error || fallback;
@@ -121,6 +132,7 @@ function isStaleRideError(err) {
     "RIDE_ALREADY_ACCEPTED",
     "RIDE_UNAVAILABLE",
     "RIDE_ACCEPT_UNAVAILABLE",
+    "DRIVER_ACTIVE_RIDE",
   ].includes(err?.code);
 }
 
@@ -1787,9 +1799,8 @@ export default function DriverHome() {
     refetchInterval: 60000,
     staleTime: 30000,
   });
-  const activeRideForChatId = (ridesData?.rides || []).find(
-    (ride) => ride.status === "accepted",
-  )?.id;
+  const activeDriverRide = pickPrimaryActiveRide(ridesData?.rides || []);
+  const activeRideForChatId = activeDriverRide?.id;
 
   useEffect(() => {
     if (completedRideSummary) return;
@@ -1887,8 +1898,8 @@ export default function DriverHome() {
     const newRide = requestedRides.find(
       (ride) => !notifiedRideRequestIds.current.has(ride.id),
     );
-
     requestedRides.forEach((ride) => notifiedRideRequestIds.current.add(ride.id));
+    if (activeDriverRide) return;
     if (newRide) {
       playRideRequestChime();
       notifyDriver({
@@ -1899,7 +1910,7 @@ export default function DriverHome() {
         dedupeKey: `ride_request:${newRide.id}`,
       });
     }
-  }, [notifyDriver, ridesData?.rides]);
+  }, [activeDriverRide, notifyDriver, ridesData?.rides]);
 
   useEffect(() => {
     const openRideCount = (ridesData?.rides || []).filter(
@@ -2071,7 +2082,10 @@ export default function DriverHome() {
     onError: (err) => {
       queryClient.invalidateQueries({ queryKey: ["driverRides", authUserKey] });
       if (isStaleRideError(err)) {
-        showDriverNotice("Ride no longer available", err.message);
+        showDriverNotice(
+          err.code === "DRIVER_ACTIVE_RIDE" ? "Current ride comes first" : "Ride no longer available",
+          err.message,
+        );
         return;
       }
       Alert.alert("Accept Failed", err.message);
@@ -2116,7 +2130,10 @@ export default function DriverHome() {
     onError: (err) => {
       queryClient.invalidateQueries({ queryKey: ["driverRides", authUserKey] });
       if (isStaleRideError(err) || err.status === 409) {
-        showDriverNotice("Ride no longer available", err.message);
+        showDriverNotice(
+          err.code === "DRIVER_ACTIVE_RIDE" ? "Current ride comes first" : "Ride no longer available",
+          err.message,
+        );
         return;
       }
       Alert.alert("Offer Failed", err.message);
@@ -2255,7 +2272,11 @@ export default function DriverHome() {
   });
 
   const rides = useMemo(() => ridesData?.rides || [], [ridesData?.rides]);
-  const activeRide = rides.find((ride) => ride.status === "accepted");
+  const activeRide = pickPrimaryActiveRide(rides);
+  const additionalAcceptedRideCount = Math.max(
+    rides.filter((ride) => ride.status === "accepted").length - (activeRide ? 1 : 0),
+    0,
+  );
   const negotiatingRidesForDriver = useMemo(
     () =>
       rides.filter((ride) => {
@@ -2489,6 +2510,33 @@ export default function DriverHome() {
           </View>
         </View>
 
+        {!activeRide && driver.is_online && availableRides.length > 0 ? (
+          <View
+            style={{
+              marginTop: 12,
+              borderRadius: 14,
+              borderWidth: 1,
+              borderColor: "#FDBA74",
+              backgroundColor: "#FFF7ED",
+              paddingHorizontal: 14,
+              paddingVertical: 12,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 10,
+            }}
+          >
+            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: "#EA580C" }} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 14, fontWeight: "900", color: TEXT }}>
+                {availableRides.length} new ride {availableRides.length === 1 ? "request" : "requests"}
+              </Text>
+              <Text style={{ fontSize: 11, color: TEXT_SECONDARY, marginTop: 2 }}>
+                Review the pickup and fare below before accepting.
+              </Text>
+            </View>
+          </View>
+        ) : null}
+
         <View
           style={{
             marginTop: 14,
@@ -2497,6 +2545,7 @@ export default function DriverHome() {
             borderColor: PRIMARY_BORDER,
             backgroundColor: PRIMARY_LIGHT,
             padding: 14,
+            display: activeRide || availableRides.length > 0 ? "none" : "flex",
           }}
         >
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 }}>
@@ -2550,7 +2599,7 @@ export default function DriverHome() {
           </View>
         </View>
 
-        {incentiveData?.daily ? (
+        {!activeRide && availableRides.length === 0 && incentiveData?.daily ? (
           incentiveData.daily.achieved ? (
             <View
               style={{
@@ -2611,7 +2660,7 @@ export default function DriverHome() {
           )
         ) : null}
 
-        {isExpired && (
+        {!activeRide && isExpired && (
           <View
             style={{
               marginTop: 12,
@@ -2641,7 +2690,7 @@ export default function DriverHome() {
       </View>
 
       <FlashList
-        data={driver.is_online && nonNegotiatingRides.length > 0 ? visibleNonNegotiatingRides : []}
+        data={!activeRide && driver.is_online && nonNegotiatingRides.length > 0 ? visibleNonNegotiatingRides : []}
         keyExtractor={(ride) => String(ride.id)}
         estimatedItemSize={180}
         contentContainerStyle={{ padding: 16, paddingBottom: 80 }}
@@ -2692,6 +2741,28 @@ export default function DriverHome() {
             pusherChannel={activeRideChannel}
           />
         )}
+        {activeRide ? (
+          <View
+            style={{
+              marginBottom: 16,
+              borderRadius: 14,
+              borderWidth: 1,
+              borderColor: additionalAcceptedRideCount > 0 ? "#FDBA74" : PRIMARY_BORDER,
+              backgroundColor: additionalAcceptedRideCount > 0 ? "#FFF7ED" : PRIMARY_LIGHT,
+              padding: 13,
+            }}
+          >
+            <Text style={{ fontSize: 13, fontWeight: "900", color: TEXT }}>
+              Current trip protected
+            </Text>
+            <Text style={{ fontSize: 11, lineHeight: 17, color: TEXT_SECONDARY, marginTop: 4 }}>
+              New requests are paused until this ride is completed or cancelled.
+              {additionalAcceptedRideCount > 0
+                ? ` ${additionalAcceptedRideCount} previously accepted ride${additionalAcceptedRideCount > 1 ? "s are" : " is"} waiting and will appear after this trip.`
+                : ""}
+            </Text>
+          </View>
+        ) : null}
         {!activeRide && completedRideSummary && (
           <CompletedRideSummary
             ride={completedRideSummary}
@@ -2710,7 +2781,7 @@ export default function DriverHome() {
           />
         )}
 
-        {driver.is_online && negotiatingRidesForDriver.length > 0 ? (
+        {!activeRide && driver.is_online && negotiatingRidesForDriver.length > 0 ? (
           <View style={{ marginBottom: 12 }}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8, paddingHorizontal: 2 }}>
               <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#0369A1" }} />
@@ -2770,7 +2841,7 @@ export default function DriverHome() {
               ఆన్‌లైన్ చేయండి / ऑनलाइन जाएं
             </Text>
           </View>
-        ) : (
+        ) : !activeRide ? (
           <>
             <View style={{ flexDirection: "row", gap: 10, marginBottom: 20 }}>
               <View
@@ -2885,11 +2956,11 @@ export default function DriverHome() {
               </View>
             ) : null}
           </>
-        )}
+        ) : null}
           </>
         }
         ListFooterComponent={
-          driver.is_online && hiddenAvailableRideCount > 0 ? (
+          !activeRide && driver.is_online && hiddenAvailableRideCount > 0 ? (
             <TouchableOpacity
               onPress={() => setVisibleRequestCount((count) => count + 5)}
               style={{

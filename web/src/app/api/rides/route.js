@@ -368,6 +368,12 @@ export async function GET(request) {
           AND d.is_approved = true
           AND d.subscription_expiry > CURRENT_TIMESTAMP
           AND d.location IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1
+            FROM rides active_ride
+            WHERE active_ride.driver_id = d.id
+              AND active_ride.status = 'accepted'
+          )
           AND ST_DWithin(
             d.location,
             ST_SetSRID(ST_MakePoint(r.pickup_lng, r.pickup_lat), 4326)::geography,
@@ -397,10 +403,24 @@ export async function GET(request) {
             AND EXISTS (
               SELECT 1
               FROM ride_driver_notifications n
-              WHERE n.ride_id = r.id AND n.driver_id = ${driver.id}
+              WHERE n.ride_id = r.id
+                AND n.driver_id = ${driver.id}
+                AND n.status IN ('pending', 'sent')
+            )
+            AND NOT EXISTS (
+              SELECT 1
+              FROM rides active_ride
+              WHERE active_ride.driver_id = ${driver.id}
+                AND active_ride.status = 'accepted'
             )
           )
-        ORDER BY r.created_at DESC
+        ORDER BY
+          CASE
+            WHEN r.driver_id = ${driver.id} AND r.status = 'accepted' AND r.started_at IS NOT NULL THEN 0
+            WHEN r.driver_id = ${driver.id} AND r.status = 'accepted' THEN 1
+            ELSE 2
+          END,
+          r.created_at DESC
       `;
     } else {
       const countsRows = await sql`
