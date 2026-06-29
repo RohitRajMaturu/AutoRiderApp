@@ -20,6 +20,8 @@ describe("driver dispatch zone recovery", () => {
     expect(query).toContain("refreshed_drivers");
     expect(query).toContain("ST_Covers");
     expect(query).toContain("SET zone_id");
+    expect(query).toContain("current_ride.started_at IS NOT NULL");
+    expect(query).toContain("ST_DWithin");
   });
 
   it("never expires a ride that has already started", async () => {
@@ -29,5 +31,6 @@ describe("driver dispatch zone recovery", () => {
 
     const query = scopedSql.mock.calls[0][0].join(" ");
     expect(query).toContain("started_at IS NULL");
+    expect(query).toContain("current_ride.started_at IS NOT NULL");
   });
 });

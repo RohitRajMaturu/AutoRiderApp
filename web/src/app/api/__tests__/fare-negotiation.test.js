@@ -22,6 +22,7 @@ vi.mock("@/lib/pusher/server", () => ({
 
 vi.mock("@/app/api/utils/dispatch", () => ({
   getAcceptedRideTimeoutMinutes: () => 45,
+  getBackToBackDispatchRadiusMeters: () => 2000,
   dispatchRideRequest: mocks.dispatchRideRequest,
 }));
 

@@ -112,7 +112,7 @@ describe("ride detail route", () => {
         subscription_expiry: "2099-01-01T00:00:00.000Z",
       }])
       .mockResolvedValueOnce([{ id: "driver-1" }])
-      .mockResolvedValueOnce([{ id: "ride-in-progress", started_at: "2026-06-29T10:00:00.000Z" }]);
+      .mockResolvedValueOnce([{ id: "ride-in-progress", started_at: null, can_queue_next: false }]);
     const { PATCH } = await import("@/app/api/rides/[id]/route.js");
 
     const response = await PATCH(
@@ -128,6 +128,54 @@ describe("ride detail route", () => {
     expect(body.code).toBe("DRIVER_ACTIVE_RIDE");
     expect(body.activeRideId).toBe("ride-in-progress");
     expect(mocks.sendPushToUsers).not.toHaveBeenCalled();
+  });
+
+  it("allows one next ride when the current trip is started and near drop-off", async () => {
+    const nextRide = {
+      id: "ride-next",
+      passenger_id: "passenger-2",
+      status: "accepted",
+      driver_id: "driver-1",
+      accepted_at: "2026-06-29T11:00:00.000Z",
+    };
+    mocks.auth.mockResolvedValue({ user: { id: "driver-user-1" } });
+    mocks.sql
+      .mockResolvedValueOnce([{
+        id: "driver-1",
+        zone_id: "zone-1",
+        is_online: true,
+        is_approved: true,
+        subscription_expiry: "2099-01-01T00:00:00.000Z",
+      }])
+      .mockResolvedValueOnce([{ id: "driver-1" }])
+      .mockResolvedValueOnce([{
+        id: "ride-current",
+        started_at: "2026-06-29T10:00:00.000Z",
+        can_queue_next: true,
+      }])
+      .mockResolvedValueOnce([nextRide])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+    const { PATCH } = await import("@/app/api/rides/[id]/route.js");
+
+    const response = await PATCH(
+      new Request("http://localhost/api/rides/ride-next", {
+        method: "PATCH",
+        body: JSON.stringify({ action: "accept" }),
+      }),
+      { params: { id: "ride-next" } },
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.ride.id).toBe("ride-next");
+    expect(mocks.sendPushToUsers).toHaveBeenCalledWith(
+      ["passenger-2"],
+      expect.objectContaining({
+        title: "Driver accepted your ride as next",
+        body: expect.stringMatching(/finishing a nearby trip/i),
+      }),
+    );
   });
 
   it("notifies the driver when a passenger cancels an accepted ride", async () => {
@@ -240,6 +288,49 @@ describe("ride detail route", () => {
         rideId: "ride-1",
         startedAt: "2026-06-26T08:00:00.000Z",
       },
+    );
+  });
+
+  it("alerts the queued passenger when the current trip completes", async () => {
+    mocks.auth.mockResolvedValue({ user: { id: "driver-user-1" } });
+    mocks.sql
+      .mockResolvedValueOnce([{
+        id: "driver-1",
+        zone_id: "zone-1",
+        is_online: true,
+        is_approved: true,
+        subscription_expiry: "2099-01-01T00:00:00.000Z",
+      }])
+      .mockResolvedValueOnce([{
+        id: "ride-current",
+        passenger_id: "passenger-1",
+        driver_id: "driver-1",
+        status: "completed",
+        completed_at: "2026-06-29T12:00:00.000Z",
+      }])
+      .mockResolvedValueOnce([{ id: "ride-next", passenger_id: "passenger-2" }]);
+    const { PATCH } = await import("@/app/api/rides/[id]/route.js");
+
+    const response = await PATCH(
+      new Request("http://localhost/api/rides/ride-current", {
+        method: "PATCH",
+        body: JSON.stringify({ action: "complete" }),
+      }),
+      { params: { id: "ride-current" } },
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.sendPushToUsers).toHaveBeenCalledWith(
+      ["passenger-2"],
+      expect.objectContaining({
+        title: "Driver is heading to you",
+        data: { type: "driver_ready", rideId: "ride-next" },
+      }),
+    );
+    expect(mocks.triggerRideEvent).toHaveBeenCalledWith(
+      "ride-next",
+      "driver-ready",
+      { rideId: "ride-next", previousRideId: "ride-current" },
     );
   });
 

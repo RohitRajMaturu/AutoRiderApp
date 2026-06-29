@@ -1,5 +1,5 @@
 import sql from "@/app/api/utils/sql";
-import { getAcceptedRideTimeoutMinutes } from "@/app/api/utils/dispatch";
+import { getAcceptedRideTimeoutMinutes, getBackToBackDispatchRadiusMeters } from "@/app/api/utils/dispatch";
 import { auth } from "@/auth";
 import { triggerRideEvent } from "@/lib/pusher/server";
 import { sendPushToUsers } from "@/app/api/utils/push-notifications";
@@ -18,6 +18,7 @@ export async function POST(request, { params }) {
     }
 
     const result = await sql.transaction(async (tx) => {
+      const backToBackRadiusMeters = getBackToBackDispatchRadiusMeters();
       await tx`
         SELECT id
         FROM drivers
@@ -25,18 +26,32 @@ export async function POST(request, { params }) {
         FOR UPDATE
       `;
       const activeRideRows = await tx`
-        SELECT id
-        FROM rides
-        WHERE driver_id = ${driverId}
-          AND status = 'accepted'
-          AND id <> ${id}
-        LIMIT 1
+        SELECT
+          active_ride.id,
+          active_ride.started_at,
+          (
+            active_ride.started_at IS NOT NULL
+            AND driver.location IS NOT NULL
+            AND ST_DWithin(
+              driver.location,
+              ST_SetSRID(ST_MakePoint(active_ride.dest_lng, active_ride.dest_lat), 4326)::geography,
+              ${backToBackRadiusMeters}
+            )
+          ) AS can_queue_next
+        FROM rides active_ride
+        JOIN drivers driver ON driver.id = ${driverId}
+        WHERE active_ride.driver_id = ${driverId}
+          AND active_ride.status = 'accepted'
+          AND active_ride.id <> ${id}
       `;
-      if (activeRideRows.length > 0) {
+      if (
+        activeRideRows.length > 0 &&
+        !(activeRideRows.length === 1 && activeRideRows[0].can_queue_next)
+      ) {
         return {
           status: 409,
-          code: "DRIVER_ACTIVE_RIDE",
-          error: "This driver is completing another ride. Please choose a different offer.",
+          code: "DRIVER_UNAVAILABLE_FOR_NEXT_RIDE",
+          error: "This driver is not available for another queued ride. Please choose a different offer.",
         };
       }
 
@@ -90,7 +105,12 @@ export async function POST(request, { params }) {
           AND status IN ('pending', 'sent')
       `;
 
-      return { status: 200, ride: rideRows[0], offer };
+      return {
+        status: 200,
+        ride: rideRows[0],
+        offer,
+        queuedNext: activeRideRows.length === 1,
+      };
     });
 
     if (result.error) {
@@ -104,6 +124,7 @@ export async function POST(request, { params }) {
       rideId: id,
       driverId,
       finalFare: result.ride.final_fare,
+      queuedNext: result.queuedNext,
     });
     const driverUserRows = await sql`
       SELECT user_id
@@ -120,7 +141,7 @@ export async function POST(request, { params }) {
       },
     );
 
-    return Response.json({ ride: result.ride, offer: result.offer });
+    return Response.json({ ride: result.ride, offer: result.offer, queuedNext: result.queuedNext || false });
   } catch (err) {
     console.error("POST /api/rides/[id]/approve-counter error:", err);
     return Response.json({ error: "Internal Server Error" }, { status: 500 });

@@ -1,5 +1,5 @@
 import sql from "@/app/api/utils/sql";
-import { getAcceptedRideTimeoutMinutes } from "@/app/api/utils/dispatch";
+import { getAcceptedRideTimeoutMinutes, getBackToBackDispatchRadiusMeters } from "@/app/api/utils/dispatch";
 import { auth } from "@/auth";
 import { triggerRideEvent } from "@/lib/pusher/server";
 import { sendPushToUsers } from "@/app/api/utils/push-notifications";
@@ -51,6 +51,7 @@ export async function POST(request, { params }) {
 
     const result = await sql.transaction(async (tx) => {
       if (offerType !== "decline") {
+        const backToBackRadiusMeters = getBackToBackDispatchRadiusMeters();
         await tx`
           SELECT id
           FROM drivers
@@ -58,18 +59,40 @@ export async function POST(request, { params }) {
           FOR UPDATE
         `;
         const activeRideRows = await tx`
-          SELECT id
-          FROM rides
-          WHERE driver_id = ${driver.id}
-            AND status = 'accepted'
-            AND id <> ${id}
-          LIMIT 1
+          SELECT
+            active_ride.id,
+            active_ride.started_at,
+            (
+              active_ride.started_at IS NOT NULL
+              AND driver.location IS NOT NULL
+              AND ST_DWithin(
+                driver.location,
+                ST_SetSRID(ST_MakePoint(active_ride.dest_lng, active_ride.dest_lat), 4326)::geography,
+                ${backToBackRadiusMeters}
+              )
+            ) AS can_queue_next
+          FROM rides active_ride
+          JOIN drivers driver ON driver.id = ${driver.id}
+          WHERE active_ride.driver_id = ${driver.id}
+            AND active_ride.status = 'accepted'
+            AND active_ride.id <> ${id}
         `;
-        if (activeRideRows.length > 0) {
+        if (
+          activeRideRows.length > 0 &&
+          !(activeRideRows.length === 1 && activeRideRows[0].can_queue_next)
+        ) {
+          const currentRide = activeRideRows[0];
+          const code = activeRideRows.length > 1
+            ? "DRIVER_QUEUE_FULL"
+            : currentRide.started_at
+              ? "DRIVER_NOT_NEAR_DROPOFF"
+              : "DRIVER_ACTIVE_RIDE";
           return {
             status: 409,
-            code: "DRIVER_ACTIVE_RIDE",
-            error: "Finish your current ride before responding to another request",
+            code,
+            error: code === "DRIVER_QUEUE_FULL"
+              ? "You already have a next ride. Complete the current ride before accepting more."
+              : "Next rides become available when you are close to the current drop-off.",
           };
         }
       }
@@ -171,7 +194,12 @@ export async function POST(request, { params }) {
           AND status IN ('pending', 'sent')
       `;
 
-      return { status: 200, ride: acceptedRows[0], offer: offerRows[0] };
+      return {
+        status: 200,
+        ride: acceptedRows[0],
+        offer: offerRows[0],
+        queuedNext: activeRideRows.length === 1,
+      };
     });
 
     if (result.error) {
@@ -186,10 +214,13 @@ export async function POST(request, { params }) {
         rideId: id,
         driverId: driver.id,
         finalFare: result.ride.final_fare,
+        queuedNext: result.queuedNext,
       });
       await sendPushToUsers([result.ride.passenger_id], {
-        title: "Driver accepted your fare",
-        body: "Your negotiated ride is confirmed.",
+        title: result.queuedNext ? "Driver accepted your fare as next" : "Driver accepted your fare",
+        body: result.queuedNext
+          ? "Your driver is finishing a nearby trip and will come to you next."
+          : "Your negotiated ride is confirmed.",
         data: { type: "ride_accepted", rideId: id },
       });
     } else if (offerType === "counter") {
@@ -206,7 +237,7 @@ export async function POST(request, { params }) {
       });
     }
 
-    return Response.json({ ride: result.ride, offer: result.offer });
+    return Response.json({ ride: result.ride, offer: result.offer, queuedNext: result.queuedNext || false });
   } catch (err) {
     if (err?.code === "23505") {
       return Response.json(

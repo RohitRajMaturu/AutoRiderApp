@@ -1,6 +1,7 @@
 import sql from "@/app/api/utils/sql";
 import { auth } from "@/auth";
 import {
+  getBackToBackDispatchRadiusMeters,
   getAcceptedRideTimeoutMinutes,
 } from "@/app/api/utils/dispatch";
 import { sendPushToUsers } from "@/app/api/utils/push-notifications";
@@ -156,6 +157,7 @@ export async function PATCH(request, { params }) {
         );
       }
 
+      const backToBackRadiusMeters = getBackToBackDispatchRadiusMeters();
       const acceptance = await sql.transaction(async (tx) => {
         await tx`
           SELECT id
@@ -164,16 +166,39 @@ export async function PATCH(request, { params }) {
           FOR UPDATE
         `;
         const activeRideRows = await tx`
-          SELECT id, started_at
-          FROM rides
-          WHERE driver_id = ${driverId}
-            AND status = 'accepted'
-            AND id <> ${id}
-          ORDER BY started_at DESC NULLS LAST, accepted_at ASC
-          LIMIT 1
+          SELECT
+            active_ride.id,
+            active_ride.started_at,
+            (
+              active_ride.started_at IS NOT NULL
+              AND driver.location IS NOT NULL
+              AND ST_DWithin(
+                driver.location,
+                ST_SetSRID(ST_MakePoint(active_ride.dest_lng, active_ride.dest_lat), 4326)::geography,
+                ${backToBackRadiusMeters}
+              )
+            ) AS can_queue_next
+          FROM rides active_ride
+          JOIN drivers driver ON driver.id = ${driverId}
+          WHERE active_ride.driver_id = ${driverId}
+            AND active_ride.status = 'accepted'
+            AND active_ride.id <> ${id}
+          ORDER BY active_ride.started_at DESC NULLS LAST, active_ride.accepted_at ASC
         `;
         if (activeRideRows.length > 0) {
-          return { busyRide: activeRideRows[0], rows: [] };
+          const currentRide = activeRideRows[0];
+          const canQueueNext = activeRideRows.length === 1 && currentRide.can_queue_next;
+          if (!canQueueNext) {
+            return {
+              busyRide: currentRide,
+              busyCode: activeRideRows.length > 1
+                ? "DRIVER_QUEUE_FULL"
+                : currentRide.started_at
+                  ? "DRIVER_NOT_NEAR_DROPOFF"
+                  : "DRIVER_ACTIVE_RIDE",
+              rows: [],
+            };
+          }
         }
 
         const rows = await tx`
@@ -214,14 +239,21 @@ export async function PATCH(request, { params }) {
               AND status IN ('pending', 'sent')
           `;
         }
-        return { busyRide: null, rows };
+        return {
+          busyRide: null,
+          busyCode: null,
+          queuedNext: activeRideRows.length === 1,
+          rows,
+        };
       });
 
       if (acceptance.busyRide) {
         return Response.json(
           {
-            error: "Finish your current ride before accepting another request",
-            code: "DRIVER_ACTIVE_RIDE",
+            error: acceptance.busyCode === "DRIVER_QUEUE_FULL"
+              ? "You already have a next ride. Complete the current ride before accepting more."
+              : "Next rides become available when you are close to the current drop-off.",
+            code: acceptance.busyCode,
             activeRideId: acceptance.busyRide.id,
           },
           { status: 409 },
@@ -267,13 +299,16 @@ export async function PATCH(request, { params }) {
         );
       }
       await sendPushToUsers([result[0].passenger_id], {
-        title: "Driver accepted your ride",
-        body: "Your driver is heading to the pickup location.",
+        title: acceptance.queuedNext ? "Driver accepted your ride as next" : "Driver accepted your ride",
+        body: acceptance.queuedNext
+          ? "Your driver is finishing a nearby trip and will come to you next."
+          : "Your driver is heading to the pickup location.",
         data: { type: "ride_accepted", rideId: result[0].id },
       });
       await triggerRideEvent(result[0].id, "ride-accepted", {
         rideId: result[0].id,
         acceptedAt: result[0].accepted_at,
+        queuedNext: acceptance.queuedNext,
       });
       return Response.json({ ride: result[0] });
     }
@@ -312,6 +347,35 @@ export async function PATCH(request, { params }) {
         rideId: result[0].id,
         completedAt: result[0].completed_at,
       });
+      const nextRideRows = await sql`
+        UPDATE rides
+        SET accepted_at = CURRENT_TIMESTAMP,
+            expires_at = CURRENT_TIMESTAMP + make_interval(mins => ${getAcceptedRideTimeoutMinutes()}),
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = (
+          SELECT id
+          FROM rides
+          WHERE driver_id = ${driverId}
+            AND status = 'accepted'
+            AND started_at IS NULL
+            AND id <> ${result[0].id}
+          ORDER BY accepted_at ASC
+          LIMIT 1
+        )
+        RETURNING id, passenger_id
+      `;
+      const nextRide = nextRideRows[0];
+      if (nextRide) {
+        await sendPushToUsers([nextRide.passenger_id], {
+          title: "Driver is heading to you",
+          body: "The previous trip is complete. Your driver is now coming to your pickup.",
+          data: { type: "driver_ready", rideId: nextRide.id },
+        });
+        await triggerRideEvent(nextRide.id, "driver-ready", {
+          rideId: nextRide.id,
+          previousRideId: result[0].id,
+        });
+      }
       return Response.json({ ride: result[0] });
     }
 

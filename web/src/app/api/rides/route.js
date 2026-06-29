@@ -8,6 +8,7 @@ import {
 import {
   dispatchRideRequest,
   findZoneForPoint,
+  getBackToBackDispatchRadiusMeters,
   getDriverRideRadiusMeters,
   getPassengerPostCancelCooldownSeconds,
   getPassengerSpamCooldownSeconds,
@@ -344,6 +345,7 @@ export async function GET(request) {
       if (!driver) {
         return Response.json({ rides: [] });
       }
+      const backToBackRadiusMeters = getBackToBackDispatchRadiusMeters();
 
       await sql`
         INSERT INTO ride_driver_notifications (ride_id, driver_id, channel, status, payload)
@@ -368,11 +370,28 @@ export async function GET(request) {
           AND d.is_approved = true
           AND d.subscription_expiry > CURRENT_TIMESTAMP
           AND d.location IS NOT NULL
-          AND NOT EXISTS (
-            SELECT 1
-            FROM rides active_ride
-            WHERE active_ride.driver_id = d.id
-              AND active_ride.status = 'accepted'
+          AND (
+            NOT EXISTS (
+              SELECT 1
+              FROM rides active_ride
+              WHERE active_ride.driver_id = d.id
+                AND active_ride.status = 'accepted'
+            )
+            OR (
+              (SELECT count(*) FROM rides assigned WHERE assigned.driver_id = d.id AND assigned.status = 'accepted') = 1
+              AND EXISTS (
+                SELECT 1
+                FROM rides current_ride
+                WHERE current_ride.driver_id = d.id
+                  AND current_ride.status = 'accepted'
+                  AND current_ride.started_at IS NOT NULL
+                  AND ST_DWithin(
+                    d.location,
+                    ST_SetSRID(ST_MakePoint(current_ride.dest_lng, current_ride.dest_lat), 4326)::geography,
+                    ${backToBackRadiusMeters}
+                  )
+              )
+            )
           )
           AND ST_DWithin(
             d.location,
@@ -407,11 +426,30 @@ export async function GET(request) {
                 AND n.driver_id = ${driver.id}
                 AND n.status IN ('pending', 'sent')
             )
-            AND NOT EXISTS (
-              SELECT 1
-              FROM rides active_ride
-              WHERE active_ride.driver_id = ${driver.id}
-                AND active_ride.status = 'accepted'
+            AND (
+              NOT EXISTS (
+                SELECT 1
+                FROM rides active_ride
+                WHERE active_ride.driver_id = ${driver.id}
+                  AND active_ride.status = 'accepted'
+              )
+              OR (
+                (SELECT count(*) FROM rides assigned WHERE assigned.driver_id = ${driver.id} AND assigned.status = 'accepted') = 1
+                AND EXISTS (
+                  SELECT 1
+                  FROM rides current_ride
+                  JOIN drivers current_driver ON current_driver.id = ${driver.id}
+                  WHERE current_ride.driver_id = ${driver.id}
+                    AND current_ride.status = 'accepted'
+                    AND current_ride.started_at IS NOT NULL
+                    AND current_driver.location IS NOT NULL
+                    AND ST_DWithin(
+                      current_driver.location,
+                      ST_SetSRID(ST_MakePoint(current_ride.dest_lng, current_ride.dest_lat), 4326)::geography,
+                      ${backToBackRadiusMeters}
+                    )
+                )
+              )
             )
           )
         ORDER BY
@@ -454,6 +492,14 @@ export async function GET(request) {
             d.last_lat as driver_last_lat,
             d.last_lng as driver_last_lng,
             (r.status = 'accepted' AND r.driver_id IS NOT NULL) AS can_call,
+            EXISTS (
+              SELECT 1
+              FROM rides previous_ride
+              WHERE previous_ride.driver_id = r.driver_id
+                AND previous_ride.id <> r.id
+                AND previous_ride.status = 'accepted'
+                AND previous_ride.started_at IS NOT NULL
+            ) AS driver_finishing_previous_ride,
             COALESCE((
               SELECT json_agg(o ORDER BY o.responded_at DESC)
               FROM ride_fare_offers o
@@ -480,6 +526,14 @@ export async function GET(request) {
             d.last_lat as driver_last_lat,
             d.last_lng as driver_last_lng,
             (r.status = 'accepted' AND r.driver_id IS NOT NULL) AS can_call,
+            EXISTS (
+              SELECT 1
+              FROM rides previous_ride
+              WHERE previous_ride.driver_id = r.driver_id
+                AND previous_ride.id <> r.id
+                AND previous_ride.status = 'accepted'
+                AND previous_ride.started_at IS NOT NULL
+            ) AS driver_finishing_previous_ride,
             COALESCE((
               SELECT json_agg(o ORDER BY o.responded_at DESC)
               FROM ride_fare_offers o
@@ -506,6 +560,14 @@ export async function GET(request) {
             d.last_lat as driver_last_lat,
             d.last_lng as driver_last_lng,
             (r.status = 'accepted' AND r.driver_id IS NOT NULL) AS can_call,
+            EXISTS (
+              SELECT 1
+              FROM rides previous_ride
+              WHERE previous_ride.driver_id = r.driver_id
+                AND previous_ride.id <> r.id
+                AND previous_ride.status = 'accepted'
+                AND previous_ride.started_at IS NOT NULL
+            ) AS driver_finishing_previous_ride,
             COALESCE((
               SELECT json_agg(o ORDER BY o.responded_at DESC)
               FROM ride_fare_offers o

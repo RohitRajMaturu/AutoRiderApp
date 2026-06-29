@@ -681,7 +681,9 @@ export default function PassengerHome() {
     channel.bind("ride-accepted", (data) => {
       notifyPassenger({
         title: "Driver accepted your booking",
-        body: "Your driver is heading to the pickup location.",
+        body: data?.queuedNext
+          ? "Your driver is finishing a nearby trip and will come to you next."
+          : "Your driver is heading to the pickup location.",
         type: "ride_accepted",
         rideId: data?.rideId || activeRideId,
         dedupeKey: `ride_accepted:${data?.rideId || activeRideId}`,
@@ -751,6 +753,16 @@ export default function PassengerHome() {
         type: "ride_completed",
         rideId: data?.rideId || activeRideId,
         dedupeKey: `ride_completed:${data?.rideId || activeRideId}`,
+      });
+      refreshRideLifecycle();
+    });
+    channel.bind("driver-ready", (data) => {
+      notifyPassenger({
+        title: "Driver is heading to you",
+        body: "The previous trip is complete. Your driver is now coming to your pickup.",
+        type: "driver_ready",
+        rideId: data?.rideId || activeRideId,
+        dedupeKey: `driver_ready:${data?.rideId || activeRideId}`,
       });
       refreshRideLifecycle();
     });
@@ -1102,6 +1114,8 @@ export default function PassengerHome() {
       : activeRide;
   const isTripStarted =
     activeRide?.status === "accepted" && Boolean(activeRide.started_at);
+  const isDriverFinishingPreviousRide =
+    activeRide?.status === "accepted" && Boolean(activeRide.driver_finishing_previous_ride);
   const passengerRideStatus = isTripStarted ? "in_progress" : activeRide?.status;
   const passengerRideStatusLabel = {
     requested: t("ride.badge.finding"),
@@ -1724,7 +1738,11 @@ export default function PassengerHome() {
                               letterSpacing: 0.6,
                             }}
                           >
-                            {isTripStarted ? "Trip started" : "Your vehicle is assigned"}
+                            {isTripStarted
+                              ? "Trip started"
+                              : isDriverFinishingPreviousRide
+                                ? "Next pickup confirmed"
+                                : "Your vehicle is assigned"}
                           </Text>
                           <Text
                             style={{
@@ -1738,12 +1756,16 @@ export default function PassengerHome() {
                               ? `${activeRide.vehicle_number} - ${getVehicleLabel(activeRide.vehicle_type)}`
                               : isTripStarted
                                 ? "Trip in progress"
-                                : "Driver on the way"}
+                                : isDriverFinishingPreviousRide
+                                  ? "Driver finishing a nearby trip"
+                                  : "Driver on the way"}
                           </Text>
                           <Text style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 4, lineHeight: 17 }}>
                             {isTripStarted
                               ? "You are on the way to your destination."
-                              : "Match this photo and plate before boarding."}
+                              : isDriverFinishingPreviousRide
+                                ? "You are the driver's next pickup. We will alert you when the driver starts heading your way."
+                                : "Match this photo and plate before boarding."}
                           </Text>
                         </View>
                       </View>

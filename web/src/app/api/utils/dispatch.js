@@ -38,6 +38,13 @@ export function getDriverRideRadiusMeters() { // PATCHED:
   }) * 1000;
 }
 
+export function getBackToBackDispatchRadiusMeters() {
+  return getEnvNumber("BACK_TO_BACK_DISPATCH_RADIUS_KM", 2, {
+    min: 0.5,
+    max: 10,
+  }) * 1000;
+}
+
 export async function findZoneForPoint(lat, lng, scopedSql = sql) {
   const rows = await scopedSql`
     SELECT id, name, max_online_drivers
@@ -78,6 +85,14 @@ export async function autoCancelGhostRides(scopedSql = sql) {
         updated_at = CURRENT_TIMESTAMP
     WHERE status = 'accepted'
       AND started_at IS NULL
+      AND NOT EXISTS (
+        SELECT 1
+        FROM rides current_ride
+        WHERE current_ride.driver_id = rides.driver_id
+          AND current_ride.id <> rides.id
+          AND current_ride.status = 'accepted'
+          AND current_ride.started_at IS NOT NULL
+      )
       AND accepted_at < CURRENT_TIMESTAMP - make_interval(mins => ${timeoutMinutes})
   `;
 }
@@ -91,6 +106,7 @@ export async function selectZoneDrivers(
 ) {
   if (!zoneId) return [];
   const radiusMeters = getDriverRideRadiusMeters();
+  const backToBackRadiusMeters = getBackToBackDispatchRadiusMeters();
   const rows = await scopedSql`
     WITH target_zone AS (
       SELECT id, boundary, max_online_drivers
@@ -118,11 +134,28 @@ export async function selectZoneDrivers(
       AND d.vehicle_type = ${vehicleType}
       AND d.subscription_expiry > CURRENT_TIMESTAMP
       AND d.location IS NOT NULL
-      AND NOT EXISTS (
-        SELECT 1
-        FROM rides active_ride
-        WHERE active_ride.driver_id = d.id
-          AND active_ride.status = 'accepted'
+      AND (
+        NOT EXISTS (
+          SELECT 1
+          FROM rides active_ride
+          WHERE active_ride.driver_id = d.id
+            AND active_ride.status = 'accepted'
+        )
+        OR (
+          (SELECT count(*) FROM rides assigned WHERE assigned.driver_id = d.id AND assigned.status = 'accepted') = 1
+          AND EXISTS (
+            SELECT 1
+            FROM rides current_ride
+            WHERE current_ride.driver_id = d.id
+              AND current_ride.status = 'accepted'
+              AND current_ride.started_at IS NOT NULL
+              AND ST_DWithin(
+                d.location,
+                ST_SetSRID(ST_MakePoint(current_ride.dest_lng, current_ride.dest_lat), 4326)::geography,
+                ${backToBackRadiusMeters}
+              )
+          )
+        )
       )
       AND ST_DWithin(
         d.location,
