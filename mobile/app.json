@@ -72,8 +72,7 @@
       "expo-notifications",
       "expo-secure-store",
       "expo-web-browser",
-      "@sentry/react-native",
-      "@react-native-community/datetimepicker"
+      "@sentry/react-native"
     ],
     "web": {
       "bundler": "metro",

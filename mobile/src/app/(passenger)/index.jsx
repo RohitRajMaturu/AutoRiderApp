@@ -16,7 +16,6 @@ import {
 } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import BottomSheet, { BottomSheetBackdrop, BottomSheetView } from "@gorhom/bottom-sheet";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import {
@@ -72,6 +71,18 @@ function scheduleWindowError(value, now = Date.now()) {
     return "Rides can be scheduled up to 24 hours ahead. Please choose an earlier pickup time.";
   }
   return null;
+}
+
+function buildScheduleSlots(now = Date.now()) {
+  const interval = 30 * 60 * 1000;
+  const earliest = now + 20 * 60 * 1000;
+  const latest = now + 24 * 60 * 60 * 1000;
+  const firstSlot = Math.ceil(earliest / interval) * interval;
+  const slots = [];
+  for (let value = firstSlot; value <= latest; value += interval) {
+    slots.push(new Date(value));
+  }
+  return slots;
 }
 
 function openGoogleMaps(destLat, destLng, destLabel) {
@@ -201,8 +212,7 @@ export default function PassengerHome() {
   const [sosPending, setSosPending] = useState(false);
   const [isScheduling, setIsScheduling] = useState(false);
   const [scheduledFor, setScheduledFor] = useState(null);
-  const [schedulePickerMode, setSchedulePickerMode] = useState(null);
-  const [scheduleDraft, setScheduleDraft] = useState(null);
+  const [scheduleChooserOpen, setScheduleChooserOpen] = useState(false);
   const lastActiveRideIdRef = useRef(null);
   const selfCancelledRideIdsRef = useRef(new Set());
   const notifiedCancelledRideIdsRef = useRef(new Set());
@@ -795,8 +805,7 @@ export default function PassengerHome() {
       setFareInputError("");
       setIsScheduling(false);
       setScheduledFor(null);
-      setSchedulePickerMode(null);
-      setScheduleDraft(null);
+      setScheduleChooserOpen(false);
       setFocusedField(null);
     },
     onError: (err) => Alert.alert("Request Failed", err.message),
@@ -951,6 +960,7 @@ export default function PassengerHome() {
   };
 
   const scheduleError = isScheduling ? scheduleWindowError(scheduledFor) : null;
+  const scheduleSlots = buildScheduleSlots();
   const canRequest =
     pickup.trim().length > 0 &&
     destination.trim().length > 0 &&
@@ -2488,7 +2498,7 @@ export default function PassengerHome() {
                       if (!scheduledFor) setScheduledFor(new Date(Date.now() + 30 * 60 * 1000));
                       setNegotiationMode("fixed");
                     } else {
-                      setSchedulePickerMode(null);
+                      setScheduleChooserOpen(false);
                     }
                     return next;
                   });
@@ -2519,9 +2529,10 @@ export default function PassengerHome() {
                     <Text style={{ fontSize: 11, fontWeight: "800", color: TEXT_MUTED, marginBottom: 8 }}>Quick choices</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
                       {[
-                        { label: "30 min", minutes: 30 },
+                        // Keep a one-minute submission buffer so the 15-minute choice
+                        // still clears the server minimum after the passenger confirms.
+                        { label: "15 min", minutes: 16 },
                         { label: "1 hour", minutes: 60 },
-                        { label: "2 hours", minutes: 120 },
                         { label: "4 hours", minutes: 240 },
                       ].map((option) => (
                         <TouchableOpacity
@@ -2538,26 +2549,29 @@ export default function PassengerHome() {
                     </ScrollView>
                   </View>
 
-                  <View style={{ flexDirection: "row", gap: 10 }}>
-                    {[
-                      { mode: "date", label: "Date", value: scheduledFor.toLocaleDateString("en-IN", { day: "numeric", month: "short" }) },
-                      { mode: "time", label: "Time", value: scheduledFor.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" }) },
-                    ].map((item) => (
-                      <TouchableOpacity
-                        key={item.mode}
-                        onPress={() => {
-                          setScheduleDraft(new Date(scheduledFor));
-                          setSchedulePickerMode(item.mode);
-                        }}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Change pickup ${item.label.toLowerCase()}`}
-                        style={{ flex: 1, borderRadius: 13, borderWidth: 1, borderColor: BORDER, backgroundColor: SURFACE, padding: 13 }}
-                      >
-                        <Text style={{ fontSize: 10, fontWeight: "800", color: TEXT_MUTED, textTransform: "uppercase" }}>{item.label}</Text>
-                        <Text style={{ fontSize: 15, fontWeight: "900", color: TEXT, marginTop: 4 }}>{item.value}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
+                  <TouchableOpacity
+                    onPress={() => setScheduleChooserOpen(true)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Choose another pickup date and time"
+                    style={{
+                      borderRadius: 13,
+                      borderWidth: 1,
+                      borderColor: PRIMARY_BORDER,
+                      backgroundColor: SURFACE,
+                      paddingHorizontal: 14,
+                      paddingVertical: 13,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 10,
+                    }}
+                  >
+                    <Clock size={ICON.sm} color={PRIMARY} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 13, fontWeight: "900", color: TEXT }}>Choose another pickup slot</Text>
+                      <Text style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 2 }}>Select date and time together in one tap</Text>
+                    </View>
+                    <Text style={{ color: PRIMARY, fontSize: 18, fontWeight: "900" }}>›</Text>
+                  </TouchableOpacity>
 
                   <View style={{ flexDirection: "row", gap: 8, borderRadius: 12, backgroundColor: "#FFF7ED", borderWidth: 1, borderColor: "#FED7AA", padding: 11 }}>
                     <Clock size={ICON.sm} color="#C2410C" />
@@ -2574,75 +2588,86 @@ export default function PassengerHome() {
             </View>
 
             <Modal
-              visible={!!schedulePickerMode}
+              visible={scheduleChooserOpen}
               transparent
               animationType="fade"
-              onRequestClose={() => setSchedulePickerMode(null)}
+              onRequestClose={() => setScheduleChooserOpen(false)}
             >
               <Pressable
-                onPress={() => setSchedulePickerMode(null)}
+                onPress={() => setScheduleChooserOpen(false)}
                 style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(23,39,43,0.45)" }}
               >
-                <Pressable onPress={() => {}} style={{ backgroundColor: SURFACE, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 32 }}>
+                <Pressable onPress={() => {}} style={{ backgroundColor: SURFACE, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 32, maxHeight: "82%" }}>
                   <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
                     <View>
-                      <Text style={{ fontSize: 19, fontWeight: "900", color: TEXT }}>
-                        Choose pickup {schedulePickerMode}
-                      </Text>
-                      <Text style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 3 }}>15 minutes to 24 hours from now</Text>
+                      <Text style={{ fontSize: 19, fontWeight: "900", color: TEXT }}>Choose pickup slot</Text>
+                      <Text style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 3 }}>Date and time are combined for you</Text>
                     </View>
-                    <TouchableOpacity onPress={() => setSchedulePickerMode(null)} hitSlop={10}>
+                    <TouchableOpacity onPress={() => setScheduleChooserOpen(false)} hitSlop={10}>
                       <X size={ICON.md} color={TEXT_MUTED} />
                     </TouchableOpacity>
                   </View>
 
-                  {scheduleDraft ? (
-                    <View style={{ borderRadius: 16, backgroundColor: "#F7FBFA", borderWidth: 1, borderColor: BORDER, paddingVertical: Platform.OS === "ios" ? 4 : 14, alignItems: "center" }}>
-                      <DateTimePicker
-                        value={scheduleDraft}
-                        mode={schedulePickerMode || "date"}
-                        display={Platform.OS === "ios" ? "spinner" : "default"}
-                        minimumDate={new Date(Date.now() + 15 * 60 * 1000)}
-                        maximumDate={new Date(Date.now() + 24 * 60 * 60 * 1000)}
-                        onChange={(_, date) => {
-                          if (!date) return;
-                          const next = new Date(scheduleDraft);
-                          if (schedulePickerMode === "date") {
-                            next.setFullYear(date.getFullYear(), date.getMonth(), date.getDate());
-                          } else {
-                            next.setHours(date.getHours(), date.getMinutes(), 0, 0);
-                          }
-                          if (Platform.OS !== "ios") {
-                            const error = scheduleWindowError(next);
-                            setSchedulePickerMode(null);
-                            if (error) {
-                              Alert.alert("Choose a pickup time", error);
-                              return;
-                            }
-                            setScheduledFor(next);
-                            Haptics.selectionAsync();
-                            return;
-                          }
-                          setScheduleDraft(next);
-                        }}
-                      />
-                    </View>
-                  ) : null}
+                  <View style={{ flexDirection: "row", gap: 8, borderRadius: 12, backgroundColor: PRIMARY_LIGHT, borderWidth: 1, borderColor: PRIMARY_BORDER, padding: 10, marginBottom: 12 }}>
+                    <Clock size={ICON.sm} color={PRIMARY} />
+                    <Text style={{ flex: 1, color: PRIMARY, fontSize: 11, lineHeight: 17, fontWeight: "700" }}>
+                      Available pickup slots for the next 24 hours. Tap one option to select it.
+                    </Text>
+                  </View>
 
+                  <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 8 }}>
+                    {scheduleSlots.map((slot, index) => {
+                      const previous = scheduleSlots[index - 1];
+                      const showDay = !previous || previous.toDateString() !== slot.toDateString();
+                      const selected = scheduledFor && Math.abs(slot.getTime() - scheduledFor.getTime()) < 60 * 1000;
+                      return (
+                        <React.Fragment key={slot.toISOString()}>
+                          {showDay ? (
+                            <Text style={{ fontSize: 11, fontWeight: "900", color: TEXT_MUTED, textTransform: "uppercase", letterSpacing: 0.7, marginTop: index ? 14 : 2, marginBottom: 7 }}>
+                              {slot.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}
+                            </Text>
+                          ) : null}
+                          <TouchableOpacity
+                            onPress={() => {
+                              setScheduledFor(slot);
+                              setScheduleChooserOpen(false);
+                              Haptics.selectionAsync();
+                            }}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Schedule pickup for ${slot.toLocaleString("en-IN")}`}
+                            style={{
+                              minHeight: 52,
+                              borderRadius: 12,
+                              borderWidth: 1,
+                              borderColor: selected ? PRIMARY : BORDER,
+                              backgroundColor: selected ? PRIMARY_LIGHT : SURFACE,
+                              paddingHorizontal: 14,
+                              paddingVertical: 12,
+                              marginBottom: 8,
+                              flexDirection: "row",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                            }}
+                          >
+                            <View>
+                              <Text style={{ fontSize: 15, fontWeight: "900", color: TEXT }}>
+                                {slot.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}
+                              </Text>
+                              <Text style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 2 }}>
+                                {slot.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" })}
+                              </Text>
+                            </View>
+                            {selected ? <CheckCircle2 size={ICON.md} color={PRIMARY} /> : <Text style={{ color: PRIMARY, fontWeight: "900" }}>Select</Text>}
+                          </TouchableOpacity>
+                        </React.Fragment>
+                      );
+                    })}
+                  </ScrollView>
                   <TouchableOpacity
-                    onPress={() => {
-                      const error = scheduleWindowError(scheduleDraft);
-                      if (error) {
-                        Alert.alert("Choose a pickup time", error);
-                        return;
-                      }
-                      setScheduledFor(scheduleDraft);
-                      setSchedulePickerMode(null);
-                      Haptics.selectionAsync();
-                    }}
-                    style={{ marginTop: 16, borderRadius: 14, backgroundColor: PRIMARY, paddingVertical: 15, alignItems: "center" }}
+                    onPress={() => setScheduleChooserOpen(false)}
+                    style={{ marginTop: 8, borderRadius: 14, borderWidth: 1, borderColor: BORDER, paddingVertical: 13, alignItems: "center" }}
                   >
-                    <Text style={{ color: "#fff", fontSize: 15, fontWeight: "900" }}>Use this pickup time</Text>
+                    <Text style={{ color: TEXT_SECONDARY, fontSize: 14, fontWeight: "800" }}>Keep current selection</Text>
                   </TouchableOpacity>
                 </Pressable>
               </Pressable>
