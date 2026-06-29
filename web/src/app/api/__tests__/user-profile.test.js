@@ -77,4 +77,23 @@ describe("PUT /api/user-profile", () => {
     expect(body.user.name).toBe("Test Passenger");
     expect(mocks.sql).toHaveBeenCalledOnce();
   });
+
+  it("rejects more than five saved places", async () => {
+    const { PATCH } = await import("@/app/api/user-profile/route.js");
+    const savedPlaces = Array.from({ length: 6 }, (_, index) => ({
+      id: `place-${index}`,
+      label: "Home",
+      address: "Saved address",
+      lat: 17.4,
+      lng: 78.4,
+    }));
+    const response = await PATCH(new Request("http://localhost/api/user-profile", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ savedPlaces }),
+    }));
+
+    expect(response.status).toBe(400);
+    expect(mocks.sql).not.toHaveBeenCalled();
+  });
 });

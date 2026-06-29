@@ -185,6 +185,7 @@ export default function PassengerHome() {
   const [sosPending, setSosPending] = useState(false);
   const [isScheduling, setIsScheduling] = useState(false);
   const [scheduledFor, setScheduledFor] = useState(null);
+  const [schedulePickerMode, setSchedulePickerMode] = useState(null);
   const lastActiveRideIdRef = useRef(null);
   const selfCancelledRideIdsRef = useRef(new Set());
   const notifiedCancelledRideIdsRef = useRef(new Set());
@@ -243,6 +244,7 @@ export default function PassengerHome() {
   });
   const activeRideId = activeRide?.id;
   const activeRideStatus = activeRide?.status;
+  const activeRideNegotiationExpiresAt = activeRide?.negotiation_expires_at;
 
   const { data: profileData } = useQuery({
     queryKey: ["userProfile", authUserKey],
@@ -567,8 +569,8 @@ export default function PassengerHome() {
 
   useEffect(() => {
     if (
-      !activeRide ||
-      !["requested", "negotiating"].includes(activeRide.status)
+      !activeRideId ||
+      !["requested", "negotiating"].includes(activeRideStatus)
     ) {
       return;
     }
@@ -576,7 +578,7 @@ export default function PassengerHome() {
     const pusher = createRidePusher({ jwt: auth?.jwt });
     if (!pusher) return;
 
-    const channelName = `private-ride-${activeRide.id}`;
+    const channelName = `private-ride-${activeRideId}`;
     const channel = pusher.subscribe(channelName);
 
     channel.bind("counter-offer", (data) => {
@@ -612,7 +614,7 @@ export default function PassengerHome() {
       pusher.unsubscribe(channelName);
       pusher.disconnect();
     };
-  }, [activeRide?.id, activeRide?.status, auth?.jwt, queryClient]);
+  }, [activeRideId, activeRideStatus, auth?.jwt, queryClient]);
 
   useEffect(() => {
     if (!activeRideId || activeRideStatus !== "accepted") {
@@ -655,7 +657,7 @@ export default function PassengerHome() {
     };
   }, [activeRideId, activeRideStatus, auth?.jwt, queryClient]);
 
-  const expireNegotiation = useMutation({
+  const { mutate: expireNegotiation, isPending: expireNegotiationPending } = useMutation({
     mutationFn: async (rideId) => {
       const res = await fetch(`/api/rides/${rideId}/expire-negotiation`, {
         method: "POST",
@@ -673,24 +675,24 @@ export default function PassengerHome() {
   });
 
   useEffect(() => {
-    if (!activeRide || activeRide.status !== "negotiating") {
+    if (!activeRideId || activeRideStatus !== "negotiating") {
       setNegotiationRemaining(0);
       return;
     }
 
-    const expiresAt = new Date(activeRide.negotiation_expires_at).getTime();
+    const expiresAt = new Date(activeRideNegotiationExpiresAt).getTime();
     const tick = () => {
       const remaining = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
       setNegotiationRemaining(remaining);
-      if (remaining === 0 && !expireNegotiation.isPending) {
-        expireNegotiation.mutate(activeRide.id);
+      if (remaining === 0 && !expireNegotiationPending) {
+        expireNegotiation(activeRideId);
       }
     };
 
     tick();
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
-  }, [activeRide?.id, activeRide?.status, activeRide?.negotiation_expires_at, expireNegotiation.isPending]);
+  }, [activeRideId, activeRideStatus, activeRideNegotiationExpiresAt, expireNegotiation, expireNegotiationPending]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -755,6 +757,7 @@ export default function PassengerHome() {
       setFareInputError("");
       setIsScheduling(false);
       setScheduledFor(null);
+      setSchedulePickerMode(null);
       setFocusedField(null);
     },
     onError: (err) => Alert.alert("Request Failed", err.message),
@@ -2417,6 +2420,8 @@ export default function PassengerHome() {
                     if (next) {
                       if (!scheduledFor) setScheduledFor(new Date(Date.now() + 30 * 60 * 1000));
                       setNegotiationMode("fixed");
+                    } else {
+                      setSchedulePickerMode(null);
                     }
                     return next;
                   });
@@ -2439,34 +2444,35 @@ export default function PassengerHome() {
                   <Text style={{ fontSize: 12, fontWeight: "800", color: PRIMARY }}>
                     Pickup: {scheduledFor.toLocaleString("en-IN", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}
                   </Text>
-                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-around" }}>
+                  <View style={{ flexDirection: "row", gap: 10 }}>
+                    <TouchableOpacity onPress={() => setSchedulePickerMode("date")} style={{ flex: 1, borderRadius: 10, borderWidth: 1, borderColor: PRIMARY_BORDER, backgroundColor: PRIMARY_LIGHT, paddingVertical: 10, alignItems: "center" }}>
+                      <Text style={{ color: PRIMARY, fontSize: 12, fontWeight: "800" }}>Change date</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => setSchedulePickerMode("time")} style={{ flex: 1, borderRadius: 10, borderWidth: 1, borderColor: PRIMARY_BORDER, backgroundColor: PRIMARY_LIGHT, paddingVertical: 10, alignItems: "center" }}>
+                      <Text style={{ color: PRIMARY, fontSize: 12, fontWeight: "800" }}>Change time</Text>
+                    </TouchableOpacity>
+                  </View>
+                  {schedulePickerMode ? (
                     <DateTimePicker
                       value={scheduledFor}
-                      mode="date"
+                      mode={schedulePickerMode}
                       minimumDate={new Date(Date.now() + 15 * 60 * 1000)}
                       maximumDate={new Date(Date.now() + 24 * 60 * 60 * 1000)}
                       onChange={(_, date) => {
+                        if (Platform.OS !== "ios") setSchedulePickerMode(null);
                         if (!date) return;
                         const next = new Date(scheduledFor);
-                        next.setFullYear(date.getFullYear(), date.getMonth(), date.getDate());
-                        setScheduledFor(next);
-                      }}
-                    />
-                    <DateTimePicker
-                      value={scheduledFor}
-                      mode="time"
-                      minimumDate={new Date(Date.now() + 15 * 60 * 1000)}
-                      maximumDate={new Date(Date.now() + 24 * 60 * 60 * 1000)}
-                      onChange={(_, date) => {
-                        if (!date) return;
-                        const next = new Date(scheduledFor);
-                        next.setHours(date.getHours(), date.getMinutes(), 0, 0);
+                        if (schedulePickerMode === "date") {
+                          next.setFullYear(date.getFullYear(), date.getMonth(), date.getDate());
+                        } else {
+                          next.setHours(date.getHours(), date.getMinutes(), 0, 0);
+                        }
                         const minimum = Date.now() + 15 * 60 * 1000;
                         const maximum = Date.now() + 24 * 60 * 60 * 1000;
                         setScheduledFor(new Date(Math.min(Math.max(next.getTime(), minimum), maximum)));
                       }}
                     />
-                  </View>
+                  ) : null}
                 </View>
               ) : null}
             </View>

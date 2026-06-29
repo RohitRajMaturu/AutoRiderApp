@@ -2,6 +2,8 @@
 
 A lightweight auto-rickshaw ride connection platform for India.
 
+Pilot earnings, saved places, link-based SOS tracking, scheduled rides, and driver incentives are documented in [docs/PILOT_FEATURE_PACK.md](docs/PILOT_FEATURE_PACK.md).
+
 ## Tech Stack
 - **Frontend**: React Native (Expo)
 - **Backend**: React Router server routes on Node.js

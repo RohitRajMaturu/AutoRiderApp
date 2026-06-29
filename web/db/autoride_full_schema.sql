@@ -641,6 +641,15 @@ BEGIN
 END$$;
 
 -- =========================================================================
+-- 020_saved_places.sql
+-- =========================================================================
+ALTER TABLE auth_users
+  ADD COLUMN IF NOT EXISTS saved_places jsonb NOT NULL DEFAULT '[]'::jsonb;
+
+COMMENT ON COLUMN auth_users.saved_places IS
+  'Array of {id, label, address, placeId, lat, lng}. Max 5 entries.';
+
+-- =========================================================================
 -- 021_auto_only_vehicle_default.sql
 -- =========================================================================
 -- Auto-rickshaw is the only active vehicle type for the current product.
@@ -660,29 +669,7 @@ ALTER TABLE rides
   ALTER COLUMN vehicle_type SET DEFAULT 'auto';
 
 -- =========================================================================
--- 022_passenger_ratings.sql
--- =========================================================================
--- Allow the assigned driver to rate the passenger after a completed ride.
-ALTER TABLE rides
-  ADD COLUMN IF NOT EXISTS passenger_rating smallint
-    CHECK (passenger_rating BETWEEN 1 AND 5),
-  ADD COLUMN IF NOT EXISTS passenger_rating_feedback text
-    CHECK (
-      passenger_rating_feedback IS NULL
-      OR char_length(passenger_rating_feedback) <= 280
-    );
-
--- =========================================================================
--- 020_saved_places.sql (Pilot Feature Pack)
--- =========================================================================
-ALTER TABLE auth_users
-  ADD COLUMN IF NOT EXISTS saved_places jsonb NOT NULL DEFAULT '[]'::jsonb;
-
-COMMENT ON COLUMN auth_users.saved_places IS
-  'Array of {id, label, address, placeId, lat, lng}. Max 5 entries.';
-
--- =========================================================================
--- 021_sos_tracking.sql (Pilot Feature Pack)
+-- 021_sos_tracking.sql
 -- =========================================================================
 CREATE TABLE IF NOT EXISTS sos_tracking_tokens (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -702,7 +689,20 @@ CREATE INDEX IF NOT EXISTS idx_sos_tracking_ride
   ON sos_tracking_tokens(ride_id);
 
 -- =========================================================================
--- 022_scheduled_rides.sql (Pilot Feature Pack)
+-- 022_passenger_ratings.sql
+-- =========================================================================
+-- Allow the assigned driver to rate the passenger after a completed ride.
+ALTER TABLE rides
+  ADD COLUMN IF NOT EXISTS passenger_rating smallint
+    CHECK (passenger_rating BETWEEN 1 AND 5),
+  ADD COLUMN IF NOT EXISTS passenger_rating_feedback text
+    CHECK (
+      passenger_rating_feedback IS NULL
+      OR char_length(passenger_rating_feedback) <= 280
+    );
+
+-- =========================================================================
+-- 022_scheduled_rides.sql
 -- =========================================================================
 ALTER TABLE rides
   ADD COLUMN IF NOT EXISTS scheduled_for timestamptz;
@@ -719,7 +719,7 @@ CREATE INDEX IF NOT EXISTS idx_rides_scheduled_pending
   WHERE status = 'requested' AND scheduled_for IS NOT NULL;
 
 -- =========================================================================
--- 023_driver_incentives.sql (Pilot Feature Pack)
+-- 023_driver_incentives.sql
 -- =========================================================================
 CREATE TABLE IF NOT EXISTS driver_incentives (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

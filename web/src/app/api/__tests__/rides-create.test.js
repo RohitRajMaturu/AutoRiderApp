@@ -130,4 +130,48 @@ describe("POST /api/rides", () => {
     expect(response.status).toBe(202);
     expect(insertedVehicleType).toBe("auto");
   });
+
+  it("stores a scheduled ride without dispatching it immediately", async () => {
+    mocks.auth.mockResolvedValue({ user: { id: "passenger-1" } });
+    mocks.findZoneForPoint.mockResolvedValue({ id: "zone-1", name: "Central" });
+    mocks.getRouteEstimate.mockResolvedValue({
+      distanceKm: 4.2,
+      durationMins: 15,
+      estimatedFare: 110,
+      polyline: null,
+      provider: "local",
+    });
+    mocks.sendPushToUsers.mockResolvedValue({ sent: 0, failed: 0 });
+    const scheduledFor = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+    let insertedSchedule;
+    mocks.sql.mockImplementation(async (strings, ...values) => {
+      const text = Array.isArray(strings) ? strings.join(" ") : String(strings);
+      if (text.includes("SELECT id FROM rides")) return [];
+      if (text.includes("INSERT INTO rides")) {
+        insertedSchedule = values[21];
+        return [{ id: "ride-2", zone_id: "zone-1", status: "requested" }];
+      }
+      if (text.includes("FROM ride_driver_notifications")) return [];
+      throw new Error(`Unexpected SQL: ${text}`);
+    });
+
+    const { POST } = await import("@/app/api/rides/route.js");
+    const response = await POST(new Request("http://localhost/api/rides", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        pickup_address: "Pickup address",
+        dest_address: "Destination address",
+        pickup_lat: 17.4,
+        pickup_lng: 78.4,
+        dest_lat: 17.5,
+        dest_lng: 78.5,
+        scheduledFor,
+      }),
+    }));
+
+    expect(response.status).toBe(202);
+    expect(insertedSchedule.toISOString()).toBe(scheduledFor);
+    expect(mocks.dispatchRideRequest).not.toHaveBeenCalled();
+  });
 });
