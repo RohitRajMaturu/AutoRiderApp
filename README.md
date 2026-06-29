@@ -2,7 +2,7 @@
 
 A lightweight auto-rickshaw ride connection platform for India.
 
-Pilot earnings, saved places, link-based SOS tracking, scheduled rides, and driver incentives are documented in [docs/PILOT_FEATURE_PACK.md](docs/PILOT_FEATURE_PACK.md).
+Architecture, setup, operations, QA, design guidance, feature status, and pending work are consolidated in [PROJECT_GUIDE.md](PROJECT_GUIDE.md).
 
 ## Tech Stack
 - **Frontend**: React Native (Expo)
@@ -21,8 +21,8 @@ Pilot earnings, saved places, link-based SOS tracking, scheduled rides, and driv
 
 ## Getting Started
 
-For setup on another developer's computer or phone, follow
-[TEAM_EXPO_SETUP.md](./TEAM_EXPO_SETUP.md).
+For setup on another developer's computer or phone, follow the
+[local setup guide](PROJECT_GUIDE.md#repository-and-local-setup).
 
 Start the mobile app with the project-isolated Metro cache:
 
@@ -377,9 +377,9 @@ use separate projects so releases and alerts remain attributable.
 
 Real-device E2E checklist:
 
-- Run [docs/REAL_DEVICE_E2E_CHECKLIST.md](docs/REAL_DEVICE_E2E_CHECKLIST.md)
+- Run the [consolidated release validation](PROJECT_GUIDE.md#release-validation)
   before launch and after ride lifecycle or auth changes.
-- Track launch blockers in [docs/PENDING_TASKS.md](docs/PENDING_TASKS.md).
+- Track launch blockers in [remaining work](PROJECT_GUIDE.md#remaining-work).
 
 ## Completed Driver KYC Work
 
@@ -456,7 +456,7 @@ TukTukGo has a standalone premium motion system for Indian auto-rickshaw booking
 - Generated Lottie JSON assets: `mobile/assets/animations/auto-motion`.
 - Asset generator: `mobile/scripts/generate-auto-motion-assets.mjs`.
 - React Native runtime components: `mobile/src/components/motion`.
-- Full storyboard, timing, Lottie, Rive, theme, and implementation guide: `docs/MOTION_SYSTEM.md`.
+- Motion runtime, performance, palette, and implementation guidance: [PROJECT_GUIDE.md](PROJECT_GUIDE.md#mobile-ui-accessibility-and-motion).
 
 Regenerate the compact vector Lottie assets after palette changes:
 
