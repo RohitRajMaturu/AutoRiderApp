@@ -57,6 +57,39 @@ function readDateOfBirth(value) {
   return date >= earliest && date <= latest ? value : false;
 }
 
+function validateSavedPlaces(value) {
+  if (!Array.isArray(value) || value.length > 5) return null;
+
+  const normalized = [];
+  for (const place of value) {
+    if (!place || typeof place !== "object" || Array.isArray(place)) return null;
+    const id = typeof place.id === "string" ? place.id.trim() : "";
+    const label = typeof place.label === "string" ? place.label.trim() : "";
+    const address = typeof place.address === "string" ? place.address.trim() : "";
+    const lat = place.lat;
+    const lng = place.lng;
+    const placeId = place.placeId;
+    if (
+      !id || id.length > 100 || !label || label.length > 30 ||
+      !address || address.length > 200 || typeof lat !== "number" ||
+      !Number.isFinite(lat) || typeof lng !== "number" || !Number.isFinite(lng) ||
+      lat < -90 || lat > 90 || lng < -180 || lng > 180 ||
+      (placeId !== undefined && placeId !== null && typeof placeId !== "string")
+    ) {
+      return null;
+    }
+    normalized.push({
+      id,
+      label,
+      address,
+      ...(placeId ? { placeId: placeId.trim().slice(0, 255) } : {}),
+      lat,
+      lng,
+    });
+  }
+  return normalized;
+}
+
 function getOrigin(request) {
   const forwardedProto = request.headers.get("x-forwarded-proto");
   const forwardedHost = request.headers.get("x-forwarded-host");
@@ -73,7 +106,7 @@ export async function GET(request) {
 
     const rows = await sql`
       SELECT id, email, role, name, phone, image, date_of_birth::text AS date_of_birth, gender_identity,
-             emergency_contact_name, emergency_contact_phone, preferred_language,
+             emergency_contact_name, emergency_contact_phone, preferred_language, saved_places,
              accessibility_needs, profile_completed_at, data_consent_given,
              data_consent_at, data_consent_version
       FROM auth_users 
@@ -85,15 +118,54 @@ export async function GET(request) {
       return Response.json({ error: "User not found" }, { status: 404 });
     }
 
+    const savedPlaces = rows[0].saved_places ?? [];
     return Response.json({
+      savedPlaces,
       user: {
         ...rows[0],
+        savedPlaces,
         image_storage_path: rows[0].image || null,
         image: resolveUploadUrl(rows[0].image, getOrigin(request)),
       },
     });
   } catch (err) {
     console.error("GET /api/user-profile error:", err);
+    return Response.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}
+
+export async function PATCH(request) {
+  try {
+    const session = await auth(request);
+    if (!session?.user?.id) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    if (body.savedPlaces === undefined) {
+      return Response.json({ error: "savedPlaces is required" }, { status: 400 });
+    }
+    const savedPlaces = validateSavedPlaces(body.savedPlaces);
+    if (!savedPlaces) {
+      return Response.json(
+        { error: "savedPlaces must contain at most 5 valid places" },
+        { status: 400 },
+      );
+    }
+
+    const rows = await sql`
+      UPDATE auth_users
+      SET saved_places = ${JSON.stringify(savedPlaces)}::jsonb,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${session.user.id}
+      RETURNING saved_places
+    `;
+    if (rows.length === 0) {
+      return Response.json({ error: "User not found" }, { status: 404 });
+    }
+    return Response.json({ ok: true, savedPlaces: rows[0].saved_places ?? [] });
+  } catch (err) {
+    console.error("PATCH /api/user-profile error:", err);
     return Response.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

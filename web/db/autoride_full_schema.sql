@@ -671,3 +671,12 @@ ALTER TABLE rides
       passenger_rating_feedback IS NULL
       OR char_length(passenger_rating_feedback) <= 280
     );
+
+-- =========================================================================
+-- 020_saved_places.sql (Pilot Feature Pack)
+-- =========================================================================
+ALTER TABLE auth_users
+  ADD COLUMN IF NOT EXISTS saved_places jsonb NOT NULL DEFAULT '[]'::jsonb;
+
+COMMENT ON COLUMN auth_users.saved_places IS
+  'Array of {id, label, address, placeId, lat, lng}. Max 5 entries.';

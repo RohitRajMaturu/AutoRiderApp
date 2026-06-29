@@ -17,6 +17,10 @@ import {
   CalendarDays,
   HelpCircle,
   FlaskConical,
+  MapPin,
+  Pencil,
+  Plus,
+  Trash2,
 } from "lucide-react-native";
 import { StatusBar } from "expo-status-bar";
 import useAppStore from "@/store/useAppStore";
@@ -282,6 +286,171 @@ function ProfileTextField({
       {helper ? (
         <Text style={{ color: TEXT_MUTED, fontSize: 11, marginTop: 5 }}>{helper}</Text>
       ) : null}
+    </View>
+  );
+}
+
+function createSavedPlaceId() {
+  return `place-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function SavedPlacesSection({ savedPlaces, onChange, pending, disabled }) {
+  const [visible, setVisible] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [label, setLabel] = useState("Home");
+  const [address, setAddress] = useState("");
+  const [selectedPlace, setSelectedPlace] = useState(null);
+  const [suggestions, setSuggestions] = useState([]);
+
+  useEffect(() => {
+    if (!visible || address.trim().length < 2 || selectedPlace?.address === address) {
+      setSuggestions([]);
+      return undefined;
+    }
+    const timeout = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/locations/autocomplete?q=${encodeURIComponent(address.trim())}`);
+        const body = await res.json();
+        setSuggestions(res.ok ? body.suggestions || [] : []);
+      } catch {
+        setSuggestions([]);
+      }
+    }, 250);
+    return () => clearTimeout(timeout);
+  }, [address, selectedPlace?.address, visible]);
+
+  const close = () => {
+    setVisible(false);
+    setEditingId(null);
+    setLabel("Home");
+    setAddress("");
+    setSelectedPlace(null);
+    setSuggestions([]);
+  };
+
+  const openEditor = (place = null) => {
+    setEditingId(place?.id || null);
+    setLabel(place?.label || "Home");
+    setAddress(place?.address || "");
+    setSelectedPlace(place);
+    setVisible(true);
+  };
+
+  const choosePlace = async (place) => {
+    let resolved = place;
+    if ((!place.lat || !place.lng) && place.placeId) {
+      const res = await fetch(`/api/locations/place/${encodeURIComponent(place.placeId)}`);
+      const body = await res.json().catch(() => ({}));
+      if (res.ok && body.place) resolved = body.place;
+    }
+    if (typeof resolved.lat !== "number" || typeof resolved.lng !== "number") {
+      Alert.alert("Location unavailable", "Choose another address with map coordinates.");
+      return;
+    }
+    setAddress(resolved.address || resolved.label);
+    setSelectedPlace(resolved);
+    setSuggestions([]);
+  };
+
+  const save = async () => {
+    const cleanLabel = label.trim();
+    if (!cleanLabel || !selectedPlace || selectedPlace.address !== address) {
+      Alert.alert("Select a place", "Add a label and choose an address from the suggestions.");
+      return;
+    }
+    const nextPlace = {
+      id: editingId || createSavedPlaceId(),
+      label: cleanLabel,
+      address: selectedPlace.address,
+      placeId: selectedPlace.placeId || null,
+      lat: Number(selectedPlace.lat),
+      lng: Number(selectedPlace.lng),
+    };
+    const next = editingId
+      ? savedPlaces.map((place) => (place.id === editingId ? nextPlace : place))
+      : [...savedPlaces, nextPlace];
+    await onChange(next);
+    close();
+  };
+
+  const remove = (place) => {
+    Alert.alert("Delete saved place?", `${place.label} will be removed from your shortcuts.`, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Delete", style: "destructive", onPress: () => onChange(savedPlaces.filter((item) => item.id !== place.id)) },
+    ]);
+  };
+
+  return (
+    <View style={{ margin: 16, marginBottom: 0 }}>
+      <View style={{ backgroundColor: SURFACE, borderRadius: 16, borderWidth: 1, borderColor: BORDER, padding: 16 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 11, fontWeight: "700", color: TEXT_MUTED, textTransform: "uppercase", letterSpacing: 0.8 }}>
+              Saved Places
+            </Text>
+            <Text style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 4 }}>
+              Quick destinations for booking ({savedPlaces.length}/5)
+            </Text>
+          </View>
+          <MapPin size={ICON.md} color={PRIMARY} />
+        </View>
+
+        {savedPlaces.map((place) => (
+          <View key={place.id} style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: BORDER }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 14, fontWeight: "800", color: TEXT }}>{place.label}</Text>
+              <Text numberOfLines={2} style={{ fontSize: 12, color: TEXT_MUTED, marginTop: 3 }}>{place.address}</Text>
+            </View>
+            <TouchableOpacity onPress={() => openEditor(place)} disabled={pending || disabled} hitSlop={8}>
+              <Pencil size={ICON.sm} color={PRIMARY} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => remove(place)} disabled={pending || disabled} hitSlop={8}>
+              <Trash2 size={ICON.sm} color="#DC2626" />
+            </TouchableOpacity>
+          </View>
+        ))}
+
+        {savedPlaces.length < 5 ? (
+          <TouchableOpacity
+            onPress={() => openEditor()}
+            disabled={pending || disabled}
+            style={{ marginTop: 14, borderRadius: 12, borderWidth: 1, borderColor: PRIMARY_BORDER, backgroundColor: PRIMARY_LIGHT, paddingVertical: 12, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 8 }}
+          >
+            <Plus size={ICON.sm} color={PRIMARY} />
+            <Text style={{ color: PRIMARY, fontSize: 13, fontWeight: "800" }}>Add Place</Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+
+      <Modal visible={visible} transparent animationType="slide" onRequestClose={close}>
+        <Pressable onPress={close} style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(23,39,43,0.45)" }}>
+          <Pressable onPress={() => {}} style={{ backgroundColor: SURFACE, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 34, maxHeight: "82%" }}>
+            <Text style={{ fontSize: 20, fontWeight: "900", color: TEXT }}>{editingId ? "Edit place" : "Add a saved place"}</Text>
+            <Text style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 4 }}>Choose a label and search for the address.</Text>
+            <View style={{ flexDirection: "row", gap: 8, marginTop: 18 }}>
+              {["Home", "Work", "Other"].map((preset) => (
+                <TouchableOpacity key={preset} onPress={() => setLabel(preset)} style={{ borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: label === preset ? PRIMARY : PRIMARY_LIGHT }}>
+                  <Text style={{ color: label === preset ? "#fff" : PRIMARY, fontWeight: "800", fontSize: 12 }}>{preset}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TextInput value={label} onChangeText={setLabel} maxLength={30} placeholder="Label" placeholderTextColor={TEXT_MUTED} style={{ marginTop: 14, borderRadius: 12, borderWidth: 1, borderColor: BORDER, paddingHorizontal: 14, paddingVertical: 12, color: TEXT }} />
+            <TextInput value={address} onChangeText={(value) => { setAddress(value); setSelectedPlace(null); }} maxLength={200} placeholder="Search address" placeholderTextColor={TEXT_MUTED} style={{ marginTop: 12, borderRadius: 12, borderWidth: 1, borderColor: BORDER, paddingHorizontal: 14, paddingVertical: 12, color: TEXT }} />
+            <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: 220 }}>
+              {suggestions.map((place) => (
+                <TouchableOpacity key={place.placeId} onPress={() => choosePlace(place)} style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: BORDER }}>
+                  <Text style={{ fontSize: 13, fontWeight: "800", color: TEXT }}>{place.label}</Text>
+                  <Text numberOfLines={2} style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 2 }}>{place.address}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <View style={{ flexDirection: "row", gap: 10, marginTop: 18 }}>
+              <TouchableOpacity onPress={close} style={{ flex: 1, borderRadius: 12, borderWidth: 1, borderColor: BORDER, paddingVertical: 13, alignItems: "center" }}><Text style={{ color: TEXT_SECONDARY, fontWeight: "800" }}>Cancel</Text></TouchableOpacity>
+              <TouchableOpacity onPress={save} disabled={pending} style={{ flex: 1, borderRadius: 12, backgroundColor: PRIMARY, paddingVertical: 13, alignItems: "center", opacity: pending ? 0.6 : 1 }}><Text style={{ color: "#fff", fontWeight: "800" }}>{pending ? "Saving..." : "Save Place"}</Text></TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -863,6 +1032,28 @@ export default function PassengerProfile() {
     onError: (err) => Alert.alert("Save Failed", err.message),
   });
 
+  const updateSavedPlaces = useMutation({
+    mutationFn: async (savedPlaces) => {
+      const res = await fetch("/api/user-profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ savedPlaces }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || "Failed to save places");
+      return body;
+    },
+    onSuccess: (body) => {
+      queryClient.setQueryData(["userProfile", authUserKey], (current) => ({
+        ...current,
+        savedPlaces: body.savedPlaces,
+        user: { ...current?.user, savedPlaces: body.savedPlaces, saved_places: body.savedPlaces },
+      }));
+      toast.success("Saved places updated");
+    },
+    onError: (err) => Alert.alert("Save Failed", err.message),
+  });
+
   const rides = ridesData?.rides || [];
   const completedRides = rides.filter((r) => r.status === "completed").length;
 
@@ -1196,6 +1387,13 @@ export default function PassengerProfile() {
             ) : null}
           </View>
         </View>
+
+        <SavedPlacesSection
+          savedPlaces={profile?.savedPlaces ?? user?.savedPlaces ?? user?.saved_places ?? []}
+          onChange={(places) => updateSavedPlaces.mutateAsync(places)}
+          pending={updateSavedPlaces.isPending}
+          disabled={testMode}
+        />
 
         {/* Details */}
         <View style={{ margin: 16 }}>

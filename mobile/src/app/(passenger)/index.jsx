@@ -145,6 +145,7 @@ export default function PassengerHome() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const { auth } = useAuth();
+  const authUserKey = auth?.user?.id || auth?.user?.email || auth?.user?.phone || "anonymous";
   const [pickup, setPickup] = useState("");
   const [destination, setDestination] = useState("");
   const [pickupCoords, setPickupCoords] = useState(null);
@@ -231,6 +232,18 @@ export default function PassengerHome() {
   });
   const activeRideId = activeRide?.id;
   const activeRideStatus = activeRide?.status;
+
+  const { data: profileData } = useQuery({
+    queryKey: ["userProfile", authUserKey],
+    queryFn: async () => {
+      const res = await fetch("/api/user-profile");
+      if (!res.ok) throw new Error("Failed to load profile");
+      return res.json();
+    },
+    enabled: !!auth,
+    staleTime: 30000,
+  });
+  const savedPlaces = profileData?.savedPlaces ?? profileData?.user?.savedPlaces ?? [];
 
   useEffect(() => {
     if (activeRideId) lastActiveRideIdRef.current = activeRideId;
@@ -1974,6 +1987,43 @@ export default function PassengerHome() {
                   focusedField === "destination" ? destinationSuggestions : [],
                   selectDestination,
                 )}
+                {!activeRide && savedPlaces.length > 0 ? (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ gap: 8, paddingTop: 12, paddingRight: 8 }}
+                    keyboardShouldPersistTaps="handled"
+                  >
+                    {savedPlaces.map((place) => (
+                      <TouchableOpacity
+                        key={place.id}
+                        onPress={() => {
+                          setDestination(place.address);
+                          setDestinationCoords({ lat: place.lat, lng: place.lng });
+                          setDestinationPlaceId(place.placeId ?? null);
+                          setFocusedField(null);
+                          setDestinationSuggestions([]);
+                        }}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 6,
+                          borderRadius: 999,
+                          borderWidth: 1,
+                          borderColor: PRIMARY_BORDER,
+                          backgroundColor: PRIMARY_LIGHT,
+                          paddingHorizontal: 12,
+                          paddingVertical: 8,
+                        }}
+                      >
+                        <MapPin size={ICON.xs} color={PRIMARY} />
+                        <Text style={{ color: PRIMARY, fontSize: 12, fontWeight: "800" }}>
+                          {place.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                ) : null}
               </View>
             </View>
 
