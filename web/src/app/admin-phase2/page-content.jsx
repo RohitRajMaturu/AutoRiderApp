@@ -67,9 +67,9 @@ export default function Phase2Operations() {
           );
           return new Promise(() => {});
         }
-        const body = await readJsonResponse(response, "Phase 2 console");
+        const body = await readJsonResponse(response, "Pass & Institution console");
         if (!response.ok) {
-          throw new Error(body.error || `Phase 2 console failed (${response.status})`);
+          throw new Error(body.error || `Pass & Institution console failed (${response.status})`);
         }
         return body;
       })
@@ -93,7 +93,7 @@ export default function Phase2Operations() {
   }, [data]);
 
   return (
-    <AdminShell eyebrow="Super Admin" title="Phase 2 Console">
+    <AdminShell eyebrow="Super Admin" title="Pass & Institution Console">
       <p className="mb-6 text-sm" style={{ color: "var(--ar-t2)" }}>
         Driver capacity, commuter pass subscriptions, institutional routes, and reliability events.
       </p>
@@ -119,7 +119,7 @@ export default function Phase2Operations() {
         </div>
       ) : null}
 
-      <div className="mb-5 flex flex-wrap gap-2" role="group" aria-label="Phase 2 data sections">
+      <div className="mb-5 flex flex-wrap gap-2" role="group" aria-label="Pass and institution data sections">
         {tabs.map(({ key, label, Icon }) => (
           <TabButton
             key={key}
@@ -145,7 +145,19 @@ export default function Phase2Operations() {
       {!loading && tab === "load" ? <DriverLoadTab drivers={data?.drivers || []} /> : null}
       {!loading && tab === "passes" ? <PassesTab passes={data?.passes || []} /> : null}
       {!loading && tab === "schools" ? (
-        <SchoolsTab institutions={data?.institutions || []} trips={data?.trips || []} />
+        <SchoolsTab
+          institutions={data?.institutions || []}
+          trips={data?.trips || []}
+          onCreated={(institution) =>
+            setData((current) => ({
+              ...current,
+              institutions: [
+                { ...institution, route_count: 0, paid_amount: 0 },
+                ...(current?.institutions || []),
+              ],
+            }))
+          }
+        />
       ) : null}
       {!loading && tab === "sla" ? <SlaTab events={data?.slaEvents || []} /> : null}
     </AdminShell>
@@ -250,9 +262,104 @@ function PassesTab({ passes }) {
   );
 }
 
-function SchoolsTab({ institutions, trips }) {
+function InstitutionOnboarding({ onCreated }) {
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  async function submit(event) {
+    event.preventDefault();
+    const formElement = event.currentTarget;
+    setSaving(true);
+    setError("");
+    setMessage("");
+    const form = new FormData(formElement);
+    const payload = Object.fromEntries(form.entries());
+    payload.monthlyFee = Number(payload.monthlyFee);
+    try {
+      const response = await fetch("/api/institutions", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const body = await readJsonResponse(response, "Institution onboarding");
+      if (!response.ok) throw new Error(body.error || "Could not create institution");
+      onCreated(body.institution);
+      formElement.reset();
+      setMessage(`Created ${body.institution.name}. The institution admin can sign in now.`);
+      setOpen(false);
+    } catch (submitError) {
+      setError(submitError.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const fieldClass = "h-10 rounded-lg border bg-transparent px-3 text-sm outline-none";
+  const fieldStyle = { borderColor: "var(--ar-border)", color: "var(--ar-t1)" };
+
+  return (
+    <div className="ar-card mb-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-semibold">Institution onboarding</h2>
+          <p className="mt-1 text-xs" style={{ color: "var(--ar-t2)" }}>
+            Create the institution and its restricted admin login together.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => { setOpen((value) => !value); setError(""); setMessage(""); }}
+          className="rounded-lg px-4 py-2 text-sm font-bold"
+          style={{ background: "var(--ar-accent)", color: "var(--ar-bg)" }}
+        >
+          {open ? "Close" : "Add institution"}
+        </button>
+      </div>
+
+      {message ? <p className="mt-3 text-sm" role="status" style={{ color: "var(--ar-ok)" }}>{message}</p> : null}
+      {error ? <p className="mt-3 text-sm" role="alert" style={{ color: "var(--ar-err)" }}>{error}</p> : null}
+
+      {open ? (
+        <form onSubmit={submit} className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <input className={fieldClass} style={fieldStyle} name="name" placeholder="Institution name" required minLength={2} />
+          <select className={fieldClass} style={{ ...fieldStyle, background: "var(--ar-s2)" }} name="type" defaultValue="SCHOOL">
+            <option value="SCHOOL">School</option><option value="COLLEGE">College</option>
+            <option value="HOSPITAL">Hospital</option><option value="CORPORATE">Corporate</option>
+          </select>
+          <input className={fieldClass} style={fieldStyle} name="address" placeholder="Address" required />
+          <input className={fieldClass} style={fieldStyle} name="contactName" placeholder="Primary contact" required />
+          <input className={fieldClass} style={fieldStyle} name="contactEmail" type="email" placeholder="Contact email" required />
+          <input className={fieldClass} style={fieldStyle} name="contactPhone" inputMode="tel" placeholder="Contact phone" required />
+          <select className={fieldClass} style={{ ...fieldStyle, background: "var(--ar-s2)" }} name="subscriptionPlan" defaultValue="STANDARD">
+            <option value="BASIC">Basic</option><option value="STANDARD">Standard</option><option value="PREMIUM">Premium</option>
+          </select>
+          <input className={fieldClass} style={fieldStyle} name="monthlyFee" type="number" min="0" step="1" defaultValue="15000" placeholder="Monthly fee" required />
+          <input className={fieldClass} style={fieldStyle} name="trialEndsAt" type="date" aria-label="Trial end date" />
+          <input className={fieldClass} style={fieldStyle} name="adminName" placeholder="Admin full name" required minLength={2} />
+          <input className={fieldClass} style={fieldStyle} name="adminEmail" type="email" placeholder="Admin login email" required />
+          <input className={fieldClass} style={fieldStyle} name="adminPhone" inputMode="tel" placeholder="Admin login phone" required />
+          <input className={fieldClass} style={fieldStyle} name="adminPassword" type="password" minLength={8} maxLength={72} placeholder="Temporary password (8+ chars)" required />
+          <button
+            type="submit"
+            disabled={saving}
+            className="h-10 rounded-lg text-sm font-bold disabled:opacity-60 md:col-span-2 xl:col-span-1"
+            style={{ background: "var(--ar-ok)", color: "var(--ar-bg)" }}
+          >
+            {saving ? "Creating…" : "Create institution & admin"}
+          </button>
+        </form>
+      ) : null}
+    </div>
+  );
+}
+
+function SchoolsTab({ institutions, trips, onCreated }) {
   return (
     <>
+      <InstitutionOnboarding onCreated={onCreated} />
       {!institutions.length ? (
         <EmptyState>No institutions have been registered yet.</EmptyState>
       ) : (

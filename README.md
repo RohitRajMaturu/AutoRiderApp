@@ -115,6 +115,19 @@ Seeded test users from `web/scripts/seed-test-users.mjs` use temporary password 
 - Passenger: `passenger9908027984@autoride.test` or phone `9908027984`
 - Driver: `driver9885553312@autoride.test` or phone `9885553312`
 
+To populate the Pass & Institution Console with an idempotent demo institution,
+routes, members, trips, passes, invoice, and SLA event:
+
+```powershell
+cd web
+npm run seed:phase2
+```
+
+The demo institution admin is `admin@greenfield.demo` with temporary password
+`12345`. Select **Institution Admin** on `/admin-login`; super admins can onboard
+additional institutions and create their restricted admin credentials from the
+**TukTukSafe** tab in the Pass & Institution Console.
+
 ### 3. Environment Variables
 The platform handles core environment variables like `DATABASE_URL`.
 Copy `web/.env.example` to `web/.env` and fill in real values.
