@@ -291,6 +291,43 @@ describe("ride detail route", () => {
     );
   });
 
+  it("returns success when ride starts even if push delivery fails", async () => {
+    mocks.auth.mockResolvedValue({ user: { id: "driver-user-1" } });
+    mocks.sql
+      .mockResolvedValueOnce([{
+        id: "driver-1",
+        zone_id: "zone-1",
+        is_online: true,
+        is_approved: true,
+        subscription_expiry: "2099-01-01T00:00:00.000Z",
+      }])
+      .mockResolvedValueOnce([{
+        id: "ride-1",
+        passenger_id: "passenger-1",
+        status: "accepted",
+        started_at: "2026-06-30T08:00:00.000Z",
+      }]);
+    mocks.sendPushToUsers.mockRejectedValueOnce(new Error("push token table unavailable"));
+    const { PATCH } = await import("@/app/api/rides/[id]/route.js");
+
+    const response = await PATCH(
+      new Request("http://localhost/api/rides/ride-1", {
+        method: "PATCH",
+        body: JSON.stringify({ action: "start" }),
+      }),
+      { params: { id: "ride-1" } },
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.ride.started_at).toBe("2026-06-30T08:00:00.000Z");
+    expect(mocks.triggerRideEvent).toHaveBeenCalledWith(
+      "ride-1",
+      "ride-started",
+      expect.objectContaining({ rideId: "ride-1" }),
+    );
+  });
+
   it("alerts the queued passenger when the current trip completes", async () => {
     mocks.auth.mockResolvedValue({ user: { id: "driver-user-1" } });
     mocks.sql

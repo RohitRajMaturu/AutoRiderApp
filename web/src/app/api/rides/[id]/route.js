@@ -401,15 +401,17 @@ export async function PATCH(request, { params }) {
           { status: 409 },
         );
       }
-      await sendPushToUsers([result[0].passenger_id], {
-        title: "Ride started",
-        body: "Your trip has started.",
-        data: { type: "ride_started", rideId: result[0].id },
-      });
-      await triggerRideEvent(result[0].id, "ride-started", {
-        rideId: result[0].id,
-        startedAt: result[0].started_at,
-      });
+      await Promise.allSettled([
+        sendPushToUsers([result[0].passenger_id], {
+          title: "Ride started",
+          body: "Your trip has started.",
+          data: { type: "ride_started", rideId: result[0].id },
+        }),
+        triggerRideEvent(result[0].id, "ride-started", {
+          rideId: result[0].id,
+          startedAt: result[0].started_at,
+        }),
+      ]);
       return Response.json({ ride: result[0] });
     }
 

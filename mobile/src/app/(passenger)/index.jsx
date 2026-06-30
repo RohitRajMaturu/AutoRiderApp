@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import {
   MapPin,
+  MapPinOff,
   Navigation,
   Navigation2,
   X,
@@ -60,6 +61,10 @@ const TEXT_SECONDARY = "#586C70";
 const TEXT_MUTED = "#647678";
 const SUCCESS = "#16A34A";
 const SUCCESS_LIGHT = "#DCFCE7";
+const configuredMaxTripKm = Number(process.env.EXPO_PUBLIC_MAX_TRIP_DISTANCE_KM);
+const MAX_TRIP_KM = Number.isFinite(configuredMaxTripKm) && configuredMaxTripKm >= 5
+  ? configuredMaxTripKm
+  : 25;
 
 function scheduleWindowError(value, now = Date.now()) {
   if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
@@ -416,6 +421,9 @@ export default function PassengerHome() {
     retry: false,
     refetchOnWindowFocus: false,
   });
+  const isDestinationTooFar =
+    Number.isFinite(Number(tripEstimate?.distanceKm)) &&
+    Number(tripEstimate.distanceKm) > MAX_TRIP_KM;
 
   useEffect(() => {
     setFareOfferEdited(false);
@@ -850,7 +858,9 @@ export default function PassengerHome() {
       });
       if (!res.ok) {
         const error = await res.json().catch(() => ({}));
-        throw new Error(error.error || "Failed to request ride");
+        const requestError = new Error(error.error || "Failed to request ride");
+        requestError.code = error.code;
+        throw requestError;
       }
       return res.json();
     },
@@ -883,7 +893,16 @@ export default function PassengerHome() {
       setScheduleChooserOpen(false);
       setFocusedField(null);
     },
-    onError: (err) => Alert.alert("Request Failed", err.message),
+    onError: (err) => {
+      if (err.code === "DESTINATION_TOO_FAR") {
+        toast("Destination too far", {
+          description: `Please choose a drop-off within the ${MAX_TRIP_KM} km local service area.`,
+          duration: 4000,
+        });
+        return;
+      }
+      Alert.alert("Request Failed", err.message);
+    },
   });
 
   // ── Cancel ride ──
@@ -1041,6 +1060,7 @@ export default function PassengerHome() {
     destination.trim().length > 0 &&
     !!pickupCoords &&
     !!destinationCoords &&
+    !isDestinationTooFar &&
     (negotiationMode === "fixed" ||
       (Number.isInteger(fareMinNumber) &&
         Number.isInteger(fareMaxNumber) &&
@@ -2439,6 +2459,32 @@ export default function PassengerHome() {
                   )}
                 </View>
               )}
+
+              {isDestinationTooFar ? (
+                <View
+                  style={{
+                    marginTop: 14,
+                    borderRadius: 14,
+                    borderWidth: 1,
+                    borderColor: "#FECACA",
+                    backgroundColor: "#FEF2F2",
+                    padding: 14,
+                    flexDirection: "row",
+                    alignItems: "flex-start",
+                    gap: 10,
+                  }}
+                >
+                  <MapPinOff size={ICON.md} color="#DC2626" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 14, fontWeight: "900", color: "#B91C1C" }}>
+                      That&apos;s a bit far for an auto
+                    </Text>
+                    <Text style={{ fontSize: 12, lineHeight: 18, color: "#7F1D1D", marginTop: 4 }}>
+                      This destination is {Math.round(Number(tripEstimate.distanceKm))} km away. TukTukGo currently supports local trips up to {MAX_TRIP_KM} km. Please choose a closer drop-off.
+                    </Text>
+                  </View>
+                </View>
+              ) : null}
 
               {negotiationMode === "negotiated" && hasSuggestedFareRange && (
                 <View style={{ marginTop: 12, gap: 12 }}>

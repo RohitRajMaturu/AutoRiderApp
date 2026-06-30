@@ -1,6 +1,7 @@
 import sql from "@/app/api/utils/sql";
 import { getRouteEstimate } from "@/app/api/utils/locations";
 import {
+  getEnvNumber,
   isLatitude,
   isLongitude,
   readBoundedString,
@@ -193,6 +194,18 @@ export async function POST(request) {
     }
 
     const estimate = await getRouteEstimate(pickupLat, pickupLng, destLat, destLng);
+    const maxTripKm = getEnvNumber("MAX_TRIP_DISTANCE_KM", 25, { min: 5, max: 200 });
+    if (estimate.distanceKm > maxTripKm) {
+      return Response.json(
+        {
+          error: `This drop-off is ${Math.round(estimate.distanceKm)} km away, beyond our ${maxTripKm} km service limit. TukTukGo currently serves local trips within the Secunderabad corridor.`,
+          code: "DESTINATION_TOO_FAR",
+          distanceKm: Math.round(estimate.distanceKm),
+          maxTripKm,
+        },
+        { status: 422 },
+      );
+    }
     if (negotiationMode === "negotiated") {
       if (!fareMin || !fareMax || fareMin > fareMax) {
         return Response.json(

@@ -131,6 +131,43 @@ describe("POST /api/rides", () => {
     expect(insertedVehicleType).toBe("auto");
   });
 
+  it("rejects a destination beyond the configured local trip limit", async () => {
+    mocks.auth.mockResolvedValue({ user: { id: "passenger-1" } });
+    mocks.sql.mockResolvedValueOnce([]);
+    mocks.findZoneForPoint.mockResolvedValue({ id: "zone-1", name: "Central" });
+    mocks.getRouteEstimate.mockResolvedValue({
+      distanceKm: 126.4,
+      durationMins: 180,
+      estimatedFare: 2400,
+      polyline: null,
+      provider: "local",
+    });
+
+    const { POST } = await import("@/app/api/rides/route.js");
+    const response = await POST(
+      new Request("http://localhost/api/rides", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pickup_address: "Secunderabad Station",
+          dest_address: "Distant city",
+          pickup_lat: 17.4399,
+          pickup_lng: 78.4983,
+          dest_lat: 17.6868,
+          dest_lng: 83.2185,
+          negotiation_mode: "fixed",
+        }),
+      }),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(422);
+    expect(body.code).toBe("DESTINATION_TOO_FAR");
+    expect(body.distanceKm).toBe(126);
+    expect(body.maxTripKm).toBe(25);
+    expect(mocks.dispatchRideRequest).not.toHaveBeenCalled();
+  });
+
   it("stores a scheduled ride without dispatching it immediately", async () => {
     mocks.auth.mockResolvedValue({ user: { id: "passenger-1" } });
     mocks.findZoneForPoint.mockResolvedValue({ id: "zone-1", name: "Central" });
