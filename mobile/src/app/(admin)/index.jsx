@@ -591,7 +591,7 @@ function ToggleGroup({ options, value, onChange, activeColor }) {
 export default function AdminDashboard() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
-  const { signOut } = useAuth();
+  const { signOut, auth } = useAuth();
   const [chartView, setChartView] = useState("today");
   const [chartMetric, setChartMetric] = useState("rides");
   const [showSignOutSheet, setShowSignOutSheet] = useState(false);
@@ -731,6 +731,14 @@ export default function AdminDashboard() {
   const avgFareTrend = weeklyTimeline.map((item) =>
     item.rides > 0 ? item.fare / item.rides : 0,
   );
+
+  if (!auth) {
+    return (
+      <View style={{ flex: 1, backgroundColor: BG }}>
+        <StatusBar style="light" />
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>

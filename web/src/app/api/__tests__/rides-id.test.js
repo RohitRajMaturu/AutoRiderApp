@@ -23,6 +23,11 @@ vi.mock("@/lib/pusher/server", () => ({
   triggerRideEvent: mocks.triggerRideEvent,
 }));
 
+vi.mock("@/app/api/utils/driver-conflicts", () => ({
+  currentServiceSlot: () => ({ days: ["MON"], time: "12:00" }),
+  findDriverConflict: vi.fn().mockResolvedValue(null),
+}));
+
 describe("ride detail route", () => {
   beforeEach(() => {
     vi.resetModules();

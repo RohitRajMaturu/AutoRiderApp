@@ -30,6 +30,11 @@ vi.mock("@/app/api/utils/push-notifications", () => ({
   sendPushToUsers: mocks.sendPushToUsers,
 }));
 
+vi.mock("@/app/api/utils/driver-conflicts", () => ({
+  currentServiceSlot: () => ({ days: ["MON"], time: "12:00" }),
+  findDriverConflict: vi.fn().mockResolvedValue(null),
+}));
+
 function textOf(strings) {
   return Array.isArray(strings) ? strings.join(" ") : String(strings);
 }

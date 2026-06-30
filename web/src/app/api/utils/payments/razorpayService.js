@@ -123,6 +123,29 @@ export async function generatePaymentLink(driverId, amount, reason) {
   });
 }
 
+export async function createOrder({ amountPaise, receipt, notes = {} }) {
+  return razorpayRequest("/orders", {
+    method: "POST",
+    body: {
+      amount: Math.max(100, Math.round(Number(amountPaise) || 0)),
+      currency: "INR",
+      receipt: String(receipt).slice(0, 40),
+      notes,
+    },
+  });
+}
+
+export function verifyPaymentSignature({ orderId, paymentId, signature }) {
+  const config = getRazorpayConfig();
+  if (!config || !orderId || !paymentId || !signature) return false;
+  const expected = crypto
+    .createHmac("sha256", config.keySecret)
+    .update(`${orderId}|${paymentId}`)
+    .digest("hex");
+  if (expected.length !== signature.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
+}
+
 export function verifyRazorpayWebhook(rawBody, signature) {
   const config = getRazorpayConfig();
   if (!config?.webhookSecret) return false;

@@ -526,6 +526,42 @@ Use the production server command chosen by the VPS process manager for the web
 app, and keep `npm run maintenance` running alongside it. Horizontal scaling,
 push delivery, and multi-city coordination are intentionally deferred.
 
+## Phase 2: TukTukPass and TukTukSafe
+
+Implemented on `feature/phase-2-tuktukpass-safe`:
+
+- Reversible PostgreSQL/PostGIS schema in migration `024`, with the rollback in
+  `web/db/rollbacks`, executable via `npm run db:rollback:phase2`, and all money
+  stored as integer paise.
+- Passenger pass creation, route-interest, pass detail, pause/resume/cancel,
+  payment confirmation, fare calculation, and shared-route detection APIs.
+- Driver pass preferences, guaranteed-earnings dashboard, schedule-conflict
+  checks, and transaction/row-lock protected pass acceptance.
+- Assignment priority enforcement: Institution Route > TukTukPass > On-Demand.
+- Idempotent daily pass-ride and institution-trip generation in the maintenance
+  worker, plus pass expiry and pause resumption.
+- Institution-scoped overview, routes, member import, attendance/trip actions,
+  guardian tracking tokens, SMS opt-out webhook, invoices/SLA/trial schema, and
+  a separate `/institution-admin` console.
+- Ops visibility at `/admin-phase2` for driver load, passes, schools, current
+  institution trips, and SLA events.
+- Mobile logout guards for passenger, driver, and admin role screens.
+
+Phase 2 environment/integration items still pending deployment credentials or
+field validation:
+
+- Wire the generated Razorpay order into the native checkout SDK and validate a
+  real payment/refund cycle. The server signature and confirmation contract is ready.
+- Configure Twilio outbound SMS and validate guardian delivery/STOP callbacks;
+  token generation, opt-out persistence, and webhook signature checks are ready.
+- Configure institution-admin users and institution seed data for the first pilot.
+- Add R2 invoice PDF generation and transactional email delivery credentials.
+- Validate live institution tracking on physical devices with Pusher `ap2`.
+- Replace maintenance polling with Redis/Celery only if deployment introduces
+  those services; current jobs are idempotent and run in the existing worker.
+- Complete pilot usability QA for CSV member imports, pass location picking,
+  school attendance, backup-driver escalation, and invoice payment links.
+
 ## Production Launch Gates
 
 The app currently runs as a lightweight Node/React Router backend. Ride

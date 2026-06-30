@@ -1281,6 +1281,14 @@ export default function PassengerHome() {
     );
   };
 
+  if (!auth) {
+    return (
+      <View style={{ flex: 1, backgroundColor: BG }}>
+        <StatusBar style="dark" />
+      </View>
+    );
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
       <StatusBar style="dark" />

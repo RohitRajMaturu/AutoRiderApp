@@ -6,6 +6,7 @@ import {
 } from "@/app/api/utils/dispatch";
 import { sendPushToUsers } from "@/app/api/utils/push-notifications";
 import { triggerRideEvent } from "@/lib/pusher/server";
+import { currentServiceSlot, findDriverConflict } from "@/app/api/utils/driver-conflicts";
 
 function readCancellationReason(value, fallback) {
   if (typeof value !== "string") return fallback;
@@ -158,6 +159,7 @@ export async function PATCH(request, { params }) {
       }
 
       const backToBackRadiusMeters = getBackToBackDispatchRadiusMeters();
+      const serviceSlot = currentServiceSlot();
       const acceptance = await sql.transaction(async (tx) => {
         await tx`
           SELECT id
@@ -165,6 +167,20 @@ export async function PATCH(request, { params }) {
           WHERE id = ${driverId}
           FOR UPDATE
         `;
+        const scheduleConflict = await findDriverConflict(tx, {
+          driverId,
+          scheduledDays: serviceSlot.days,
+          scheduledTime: serviceSlot.time,
+          sourceType: "ON_DEMAND",
+        });
+        if (scheduleConflict) {
+          return {
+            busyRide: null,
+            busyCode: "DRIVER_SCHEDULE_CONFLICT",
+            scheduleConflict,
+            rows: [],
+          };
+        }
         const activeRideRows = await tx`
           SELECT
             active_ride.id,
@@ -246,6 +262,17 @@ export async function PATCH(request, { params }) {
           rows,
         };
       });
+
+      if (acceptance.scheduleConflict) {
+        return Response.json(
+          {
+            error: "You have a higher-priority recurring assignment at this time",
+            code: "DRIVER_SCHEDULE_CONFLICT",
+            conflict: acceptance.scheduleConflict,
+          },
+          { status: 409 },
+        );
+      }
 
       if (acceptance.busyRide) {
         return Response.json(

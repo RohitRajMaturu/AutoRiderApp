@@ -1,6 +1,6 @@
 import { Tabs } from "expo-router";
 import { View } from "react-native";
-import { Bell, Home, Wallet, User } from "lucide-react-native";
+import { Bell, Home, Ticket, Wallet, User } from "lucide-react-native";
 import { ICON } from "@/theme/iconScale";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useAuth } from "@/utils/auth/useAuth";
@@ -58,6 +58,13 @@ export default function DriverLayout() {
               strokeWidth={color === "#43B8B3" ? 2.5 : 1.5}
             />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="pass"
+        options={{
+          title: "Pass",
+          tabBarIcon: ({ color }) => <Ticket color={color} size={ICON.lg} />,
         }}
       />
       <Tabs.Screen

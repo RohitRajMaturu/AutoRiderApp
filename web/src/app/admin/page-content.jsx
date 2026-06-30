@@ -735,6 +735,9 @@ export default function AdminPage() {
   return (
     <AdminShell title="TukTukGo Command Center" eyebrow="Admin">
       <div className="mx-auto max-w-[1500px] space-y-5">
+        <a href="/admin-phase2" className="block rounded-lg border px-4 py-3 text-sm font-bold" style={{ borderColor: "var(--ar-amber)", color: "var(--ar-amber)", textDecoration: "none" }}>
+          Open Phase 2 Operations → Driver Load · TukTukPass · TukTukSafe Schools
+        </a>
         {error ? (
           <div className="rounded-lg border px-4 py-3 text-sm font-semibold" style={{ borderColor: "var(--ar-err)", background: "var(--ar-err-dim)", color: "var(--ar-err)" }}>
             {error}

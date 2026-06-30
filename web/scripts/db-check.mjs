@@ -19,6 +19,20 @@ const REQUIRED_TABLES = [
   "otp_cooldowns",
   "realtime_tokens",
   "otp_challenges",
+  "driver_subscription_preferences",
+  "commuter_passes",
+  "pass_rides",
+  "pass_route_interests",
+  "institutions",
+  "institution_admin_users",
+  "institution_routes",
+  "institution_members",
+  "institution_trips",
+  "member_tracking_tokens",
+  "institution_invoices",
+  "driver_sla_events",
+  "institution_trial_events",
+  "phase2_notification_templates",
 ];
 const REQUIRED_COLUMNS = {
   drivers: [
@@ -27,7 +41,10 @@ const REQUIRED_COLUMNS = {
     "location",
     "subscription_expiry",
     "last_heartbeat_at",
+    "sla_score",
   ],
+  commuter_passes: ["pickup_location", "dropoff_location", "agreed_fare_paise", "driver_payout_paise", "status"],
+  institution_members: ["pickup_location", "guardian_phone", "sms_opted_out"],
   geo_zones: ["boundary", "is_active", "dispatch_enabled"],
   rides: [
     "pickup_place_id",

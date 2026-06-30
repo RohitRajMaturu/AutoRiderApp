@@ -135,6 +135,7 @@ function isStaleRideError(err) {
     "DRIVER_ACTIVE_RIDE",
     "DRIVER_NOT_NEAR_DROPOFF",
     "DRIVER_QUEUE_FULL",
+    "DRIVER_SCHEDULE_CONFLICT",
   ].includes(err?.code);
 }
 
@@ -1465,7 +1466,7 @@ function QueuedRideCard({ ride, onCancel, isCancelling }) {
 }
 
 function isDriverCapacityError(err) {
-  return ["DRIVER_ACTIVE_RIDE", "DRIVER_NOT_NEAR_DROPOFF", "DRIVER_QUEUE_FULL"].includes(err?.code);
+  return ["DRIVER_ACTIVE_RIDE", "DRIVER_NOT_NEAR_DROPOFF", "DRIVER_QUEUE_FULL", "DRIVER_SCHEDULE_CONFLICT"].includes(err?.code);
 }
 
 function CompletedRideSummary({
@@ -2358,6 +2359,14 @@ export default function DriverHome() {
     nonNegotiatingRides.length - visibleNonNegotiatingRides.length,
     0,
   );
+
+  if (!auth) {
+    return (
+      <View style={{ flex: 1, backgroundColor: BG }}>
+        <StatusBar style="dark" />
+      </View>
+    );
+  }
 
   if (driverLoading && !driverData) {
     return (

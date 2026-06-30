@@ -3,6 +3,7 @@ import { getAcceptedRideTimeoutMinutes, getBackToBackDispatchRadiusMeters } from
 import { auth } from "@/auth";
 import { triggerRideEvent } from "@/lib/pusher/server";
 import { sendPushToUsers } from "@/app/api/utils/push-notifications";
+import { currentServiceSlot, findDriverConflict } from "@/app/api/utils/driver-conflicts";
 
 export async function POST(request, { params }) {
   try {
@@ -25,6 +26,20 @@ export async function POST(request, { params }) {
         WHERE id = ${driverId}
         FOR UPDATE
       `;
+      const serviceSlot = currentServiceSlot();
+      const scheduleConflict = await findDriverConflict(tx, {
+        driverId,
+        scheduledDays: serviceSlot.days,
+        scheduledTime: serviceSlot.time,
+        sourceType: "ON_DEMAND",
+      });
+      if (scheduleConflict) {
+        return {
+          status: 409,
+          code: "DRIVER_SCHEDULE_CONFLICT",
+          error: "Driver has a higher-priority recurring assignment at this time",
+        };
+      }
       const activeRideRows = await tx`
         SELECT
           active_ride.id,
