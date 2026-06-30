@@ -39,6 +39,25 @@ import type { Route } from './+types/root';
 
 export const links = () => [];
 
+const PROTECTED_WEB_PATHS = ["/admin", "/admin-ops", "/admin-kyc", "/admin-phase2", "/institution-admin"];
+const PROTECTED_CACHE_HEADERS = {
+  "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+  Pragma: "no-cache",
+  Expires: "0",
+};
+
+export function loader({ request }: Route.LoaderArgs) {
+  const pathname = new URL(request.url).pathname;
+  const isProtected = PROTECTED_WEB_PATHS.some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`),
+  );
+  return Response.json(null, { headers: isProtected ? PROTECTED_CACHE_HEADERS : undefined });
+}
+
+export function headers({ loaderHeaders }: Route.HeadersArgs) {
+  return loaderHeaders;
+}
+
 if (globalThis.window && globalThis.window !== undefined) {
   globalThis.window.fetch = fetch;
 }

@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import useAuth from "@/utils/useAuth";
 import TukTukGoLoader from "@/components/TukTukGoLoader";
+import { clearLogoutBackGuard } from "@/utils/useLogoutBackGuard";
 
 const callouts = [
   {
@@ -68,6 +69,7 @@ export default function AdminLoginPage() {
       if (!result || result.error || !result.url) {
         throw new Error(`Invalid ${portal === "institution" ? "institution admin" : "super admin"} credentials`);
       }
+      clearLogoutBackGuard();
       window.location.href = result.url;
     } catch (err) {
       setError(err.message || "Could not sign in");

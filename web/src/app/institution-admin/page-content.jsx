@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Bell, Bus, FileText, LayoutDashboard, LogOut, ReceiptIndianRupee, Settings, Users } from "lucide-react";
+import { useLogoutBackGuard } from "@/utils/useLogoutBackGuard";
 
 const GOLD = "#F5A623";
 const nav = [
@@ -18,6 +19,7 @@ export default function InstitutionAdminDashboard() {
   const [routes, setRoutes] = useState([]);
   const [members, setMembers] = useState([]);
   const [error, setError] = useState("");
+  const { signingOut, beginLogout } = useLogoutBackGuard("/admin-login?portal=institution");
   useEffect(() => {
     Promise.all([
       fetch("/api/institution/overview").then((r) => r.ok ? r.json() : Promise.reject(new Error("Institution access required"))),
@@ -26,11 +28,12 @@ export default function InstitutionAdminDashboard() {
     ]).then(([o, r, m]) => { setOverview(o); setRoutes(r.routes); setMembers(m.members); }).catch((e) => setError(e.message));
   }, []);
   const active = overview?.trips?.filter((trip) => trip.status === "IN_PROGRESS") || [];
+  if (signingOut) return <div role="status" aria-live="polite" style={{ minHeight: "100vh", background: "#0A0A0A", color: "#9CA3AF", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Inter, system-ui, sans-serif" }}>Signing out securely…</div>;
   return <div style={{ minHeight: "100vh", background: "#0A0A0A", color: "#fff", display: "flex", fontFamily: "Inter, system-ui, sans-serif" }}>
     <aside style={{ width: 245, borderRight: "1px solid #262626", padding: 22, position: "sticky", top: 0, height: "100vh", display: "flex", flexDirection: "column" }}>
       <div style={{ color: GOLD, fontWeight: 950, fontSize: 21 }}>TukTukSafe</div><div style={{ color: "#9CA3AF", fontSize: 12, marginTop: 5 }}>Institution Console</div>
       <nav style={{ marginTop: 30, display: "grid", alignContent: "start", gap: 8, flex: 1 }}>{nav.map(([key,label,Icon]) => <button key={key} onClick={() => setSection(key)} style={{ border: 0, cursor: "pointer", display: "flex", gap: 11, alignItems: "center", borderRadius: 12, padding: 12, color: section===key?"#111":"#D1D5DB", background: section===key?GOLD:"transparent", fontWeight: 800 }}><Icon size={18}/>{label}</button>)}</nav>
-      <a href="/account/logout?next=%2Fadmin-login%3Fportal%3Dinstitution" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 9, border: "1px solid #7F1D1D", borderRadius: 12, padding: 11, color: "#FCA5A5", background: "#2A1414", textDecoration: "none", fontSize: 13, fontWeight: 800 }}><LogOut size={17}/>Sign out</a>
+      <a href="/account/logout?next=%2Fadmin-login%3Fportal%3Dinstitution" onClick={beginLogout} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 9, border: "1px solid #7F1D1D", borderRadius: 12, padding: 11, color: "#FCA5A5", background: "#2A1414", textDecoration: "none", fontSize: 13, fontWeight: 800 }}><LogOut size={17}/>Sign out</a>
     </aside>
     <main style={{ flex: 1, padding: "22px 28px 60px", maxWidth: 1400 }}>
       <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}><div><h1 style={{ margin: 0, fontSize: 25 }}>{overview?.institution?.name || "Institution"}</h1><div style={{ color: "#9CA3AF", marginTop: 5 }}>{overview?.institution?.subscription_plan || "Plan"} · {overview?.institution?.status || "Loading"}</div></div><div style={{ display: "flex", gap: 12, alignItems: "center" }}>{active.length ? <Pill color="#22C55E">● LIVE · {active.length} routes</Pill> : null}<Bell color={GOLD}/></div></header>

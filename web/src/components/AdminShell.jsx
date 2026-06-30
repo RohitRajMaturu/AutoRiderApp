@@ -11,6 +11,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { ICON } from "@/lib/iconScale";
+import { useLogoutBackGuard } from "@/utils/useLogoutBackGuard";
 
 function formatIstTime(date = new Date()) {
   return new Intl.DateTimeFormat("en-IN", {
@@ -38,6 +39,7 @@ export default function AdminShell({
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [now, setNow] = useState(Date.now());
+  const { signingOut, beginLogout } = useLogoutBackGuard("/admin-login?portal=super");
 
   useEffect(() => {
     setCollapsed(localStorage.getItem("ar_sb") === "1");
@@ -66,6 +68,14 @@ export default function AdminShell({
       "Admin",
     [location.pathname],
   );
+
+  if (signingOut) {
+    return (
+      <div className="flex min-h-screen items-center justify-center" role="status" aria-live="polite" style={{ background: "var(--ar-bg)", color: "var(--ar-t2)" }}>
+        Signing out securely…
+      </div>
+    );
+  }
 
   return (
     <div
@@ -156,7 +166,8 @@ export default function AdminShell({
             ) : null}
           </div>
           <a
-            href="/account/logout?next=/"
+            href="/account/logout?next=%2Fadmin-login%3Fportal%3Dsuper"
+            onClick={beginLogout}
             className="flex h-9 items-center justify-center gap-2 rounded-lg text-xs font-semibold transition"
             style={{ background: "var(--ar-err-dim)", color: "var(--ar-err)" }}
             title={collapsed ? "Sign out" : undefined}
