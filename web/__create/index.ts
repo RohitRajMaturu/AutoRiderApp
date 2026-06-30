@@ -20,6 +20,7 @@ import NeonAdapter from './adapter';
 import { getHTMLForErrorPage } from './get-html-for-error-page';
 import { isAuthAction } from './is-auth-action';
 import { API_BASENAME, api } from './route-builder';
+import { shouldUseSecureCookies } from '../src/app/api/utils/auth-cookie-policy';
 neonConfig.webSocketConstructor = ws;
 
 const als = new AsyncLocalStorage<{ requestId: string }>();
@@ -205,7 +206,16 @@ if (process.env.AUTH_SECRET) {
     '*',
     initAuthConfig((c) => {
       const authUrl = c.env.AUTH_URL || c.req.url;
-      const useSecureCookies = authUrl.startsWith('https://');
+      // A production AUTH_URL is often still present while testing from another
+      // device over http://<LAN-IP>. Secure cookies cannot be stored or sent on
+      // that origin. Trust the actual request in development, and the configured
+      // HTTPS URL only as a production fallback behind a proxy.
+      const useSecureCookies = shouldUseSecureCookies({
+        requestUrl: c.req.url,
+        forwardedProtocol: c.req.header('x-forwarded-proto'),
+        authUrl,
+        nodeEnv: process.env.NODE_ENV,
+      });
       const sameSite = useSecureCookies ? 'none' : 'lax';
 
       return {

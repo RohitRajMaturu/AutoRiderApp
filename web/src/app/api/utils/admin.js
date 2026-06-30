@@ -16,6 +16,11 @@ export async function requireAdmin(request, auth) {
   return { session };
 }
 
+// `admin` is the persisted compatibility value for the platform owner role.
+// Use this alias in new global-operations code to distinguish it from an
+// institution-scoped administrator.
+export const requireSuperAdmin = requireAdmin;
+
 export async function writeAdminAudit(
   actorId,
   action,

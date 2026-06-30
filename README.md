@@ -14,9 +14,13 @@ Architecture, setup, operations, QA, design guidance, feature status, and pendin
 ## Core Features
 - **Passengers**: Request rides, choose fixed fare or a guided negotiated offer, adjust pickup on a native map, see driver details, share trip status through the OS share sheet, and track ride history.
 - **Drivers**: Create their account, register vehicle/license, complete KYC, toggle online/offline status, accept nearby rides, send fare counters, complete rides, and view paginated completed ride history.
-- **Admin**: Approve/reject driver applications, manage subscriptions, and
-  monitor ride, revenue, cancellation, and driver KPIs with ECharts on web and
-  Expo Go-compatible native charts on mobile.
+- **Super Admin** (`auth_users.role = 'admin'`): Approve/reject driver applications,
+  manage zones, autos, verification, subscriptions, institutions, and global
+  Phase 2 operations, including ride, revenue, cancellation, and driver KPIs
+  on web and mobile.
+- **Institution Admin** (`auth_users.role = 'institution_admin'`): Manage only
+  the institution linked through `institution_admin_users`, including routes,
+  members, attendance, trips, and invoices.
 - **Subscription Model**: Drivers need an active subscription to go online.
 
 ## Getting Started
@@ -71,8 +75,8 @@ Current verified local state:
 - `npm run db:check` connects to database `AutoRider` as user `postgres`.
 - Required tables are present: `auth_users`, `auth_accounts`, `auth_sessions`, `auth_verification_tokens`, `drivers`, and `rides`.
 
-### 2. Admin Setup
-To become an admin for testing:
+### 2. Super Admin Setup
+To become the platform super admin for testing:
 1. Temporarily set `ENABLE_ADMIN_SETUP=true` in the web environment.
 2. Optionally set `ADMIN_SETUP_PHONES=919999999999` to restrict admin creation to your real phone number.
 3. Tap `Continue as Admin` from the mobile welcome screen.
@@ -83,8 +87,11 @@ To become an admin for testing:
 The setup route is also hard-disabled when `NODE_ENV=production`.
 
 Passenger and driver accounts are self-service from the mobile welcome screen.
-Admins do not create driver login accounts; they approve/reject driver
+Super admins do not create driver login accounts; they approve/reject driver
 applications and KYC after the driver signs up and submits details.
+Institution-admin accounts are provisioned by the super admin while registering
+an institution; they do not receive access to zones, global drivers, KYC, or
+other institutions.
 
 ### Driver Zone Assignment
 
@@ -104,7 +111,7 @@ configured dispatch radius rather than manually editing `drivers.zone_id`.
 
 ### Test Accounts
 Seeded test users from `web/scripts/seed-test-users.mjs` use temporary password `12345` after running `007_seed_account_passwords.sql`:
-- Admin: `admin7893725929@autoride.test` or phone `7893725929`
+- Super Admin: `admin7893725929@autoride.test` or phone `7893725929`
 - Passenger: `passenger9908027984@autoride.test` or phone `9908027984`
 - Driver: `driver9885553312@autoride.test` or phone `9885553312`
 
@@ -577,6 +584,11 @@ crontab calls (replace `BASE_URL` and the secret value for the deployment):
 0 19 28-31 * * curl -sf -X POST -H "Authorization: Bearer $CRON_SECRET" $BASE_URL/api/jobs/institution-generate-invoices
 0 10 * * * curl -sf -X POST -H "Authorization: Bearer $CRON_SECRET" $BASE_URL/api/jobs/institution-chase-overdue
 ```
+
+For LAN development over plain HTTP, set `AUTH_URL` to the same origin used in
+the browser, for example `http://192.168.1.4:4000`. Cookie security also follows
+the actual request protocol in development, so a production HTTPS value cannot
+silently force unusable secure cookies on a LAN HTTP session.
 
 ## Production Launch Gates
 

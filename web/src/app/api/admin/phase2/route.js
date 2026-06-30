@@ -1,9 +1,9 @@
 import sql from "@/app/api/utils/sql";
 import { auth } from "@/auth";
-import { requireAdmin } from "@/app/api/utils/admin";
+import { requireSuperAdmin } from "@/app/api/utils/admin";
 
 export async function GET(request) {
-  const guard = await requireAdmin(request, auth);
+  const guard = await requireSuperAdmin(request, auth);
   if (guard.response) return guard.response;
   const [drivers, passes, institutions, trips, slaEvents, funnel] = await Promise.all([
     sql`

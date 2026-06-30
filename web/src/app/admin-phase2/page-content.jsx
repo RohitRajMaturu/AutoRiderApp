@@ -30,14 +30,23 @@ const Card = ({ children }) => (
     {children}
   </div>
 );
+const Empty = ({ children }) => (
+  <Card>
+    <div style={{ color: M, textAlign: "center", padding: 18 }}>{children}</div>
+  </Card>
+);
 export default function Phase2Operations() {
   const [tab, setTab] = useState("load"),
     [data, setData] = useState(null),
     [error, setError] = useState("");
   useEffect(() => {
-    fetch("/api/admin/phase2")
+    fetch("/api/admin/phase2", { credentials: "same-origin", cache: "no-store" })
       .then(async (r) => {
         const b = await r.json();
+        if (r.status === 401) {
+          window.location.replace(`/admin-login?callbackUrl=${encodeURIComponent("/admin-phase2")}`);
+          return new Promise(() => {});
+        }
         if (!r.ok) throw new Error(b.error);
         return b;
       })
@@ -61,7 +70,7 @@ export default function Phase2Operations() {
         <ArrowLeft size={18} />
         Command Center
       </a>
-      <h1 style={{ fontSize: 29, marginBottom: 4 }}>Phase 2 Operations</h1>
+      <h1 style={{ fontSize: 29, marginBottom: 4 }}>Phase 2 Super Admin</h1>
       <p style={{ color: M, marginTop: 0 }}>
         Driver capacity, commuter passes, institutions, and reliability.
       </p>
@@ -89,6 +98,9 @@ export default function Phase2Operations() {
       {error ? <Card>{error}</Card> : null}
       {tab === "load" ? (
         <div style={{ display: "grid", gap: 10 }}>
+          {data && !data.drivers?.length ? (
+            <Empty>No approved drivers are available yet.</Empty>
+          ) : null}
           {(data?.drivers || []).map((d) => (
             <Card key={d.id}>
               <div style={{ display: "flex", gap: 18, alignItems: "center" }}>
@@ -124,6 +136,9 @@ export default function Phase2Operations() {
       ) : null}
       {tab === "passes" ? (
         <div style={{ display: "grid", gap: 10 }}>
+          {data && !data.passes?.length ? (
+            <Empty>No TukTukPass subscriptions have been created yet.</Empty>
+          ) : null}
           {(data?.passes || []).map((p) => (
             <Card key={p.id}>
               <b>
@@ -147,6 +162,9 @@ export default function Phase2Operations() {
               gap: 12,
             }}
           >
+            {data && !data.institutions?.length ? (
+              <Empty>No institutions have been registered yet.</Empty>
+            ) : null}
             {(data?.institutions || []).map((i) => (
               <Card key={i.id}>
                 <Building2 color={G} />
@@ -162,6 +180,9 @@ export default function Phase2Operations() {
             ))}
           </div>
           <h2 style={{ marginTop: 28 }}>Today&apos;s school trips</h2>
+          {data && !data.trips?.length ? (
+            <Empty>No institution trips are scheduled for today.</Empty>
+          ) : null}
           {(data?.trips || []).map((t) => (
             <Card key={t.id}>
               <Bus color={G} size={18} />{" "}
@@ -175,6 +196,9 @@ export default function Phase2Operations() {
       ) : null}
       {tab === "sla" ? (
         <div style={{ display: "grid", gap: 9 }}>
+          {data && !data.slaEvents?.length ? (
+            <Empty>No driver SLA events have been recorded.</Empty>
+          ) : null}
           {(data?.slaEvents || []).map((e) => (
             <Card key={e.id}>
               <b>{e.driver_name}</b>

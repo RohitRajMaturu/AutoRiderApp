@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { shouldUseSecureCookies } from "@/app/api/utils/auth-cookie-policy";
 
 const mocks = vi.hoisted(() => ({
   getToken: vi.fn(),
@@ -12,6 +13,30 @@ vi.mock("@auth/core/jwt", () => ({
 vi.mock("@/app/api/utils/sql", () => ({
   default: mocks.sql,
 }));
+
+describe("Auth.js cookie policy", () => {
+  it("uses non-secure cookies for LAN HTTP during development", () => {
+    expect(shouldUseSecureCookies({
+      requestUrl: "http://192.168.1.4:4000/admin",
+      authUrl: "https://api.tuktukgo.in",
+      nodeEnv: "development",
+    })).toBe(false);
+  });
+
+  it("honors proxy HTTPS and the production HTTPS fallback", () => {
+    expect(shouldUseSecureCookies({
+      requestUrl: "http://127.0.0.1:4000/admin",
+      forwardedProtocol: "https",
+      authUrl: "https://api.tuktukgo.in",
+      nodeEnv: "production",
+    })).toBe(true);
+    expect(shouldUseSecureCookies({
+      requestUrl: "http://127.0.0.1:4000/admin",
+      authUrl: "https://api.tuktukgo.in",
+      nodeEnv: "production",
+    })).toBe(true);
+  });
+});
 
 describe("auth()", () => {
   beforeEach(() => {

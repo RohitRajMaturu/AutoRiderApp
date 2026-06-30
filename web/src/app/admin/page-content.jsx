@@ -670,10 +670,14 @@ export default function AdminPage() {
     async function loadAdminData() {
       try {
         const [statsRes, driversRes, ridesRes] = await Promise.all([
-          fetch("/api/admin/stats"),
-          fetch("/api/admin/drivers"),
-          fetch("/api/admin/rides"),
+          fetch("/api/admin/stats", { credentials: "same-origin", cache: "no-store" }),
+          fetch("/api/admin/drivers", { credentials: "same-origin", cache: "no-store" }),
+          fetch("/api/admin/rides", { credentials: "same-origin", cache: "no-store" }),
         ]);
+        if ([statsRes, driversRes, ridesRes].some((response) => response.status === 401)) {
+          window.location.replace(`/admin-login?callbackUrl=${encodeURIComponent("/admin")}`);
+          return;
+        }
         const failed = [
           [statsRes, "stats"],
           [driversRes, "drivers"],
@@ -733,7 +737,7 @@ export default function AdminPage() {
   const isInitialLoading = !stats && !error;
 
   return (
-    <AdminShell title="TukTukGo Command Center" eyebrow="Admin">
+    <AdminShell title="TukTukGo Command Center" eyebrow="Super Admin">
       <div className="mx-auto max-w-[1500px] space-y-5">
         <a href="/admin-phase2" className="block rounded-lg border px-4 py-3 text-sm font-bold" style={{ borderColor: "var(--ar-amber)", color: "var(--ar-amber)", textDecoration: "none" }}>
           Open Phase 2 Operations → Driver Load · TukTukPass · TukTukSafe Schools
