@@ -530,16 +530,17 @@ push delivery, and multi-city coordination are intentionally deferred.
 
 Implemented on `feature/phase-2-tuktukpass-safe`:
 
-- Reversible PostgreSQL/PostGIS schema in migration `024`, with the rollback in
-  `web/db/rollbacks`, executable via `npm run db:rollback:phase2`, and all money
-  stored as integer paise.
+- Reversible PostgreSQL schema in migrations `024` and corrective `025`, with
+  rollbacks in `web/db/rollbacks`. Phase 2 money uses plain integer rupees to
+  match the existing ride schema.
 - Passenger pass creation, route-interest, pass detail, pause/resume/cancel,
   payment confirmation, fare calculation, and shared-route detection APIs.
 - Driver pass preferences, guaranteed-earnings dashboard, schedule-conflict
   checks, and transaction/row-lock protected pass acceptance.
-- Assignment priority enforcement: Institution Route > TukTukPass > On-Demand.
-- Idempotent daily pass-ride and institution-trip generation in the maintenance
-  worker, plus pass expiry and pause resumption.
+- Central conflict reporting uses Institution Route > TukTukPass > On-Demand as
+  an operational priority, while every assignment still rejects unresolved overlaps.
+- Idempotent, `CRON_SECRET`-protected pass/institution generation, reminder,
+  no-show, expiry, invoice, and overdue endpoints for VPS crontab.
 - Institution-scoped overview, routes, member import, attendance/trip actions,
   guardian tracking tokens, SMS opt-out webhook, invoices/SLA/trial schema, and
   a separate `/institution-admin` console.
@@ -550,17 +551,32 @@ Implemented on `feature/phase-2-tuktukpass-safe`:
 Phase 2 environment/integration items still pending deployment credentials or
 field validation:
 
-- Wire the generated Razorpay order into the native checkout SDK and validate a
-  real payment/refund cycle. The server signature and confirmation contract is ready.
-- Configure Twilio outbound SMS and validate guardian delivery/STOP callbacks;
-  token generation, opt-out persistence, and webhook signature checks are ready.
+- Validate real Razorpay payment-link and refund cycles. Pass and invoice links,
+  webhook idempotency, and paid-state transitions are implemented.
+- Configure the seven approved Fast2SMS WhatsApp template IDs and phone-number ID,
+  then validate guardian delivery and STOP callbacks through `/api/webhooks/fast2sms`.
+  WhatsApp automatically falls back to Fast2SMS SMS when delivery setup fails.
 - Configure institution-admin users and institution seed data for the first pilot.
 - Add R2 invoice PDF generation and transactional email delivery credentials.
 - Validate live institution tracking on physical devices with Pusher `ap2`.
-- Replace maintenance polling with Redis/Celery only if deployment introduces
-  those services; current jobs are idempotent and run in the existing worker.
 - Complete pilot usability QA for CSV member imports, pass location picking,
   school attendance, backup-driver escalation, and invoice payment links.
+
+Phase 2 jobs are deliberately external-cron endpoints, not part of the
+high-frequency maintenance loop. Configure `CRON_SECRET` and add these VPS
+crontab calls (replace `BASE_URL` and the secret value for the deployment):
+
+```cron
+30 5 * * * curl -sf -X POST -H "Authorization: Bearer $CRON_SECRET" $BASE_URL/api/jobs/pass-generate-rides
+*/15 * * * * curl -sf -X POST -H "Authorization: Bearer $CRON_SECRET" $BASE_URL/api/jobs/pass-reminders
+*/10 * * * * curl -sf -X POST -H "Authorization: Bearer $CRON_SECRET" $BASE_URL/api/jobs/pass-no-show-handler
+0 5 * * * curl -sf -X POST -H "Authorization: Bearer $CRON_SECRET" $BASE_URL/api/jobs/pass-auto-resume
+59 23 * * * curl -sf -X POST -H "Authorization: Bearer $CRON_SECRET" $BASE_URL/api/jobs/pass-expire
+0 6 * * * curl -sf -X POST -H "Authorization: Bearer $CRON_SECRET" $BASE_URL/api/jobs/institution-generate-trips
+0 20 * * * curl -sf -X POST -H "Authorization: Bearer $CRON_SECRET" $BASE_URL/api/jobs/institution-evening-reminder
+0 19 28-31 * * curl -sf -X POST -H "Authorization: Bearer $CRON_SECRET" $BASE_URL/api/jobs/institution-generate-invoices
+0 10 * * * curl -sf -X POST -H "Authorization: Bearer $CRON_SECRET" $BASE_URL/api/jobs/institution-chase-overdue
+```
 
 ## Production Launch Gates
 

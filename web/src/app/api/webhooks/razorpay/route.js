@@ -14,6 +14,13 @@ function readDriverId(payload) {
   );
 }
 
+function readPaymentReferences(payload) {
+  const notes = payload?.payload?.payment_link?.entity?.notes
+    || payload?.payload?.payment?.entity?.notes
+    || {};
+  return { passId: notes.pass_id || null, invoiceId: notes.invoice_id || null };
+}
+
 function readSubscription(payload) {
   return payload?.payload?.subscription?.entity || null;
 }
@@ -36,9 +43,10 @@ export async function POST(request) {
     const subscription = readSubscription(payload);
     const subscriptionId = readSubscriptionId(subscription);
     const eventId = payload.id || null;
+    const { passId, invoiceId } = readPaymentReferences(payload);
 
-    await sql.transaction(async (tx) => {
-      await tx`
+    const processed = await sql.transaction(async (tx) => {
+      const inserted = await tx`
         INSERT INTO subscription_events (
           driver_id,
           event_type,
@@ -47,9 +55,28 @@ export async function POST(request) {
         )
         VALUES (${driverId}, ${eventType}, ${eventId}, ${JSON.stringify(payload)}::jsonb)
         ON CONFLICT (razorpay_event_id) WHERE razorpay_event_id IS NOT NULL DO NOTHING
+        RETURNING id
       `;
+      if (eventId && !inserted[0]) return false;
 
-      if (!driverId) return;
+      if (eventType === "payment_link.paid" && passId) {
+        const paymentId = payload?.payload?.payment?.entity?.id || null;
+        await tx`
+          UPDATE commuter_passes SET payment_status='PAID', status='PENDING_MATCH',
+            razorpay_payment_id=COALESCE(${paymentId},razorpay_payment_id),updated_at=CURRENT_TIMESTAMP
+          WHERE id=${passId} AND payment_status='PENDING'
+        `;
+        return true;
+      }
+      if (eventType === "payment_link.paid" && invoiceId) {
+        await tx`
+          UPDATE institution_invoices SET status='PAID', paid_at=CURRENT_TIMESTAMP
+          WHERE id=${invoiceId} AND status <> 'PAID'
+        `;
+        return true;
+      }
+
+      if (!driverId) return true;
       if (eventType === "subscription.charged") {
         const nextRenewalAt = subscription?.current_end
           ? new Date(subscription.current_end * 1000).toISOString()
@@ -134,7 +161,10 @@ export async function POST(request) {
           WHERE id = ${driverId}
         `;
       }
+      return true;
     });
+
+    if (!processed) return Response.json({ received: true, duplicate: true });
 
     if (eventType === "subscription.halted" && driverId) {
       try {

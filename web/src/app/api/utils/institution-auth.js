@@ -31,6 +31,31 @@ export async function requireInstitutionAdmin(request) {
   return { session, institution: rows[0] };
 }
 
+export async function requireInstitutionAccess(request, institutionId) {
+  const session = await auth(request);
+  if (!session?.user?.id) {
+    const error = new Error("Unauthorized");
+    error.status = 401;
+    throw error;
+  }
+  if (session.user.role === "admin") {
+    const rows = await sql`SELECT * FROM institutions WHERE id=${institutionId} LIMIT 1`;
+    if (!rows[0]) {
+      const error = new Error("Institution not found");
+      error.status = 404;
+      throw error;
+    }
+    return { session, institution: rows[0] };
+  }
+  const result = await requireInstitutionAdmin(request);
+  if (result.institution.id !== institutionId) {
+    const error = new Error("Institution access denied");
+    error.status = 403;
+    throw error;
+  }
+  return result;
+}
+
 export function institutionError(error) {
   return Response.json(
     { error: error.message || "Institution request failed", code: error.code || "INSTITUTION_REQUEST_FAILED" },

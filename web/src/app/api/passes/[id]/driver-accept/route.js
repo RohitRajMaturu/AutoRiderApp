@@ -6,23 +6,33 @@ import { sendPushToUsers } from "@/app/api/utils/push-notifications";
 export async function POST(request, { params }) {
   try {
     const session = await auth(request);
-    if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
-    if (session.user.role !== "driver") return Response.json({ error: "Only drivers can accept pass offers" }, { status: 403 });
+    if (!session?.user?.id)
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    if (session.user.role !== "driver")
+      return Response.json(
+        { error: "Only drivers can accept pass offers" },
+        { status: 403 },
+      );
     const result = await sql.transaction(async (tx) => {
       const driverRows = await tx`
         SELECT d.id, p.accepts_pass_subscriptions, p.max_active_passes
         FROM drivers d
-        JOIN driver_subscription_preferences p ON p.driver_id = d.id
+        JOIN driver_pass_preferences p ON p.driver_id = d.id
         WHERE d.user_id = ${session.user.id} AND p.accepts_pass_subscriptions = true
         LIMIT 1
       `;
       const driver = driverRows[0];
-      if (!driver) return { status: 403, error: "Enable pass subscriptions before accepting offers" };
+      if (!driver)
+        return {
+          status: 403,
+          error: "Enable pass subscriptions before accepting offers",
+        };
       const passRows = await tx`
         SELECT * FROM commuter_passes WHERE id = ${params.id} AND status = 'PENDING_MATCH' FOR UPDATE
       `;
       const pass = passRows[0];
-      if (!pass) return { status: 409, error: "Pass offer is no longer available" };
+      if (!pass)
+        return { status: 409, error: "Pass offer is no longer available" };
       await assertDriverAvailable(tx, {
         driverId: driver.id,
         scheduledDays: pass.scheduled_days,
@@ -44,9 +54,12 @@ export async function POST(request, { params }) {
         WHERE id = ${pass.id} AND status = 'PENDING_MATCH' AND driver_id IS NULL
         RETURNING *
       `;
-      return updated[0] ? { status: 200, pass: updated[0] } : { status: 409, error: "Another driver accepted this pass" };
+      return updated[0]
+        ? { status: 200, pass: updated[0] }
+        : { status: 409, error: "Another driver accepted this pass" };
     });
-    if (result.error) return Response.json({ error: result.error }, { status: result.status });
+    if (result.error)
+      return Response.json({ error: result.error }, { status: result.status });
     await Promise.allSettled([
       sendPushToUsers([result.pass.passenger_id], {
         title: "Driver found for your TukTukPass",
@@ -57,7 +70,11 @@ export async function POST(request, { params }) {
     return Response.json({ pass: result.pass });
   } catch (error) {
     return Response.json(
-      { error: error.message || "Pass acceptance failed", code: error.code || "PASS_ACCEPT_FAILED", conflict: error.conflict },
+      {
+        error: error.message || "Pass acceptance failed",
+        code: error.code || "PASS_ACCEPT_FAILED",
+        conflict: error.conflict,
+      },
       { status: error.status || 500 },
     );
   }

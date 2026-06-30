@@ -27,7 +27,7 @@ export async function PATCH(request, { params }) {
         for (const member of members) {
           await tx`
             INSERT INTO member_tracking_tokens (trip_id, member_id, token, guardian_phone, expires_at)
-            VALUES (${trip.id}, ${member.id}, ${crypto.randomBytes(24).toString("hex")}, ${member.guardian_phone}, CURRENT_TIMESTAMP + INTERVAL '12 hours')
+            VALUES (${trip.id}, ${member.id}, ${crypto.randomBytes(32).toString("hex")}, ${member.guardian_phone}, CURRENT_TIMESTAMP + INTERVAL '12 hours')
             ON CONFLICT (trip_id, member_id) DO NOTHING
           `;
         }
@@ -71,7 +71,7 @@ export async function PATCH(request, { params }) {
           WHERE id = ${trip.id} AND status = 'IN_PROGRESS' RETURNING *
         `;
         if (!updated[0]) return { status: 409, error: "Only an active trip can complete" };
-        await tx`UPDATE member_tracking_tokens SET expires_at = CURRENT_TIMESTAMP WHERE trip_id = ${trip.id}`;
+        await tx`UPDATE member_tracking_tokens SET revoked_at = COALESCE(revoked_at, CURRENT_TIMESTAMP) WHERE trip_id = ${trip.id}`;
         return { status: 200, trip: updated[0] };
       }
       const updated = await tx`

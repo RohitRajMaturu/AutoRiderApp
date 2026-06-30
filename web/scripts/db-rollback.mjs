@@ -5,8 +5,10 @@ import pg from "pg";
 
 const { Pool } = pg;
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const name = process.argv[2];
-if (!name || !/^[a-zA-Z0-9_.-]+\.sql$/.test(name)) throw new Error("Provide a rollback SQL filename");
+const names = process.argv.slice(2);
+if (!names.length || names.some((name) => !/^[a-zA-Z0-9_.-]+\.sql$/.test(name))) {
+  throw new Error("Provide one or more rollback SQL filenames");
+}
 try {
   const env = readFileSync(resolve(root, ".env"), "utf8");
   for (const line of env.split(/\r?\n/)) {
@@ -15,14 +17,16 @@ try {
   }
 } catch { /* external environment is supported */ }
 if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is missing");
-const sql = readFileSync(resolve(root, "db", "rollbacks", name), "utf8");
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const client = await pool.connect();
 try {
   await client.query("BEGIN");
-  await client.query(sql);
+  for (const name of names) {
+    const migration = readFileSync(resolve(root, "db", "rollbacks", name), "utf8");
+    await client.query(migration);
+    console.log(`Rolled back ${name}`);
+  }
   await client.query("COMMIT");
-  console.log(`Rolled back ${name}`);
 } catch (error) {
   await client.query("ROLLBACK");
   throw error;

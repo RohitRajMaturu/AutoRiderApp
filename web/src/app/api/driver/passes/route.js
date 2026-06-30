@@ -4,6 +4,10 @@ import { auth } from "@/auth";
 export async function GET(request) {
   const session = await auth(request);
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const driverRows = await sql`SELECT d.id,p.* FROM drivers d LEFT JOIN driver_pass_preferences p ON p.driver_id=d.id
+    WHERE d.user_id=${session.user.id} LIMIT 1`;
+  const driver = driverRows[0];
+  if (!driver) return Response.json({ error: "Driver profile required" }, { status: 404 });
   const rows = await sql`
     SELECT p.*, u.name AS passenger_name,
       COALESCE((SELECT count(*)::int FROM pass_rides pr WHERE pr.pass_id = p.id AND pr.status = 'COMPLETED'), 0) AS completed_rides,
@@ -14,5 +18,39 @@ export async function GET(request) {
     WHERE d.user_id = ${session.user.id} AND p.status IN ('ACTIVE', 'PAUSED')
     ORDER BY p.scheduled_time, p.created_at
   `;
-  return Response.json({ passes: rows });
+  let offers = [];
+  if (driver.accepts_pass_subscriptions) {
+    offers = await sql`
+      SELECT p.*,u.name AS passenger_name
+      FROM commuter_passes p JOIN auth_users u ON u.id=p.passenger_id
+      WHERE p.status='PENDING_MATCH' AND p.payment_status='PAID' AND p.driver_id IS NULL
+        AND (${driver.preferred_zone_lat}::double precision IS NULL OR
+          111.045 * degrees(acos(least(1.0,
+            cos(radians(${driver.preferred_zone_lat})) * cos(radians(p.pickup_lat))
+            * cos(radians(p.pickup_lng)-radians(${driver.preferred_zone_lng}))
+            + sin(radians(${driver.preferred_zone_lat})) * sin(radians(p.pickup_lat))
+          ))) <= ${driver.preferred_zone_radius_km})
+        AND (${driver.preferred_shift} IN ('ANY','BOTH')
+          OR (${driver.preferred_shift}='MORNING' AND p.scheduled_time<'12:00'::time)
+          OR (${driver.preferred_shift}='EVENING' AND p.scheduled_time>='12:00'::time))
+        AND NOT EXISTS(SELECT 1 FROM institution_routes r WHERE r.driver_id=${driver.id} AND r.status='ACTIVE'
+          AND r.scheduled_days&&p.scheduled_days AND abs(extract(epoch FROM(r.scheduled_time-p.scheduled_time)))<5400)
+        AND NOT EXISTS(SELECT 1 FROM commuter_passes assigned WHERE (assigned.driver_id=${driver.id} OR assigned.backup_driver_id=${driver.id})
+          AND assigned.status='ACTIVE' AND assigned.scheduled_days&&p.scheduled_days
+          AND abs(extract(epoch FROM(assigned.scheduled_time-p.scheduled_time)))<5400)
+      ORDER BY p.created_at LIMIT 20
+    `;
+  }
+  const institutionTrips = await sql`
+    SELECT t.*,r.route_name,r.direction,r.scheduled_time,i.name AS institution_name,
+      COALESCE((SELECT json_agg(json_build_object('id',m.id,'name',m.member_name,'stopOrder',m.stop_order)
+        ORDER BY m.stop_order NULLS LAST,m.member_name) FROM institution_members m
+        WHERE m.id=ANY(t.members_expected)),'[]'::json) AS members
+    FROM institution_trips t JOIN institution_routes r ON r.id=t.route_id
+    JOIN institutions i ON i.id=t.institution_id
+    WHERE COALESCE(t.reassigned_driver_id,t.driver_id)=${driver.id}
+      AND t.scheduled_date=(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date
+      AND t.status IN('SCHEDULED','IN_PROGRESS') ORDER BY r.scheduled_time
+  `;
+  return Response.json({ passes: rows, offers, institutionTrips });
 }

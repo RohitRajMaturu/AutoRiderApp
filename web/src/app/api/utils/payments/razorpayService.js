@@ -110,15 +110,39 @@ export async function cancelSubscription(subscriptionId) {
 }
 
 export async function generatePaymentLink(driverId, amount, reason) {
+  return createPaymentLink({
+    amountRupees: amount,
+    description: reason || "TukTukGo driver subscription renewal",
+    notes: { driver_id: driverId, reason: reason || "subscription_fallback" },
+  });
+}
+
+export async function refundPayment(paymentId, amountRupees) {
+  if (!paymentId) throw new Error("Razorpay payment id is required for a refund");
+  return razorpayRequest(`/payments/${paymentId}/refund`, {
+    method: "POST",
+    body: { amount: Math.max(1, Math.round(Number(amountRupees) || 0)) * 100 },
+  });
+}
+
+export async function createPaymentLink({ amountRupees, description, notes = {}, customer = {} }) {
   const expireBy = Math.floor(Date.now() / 1000) + 72 * 60 * 60;
+  const customerDetails = {
+    name: customer.name || undefined,
+    email: customer.email || undefined,
+    contact: customer.phone || undefined,
+  };
+  const hasCustomer = Object.values(customerDetails).some(Boolean);
   return razorpayRequest("/payment_links", {
     method: "POST",
     body: {
-      amount: Math.max(1, Math.round(Number(amount) || 0)) * 100,
+      amount: Math.max(1, Math.round(Number(amountRupees) || 0)) * 100,
       currency: "INR",
-      description: reason || "TukTukGo driver subscription renewal",
+      description: description || "TukTukGo payment",
       expire_by: expireBy,
-      notes: { driver_id: driverId, reason: reason || "subscription_fallback" },
+      customer: hasCustomer ? customerDetails : undefined,
+      notify: { sms: false, email: false },
+      notes,
     },
   });
 }

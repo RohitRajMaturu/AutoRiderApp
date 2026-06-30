@@ -42,11 +42,11 @@ export async function POST(request) {
         const { item, value } = entry;
         const rows = await tx`
           INSERT INTO institution_members (
-            institution_id, route_id, member_name, member_type, pickup_location, pickup_address,
+            institution_id, route_id, member_name, member_type, pickup_lat, pickup_lng, pickup_address,
             stop_order, guardian_name, guardian_phone, guardian_phone_2
           ) VALUES (
             ${institution.id}, ${item.routeId || null}, ${value.name}, ${value.type},
-            ${value.lat === null ? null : `SRID=4326;POINT(${value.lng} ${value.lat})`}::geography,
+            ${value.lat}, ${value.lng},
             ${item.pickupAddress || null}, ${Number(item.stopOrder) || null}, ${item.guardianName || null},
             ${value.phone}, ${item.guardianPhone2 || null}
           ) RETURNING *

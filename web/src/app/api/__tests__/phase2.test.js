@@ -1,15 +1,25 @@
-import { describe, expect, it, vi } from "vitest";
-import { calculatePassFare, countScheduledRides, readDays, readTime } from "@/app/api/utils/phase2";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { calculatePassFare, countScheduledRides, haversineMeters, readDays, readTime } from "@/app/api/utils/phase2";
 import { assertDriverAvailable } from "@/app/api/utils/driver-conflicts";
+import { isCronAuthorized } from "@/app/api/utils/cron-auth";
+import { sendWhatsAppTemplate } from "@/app/api/utils/notifications/fast2smsWhatsapp";
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  delete process.env.CRON_SECRET;
+  delete process.env.FAST2SMS_API_KEY;
+  delete process.env.FAST2SMS_WHATSAPP_PHONE_NUMBER_ID;
+  delete process.env.FAST2SMS_WHATSAPP_TEMPLATE_PASS_REMINDER;
+});
 
 describe("TukTukPass pricing and schedule validation", () => {
-  it("calculates integer-paise fare with a 15 percent pass discount", () => {
+  it("calculates integer-rupee fare with a 15 percent pass discount", () => {
     expect(calculatePassFare({ estimatedFareRupees: 100, rideCount: 5 })).toEqual({
-      marketPerRidePaise: 10000,
-      perRideFarePaise: 8500,
-      agreedFarePaise: 42500,
-      platformFeePaise: 4250,
-      driverPayoutPaise: 38250,
+      marketPerRide: 100,
+      perRideFare: 85,
+      agreedFare: 425,
+      platformFee: 43,
+      driverPayout: 382,
     });
   });
 
@@ -20,6 +30,32 @@ describe("TukTukPass pricing and schedule validation", () => {
   it("rejects malformed days and time", () => {
     expect(readDays(["MON", "FUNDAY"])).toBeNull();
     expect(readTime("25:00")).toBeNull();
+  });
+
+  it("rejects a pass route shorter than 100 metres", () => {
+    expect(haversineMeters(17.4399, 78.4983, 17.43991, 78.49831)).toBeLessThan(100);
+  });
+});
+
+describe("Phase 2 external integrations", () => {
+  it("requires an exact bearer token for cron jobs", () => {
+    process.env.CRON_SECRET = "cron-secret";
+    expect(isCronAuthorized(new Request("http://local/jobs", { headers: { authorization: "Bearer cron-secret" } }))).toBe(true);
+    expect(isCronAuthorized(new Request("http://local/jobs", { headers: { authorization: "Bearer wrong" } }))).toBe(false);
+  });
+
+  it("uses the Fast2SMS WhatsApp template endpoint", async () => {
+    process.env.FAST2SMS_API_KEY = "key";
+    process.env.FAST2SMS_WHATSAPP_PHONE_NUMBER_ID = "phone-id";
+    process.env.FAST2SMS_WHATSAPP_TEMPLATE_PASS_REMINDER = "42";
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ return: true }) });
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(sendWhatsAppTemplate({ phone: "+91 98855 53312", templateName: "PASS_REMINDER", params: ["1234"] }))
+      .resolves.toMatchObject({ ok: true });
+    const url = new URL(fetchMock.mock.calls[0][0]);
+    expect(url.pathname).toBe("/dev/whatsapp");
+    expect(url.searchParams.get("message_id")).toBe("42");
+    expect(url.searchParams.get("numbers")).toBe("9885553312");
   });
 });
 

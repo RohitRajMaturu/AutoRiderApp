@@ -1,12 +1,12 @@
 import sql from "@/app/api/utils/sql";
 import { auth } from "@/auth";
 import { getRouteEstimate } from "@/app/api/utils/locations";
-import { createOrder, isRazorpayConfigured } from "@/app/api/utils/payments/razorpayService";
 import {
   addDays,
   calculatePassFare,
   countScheduledRides,
   phase2Error,
+  haversineMeters,
   readCoordinate,
   readDays,
   readTime,
@@ -45,11 +45,12 @@ export async function POST(request) {
       return Response.json({ error: "Only passengers can create a TukTukPass" }, { status: 403 });
     }
     const body = await request.json();
-    const pickup = readCoordinate(body.pickup);
-    const dropoff = readCoordinate(body.dropoff);
-    const scheduledDays = readDays(body.scheduledDays);
-    const scheduledTime = readTime(body.scheduledTime);
-    const durationType = body.durationType === "WEEKLY" ? "WEEKLY" : body.durationType === "MONTHLY" ? "MONTHLY" : null;
+    const pickup = readCoordinate(body.pickup || { lat: body.pickup_lat, lng: body.pickup_lng, label: body.pickup_label });
+    const dropoff = readCoordinate(body.dropoff || { lat: body.dropoff_lat, lng: body.dropoff_lng, label: body.dropoff_label });
+    const scheduledDays = readDays(body.scheduledDays || body.scheduled_days);
+    const scheduledTime = readTime(body.scheduledTime || body.scheduled_time);
+    const requestedDuration = String(body.durationType || body.duration_type || "").toUpperCase();
+    const durationType = requestedDuration === "WEEKLY" || requestedDuration === "MONTHLY" ? requestedDuration : null;
     const startDate = /^\d{4}-\d{2}-\d{2}$/.test(body.startDate || "") ? body.startDate : new Date().toISOString().slice(0, 10);
     if (!pickup || !dropoff || !scheduledDays || !scheduledTime || !durationType) {
       return Response.json(
@@ -57,54 +58,60 @@ export async function POST(request) {
         { status: 400 },
       );
     }
+    if (Number(scheduledTime.slice(0, 2)) < 5) {
+      return Response.json({ error: "Pass rides are not available before 5 AM", code: "PASS_TIME_TOO_EARLY" }, { status: 400 });
+    }
+    const distanceMeters = haversineMeters(pickup.lat, pickup.lng, dropoff.lat, dropoff.lng);
+    if (!Number.isFinite(distanceMeters) || distanceMeters < 100) {
+      return Response.json({ error: "Pickup and drop must be different locations", code: "PASS_ROUTE_TOO_SHORT" }, { status: 400 });
+    }
     const endDate = addDays(startDate, durationType === "WEEKLY" ? 6 : 29);
     const rideCount = countScheduledRides(startDate, endDate, scheduledDays);
     if (rideCount < 1) {
       return Response.json({ error: "Schedule does not contain any rides", code: "EMPTY_PASS_SCHEDULE" }, { status: 400 });
     }
     const estimate = await getRouteEstimate(pickup.lat, pickup.lng, dropoff.lat, dropoff.lng);
-    const fare = calculatePassFare({ estimatedFareRupees: estimate.estimatedFare, rideCount });
+    const comparable = await sql`
+      SELECT round(avg(estimated_fare))::int AS average_fare, count(*)::int AS sample_size
+      FROM rides
+      WHERE status = 'completed' AND created_at > CURRENT_TIMESTAMP - INTERVAL '30 days'
+        AND distance_km IS NOT NULL AND estimated_fare > 0
+        AND abs(distance_km - ${estimate.distanceKm}) <= greatest(1, ${estimate.distanceKm} * 0.2)
+    `;
+    const marketFare = Number(comparable[0]?.sample_size || 0) >= 5
+      ? Number(comparable[0].average_fare)
+      : estimate.estimatedFare;
+    const fare = calculatePassFare({ estimatedFareRupees: marketFare, rideCount });
     const passRows = await sql`
       INSERT INTO commuter_passes (
-        passenger_id, pickup_location, dropoff_location, pickup_label, dropoff_label,
-        scheduled_days, scheduled_time, duration_type, agreed_fare_paise,
-        platform_fee_paise, driver_payout_paise, start_date, end_date
+        passenger_id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, pickup_label, dropoff_label,
+        scheduled_days, scheduled_time, duration_type, agreed_fare,
+        platform_fee, driver_payout, start_date, end_date
       ) VALUES (
         ${session.user.id},
-        ST_SetSRID(ST_MakePoint(${pickup.lng}, ${pickup.lat}), 4326)::geography,
-        ST_SetSRID(ST_MakePoint(${dropoff.lng}, ${dropoff.lat}), 4326)::geography,
+        ${pickup.lat}, ${pickup.lng}, ${dropoff.lat}, ${dropoff.lng},
         ${pickup.label}, ${dropoff.label}, ${scheduledDays}::text[], ${scheduledTime}::time,
-        ${durationType}, ${fare.agreedFarePaise}, ${fare.platformFeePaise},
-        ${fare.driverPayoutPaise}, ${startDate}::date, ${endDate}::date
+        ${durationType}, ${fare.agreedFare}, ${fare.platformFee},
+        ${fare.driverPayout}, ${startDate}::date, ${endDate}::date
       ) RETURNING *
     `;
     const pass = passRows[0];
-    let order = null;
-    if (isRazorpayConfigured()) {
-      order = await createOrder({
-        amountPaise: pass.agreed_fare_paise,
-        receipt: `pass_${pass.id}`,
-        notes: { pass_id: pass.id, passenger_id: session.user.id },
-      });
-      await sql`
-        UPDATE commuter_passes SET razorpay_order_id = ${order.id}, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ${pass.id}
-      `;
-    }
     const overlapRows = await sql`
       SELECT count(*)::int AS count
       FROM commuter_passes existing
       WHERE existing.id <> ${pass.id}
         AND existing.status = 'ACTIVE'
-        AND ST_DWithin(existing.pickup_location, ST_SetSRID(ST_MakePoint(${pickup.lng}, ${pickup.lat}), 4326)::geography, 400)
-        AND ST_DWithin(existing.dropoff_location, ST_SetSRID(ST_MakePoint(${dropoff.lng}, ${dropoff.lat}), 4326)::geography, 400)
+        AND abs(existing.pickup_lat - ${pickup.lat}) < 0.004
+        AND abs(existing.pickup_lng - ${pickup.lng}) < 0.004
+        AND abs(existing.dropoff_lat - ${dropoff.lat}) < 0.004
+        AND abs(existing.dropoff_lng - ${dropoff.lng}) < 0.004
         AND existing.scheduled_days && ${scheduledDays}::text[]
         AND abs(extract(epoch FROM (existing.scheduled_time - ${scheduledTime}::time))) < 900
     `;
     return Response.json(
       {
-        pass: { ...pass, razorpay_order_id: order?.id || null },
-        order,
+        pass,
+        paymentRequired: true,
         fare: { ...fare, rideCount },
         sharedRouteOpportunity: Number(overlapRows[0]?.count || 0) > 0,
       },

@@ -1,5 +1,3 @@
-const PRIORITY = { ON_DEMAND: 1, PASS: 2, INSTITUTION: 3 };
-
 export function currentServiceSlot(date = new Date()) {
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Asia/Kolkata",
@@ -29,9 +27,8 @@ export async function lockDriverSchedule(tx, driverId) {
 
 export async function findDriverConflict(
   tx,
-  { driverId, scheduledDays, scheduledTime, sourceType, excludeId = null },
+  { driverId, scheduledDays, scheduledTime, excludeId = null },
 ) {
-  const requestedPriority = PRIORITY[sourceType] || 0;
   const institutionRows = await tx`
     SELECT id, route_name, scheduled_days, scheduled_time, 'INSTITUTION' AS source_type
     FROM institution_routes
@@ -42,19 +39,19 @@ export async function findDriverConflict(
       AND abs(extract(epoch FROM (scheduled_time - ${scheduledTime}::time))) < 5400
     LIMIT 1
   `;
-  if (institutionRows[0] && PRIORITY.INSTITUTION >= requestedPriority) return institutionRows[0];
+  if (institutionRows[0]) return institutionRows[0];
 
   const passRows = await tx`
     SELECT id, pickup_label, dropoff_label, scheduled_days, scheduled_time, 'PASS' AS source_type
     FROM commuter_passes
-    WHERE driver_id = ${driverId}
+    WHERE (driver_id = ${driverId} OR backup_driver_id = ${driverId})
       AND status IN ('ACTIVE', 'PENDING_MATCH')
       AND id <> COALESCE(${excludeId}, '00000000-0000-0000-0000-000000000000'::uuid)
       AND scheduled_days && ${scheduledDays}::text[]
       AND abs(extract(epoch FROM (scheduled_time - ${scheduledTime}::time))) < 5400
     LIMIT 1
   `;
-  if (passRows[0] && PRIORITY.PASS >= requestedPriority) return passRows[0];
+  if (passRows[0]) return passRows[0];
   return null;
 }
 

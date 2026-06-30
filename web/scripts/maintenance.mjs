@@ -187,39 +187,9 @@ async function runMaintenance(pool) {
       [inactivePushTokenRetentionDays],
     );
 
-    // Idempotent Phase 2 daily schedule generation. Unique constraints make
-    // retries safe when multiple maintenance ticks cover the same date.
-    await client.query(`
-      INSERT INTO pass_rides (pass_id, scheduled_date, actual_driver_id, status)
-      SELECT p.id, CURRENT_DATE, p.driver_id,
-             CASE WHEN p.driver_id IS NULL THEN 'PENDING' ELSE 'DRIVER_ASSIGNED' END
-      FROM commuter_passes p
-      WHERE p.status = 'ACTIVE'
-        AND CURRENT_DATE BETWEEN p.start_date AND p.end_date
-        AND upper(to_char(CURRENT_DATE, 'DY')) = ANY(p.scheduled_days)
-      ON CONFLICT (pass_id, scheduled_date) DO NOTHING
-    `);
-    await client.query(`
-      UPDATE commuter_passes
-      SET status = 'ACTIVE', pause_start_date = NULL, pause_end_date = NULL, updated_at = CURRENT_TIMESTAMP
-      WHERE status = 'PAUSED' AND pause_end_date < CURRENT_DATE
-    `);
-    await client.query(`
-      UPDATE commuter_passes SET status = 'EXPIRED', updated_at = CURRENT_TIMESTAMP
-      WHERE status IN ('ACTIVE', 'PAUSED') AND end_date < CURRENT_DATE
-    `);
-    await client.query(`
-      INSERT INTO institution_trips (
-        route_id, institution_id, scheduled_date, driver_id, driver_assigned_at, members_expected
-      )
-      SELECT r.id, r.institution_id, CURRENT_DATE, r.driver_id,
-             CASE WHEN r.driver_id IS NULL THEN NULL ELSE CURRENT_TIMESTAMP END,
-             COALESCE((SELECT array_agg(m.id ORDER BY m.stop_order NULLS LAST) FROM institution_members m WHERE m.route_id = r.id AND m.active = true), '{}')
-      FROM institution_routes r
-      WHERE r.status = 'ACTIVE' AND upper(to_char(CURRENT_DATE, 'DY')) = ANY(r.scheduled_days)
-      ON CONFLICT (route_id, scheduled_date) DO NOTHING
-    `);
-    await client.query(`DELETE FROM member_tracking_tokens WHERE expires_at <= CURRENT_TIMESTAMP`);
+    // Phase 2 schedules and reminders run through CRON_SECRET-protected API
+    // endpoints. Keeping them out of this high-frequency maintenance loop avoids
+    // duplicate notifications and matches the single-VPS crontab deployment.
   } finally { // PATCHED:
     if (locked) { // PATCHED:
       await client.query("SELECT pg_advisory_unlock(202506181)"); // PATCHED:

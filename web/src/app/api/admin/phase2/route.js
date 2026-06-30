@@ -22,7 +22,7 @@ export async function GET(request) {
       WHERE d.is_approved = true ORDER BY u.name
     `,
     sql`SELECT p.*, passenger.name AS passenger_name, driver_user.name AS driver_name FROM commuter_passes p JOIN auth_users passenger ON passenger.id=p.passenger_id LEFT JOIN drivers d ON d.id=p.driver_id LEFT JOIN auth_users driver_user ON driver_user.id=d.user_id ORDER BY p.created_at DESC LIMIT 200`,
-    sql`SELECT i.*, COALESCE((SELECT count(*) FROM institution_routes r WHERE r.institution_id=i.id),0)::int AS route_count, COALESCE((SELECT sum(amount_paise) FROM institution_invoices inv WHERE inv.institution_id=i.id AND inv.status='PAID'),0)::int AS paid_paise FROM institutions i ORDER BY i.created_at DESC`,
+    sql`SELECT i.*, COALESCE((SELECT count(*) FROM institution_routes r WHERE r.institution_id=i.id),0)::int AS route_count, COALESCE((SELECT sum(amount) FROM institution_invoices inv WHERE inv.institution_id=i.id AND inv.status='PAID'),0)::int AS paid_amount FROM institutions i ORDER BY i.created_at DESC`,
     sql`SELECT t.*, i.name AS institution_name, r.route_name FROM institution_trips t JOIN institutions i ON i.id=t.institution_id JOIN institution_routes r ON r.id=t.route_id WHERE t.scheduled_date=CURRENT_DATE ORDER BY t.created_at DESC`,
     sql`SELECT e.*, u.name AS driver_name FROM driver_sla_events e JOIN drivers d ON d.id=e.driver_id JOIN auth_users u ON u.id=d.user_id ORDER BY e.created_at DESC LIMIT 200`,
     sql`SELECT event_type, count(*)::int AS count FROM institution_trial_events GROUP BY event_type ORDER BY event_type`,

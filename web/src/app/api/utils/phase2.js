@@ -37,20 +37,33 @@ export function countScheduledRides(startDate, endDate, scheduledDays) {
 }
 
 export function calculatePassFare({ estimatedFareRupees, rideCount, renewal = false }) {
-  const marketPerRidePaise = Math.max(100, Math.round(Number(estimatedFareRupees) * 100));
+  const marketPerRide = Math.max(1, Math.round(Number(estimatedFareRupees)));
   const baseDiscount = 0.15;
   const loyaltyDiscount = renewal ? 0.05 : 0;
-  const perRideFarePaise = Math.round(marketPerRidePaise * (1 - baseDiscount - loyaltyDiscount));
-  const agreedFarePaise = perRideFarePaise * rideCount;
-  const platformFeePaise = Math.round(agreedFarePaise * 0.1);
-  const driverPayoutPaise = agreedFarePaise - platformFeePaise;
+  const perRideFare = Math.round(marketPerRide * (1 - baseDiscount - loyaltyDiscount));
+  const agreedFare = perRideFare * rideCount;
+  const platformFee = Math.round(agreedFare * 0.1);
+  const driverPayout = agreedFare - platformFee;
   return {
-    marketPerRidePaise,
-    perRideFarePaise,
-    agreedFarePaise,
-    platformFeePaise,
-    driverPayoutPaise,
+    marketPerRide,
+    perRideFare,
+    agreedFare,
+    platformFee,
+    driverPayout,
   };
+}
+
+export function haversineMeters(lat1, lng1, lat2, lng2) {
+  const values = [lat1, lng1, lat2, lng2].map(Number);
+  if (!values.every(Number.isFinite)) return NaN;
+  const [aLat, aLng, bLat, bLng] = values;
+  const radius = 6371000;
+  const toRadians = (degrees) => (degrees * Math.PI) / 180;
+  const deltaLat = toRadians(bLat - aLat);
+  const deltaLng = toRadians(bLng - aLng);
+  const value = Math.sin(deltaLat / 2) ** 2
+    + Math.cos(toRadians(aLat)) * Math.cos(toRadians(bLat)) * Math.sin(deltaLng / 2) ** 2;
+  return radius * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(1 - value));
 }
 
 export function addDays(dateValue, days) {

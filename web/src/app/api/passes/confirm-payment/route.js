@@ -1,23 +1,13 @@
-import sql from "@/app/api/utils/sql";
 import { auth } from "@/auth";
-import { verifyPaymentSignature } from "@/app/api/utils/payments/razorpayService";
+import { createPassPaymentLink } from "@/app/api/utils/pass-payment";
 
+// Compatibility endpoint for mobile builds released before the pass-scoped route.
 export async function POST(request) {
   const session = await auth(request);
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
-  const { passId, orderId, paymentId, signature } = await request.json();
-  if (!passId || !verifyPaymentSignature({ orderId, paymentId, signature })) {
-    return Response.json({ error: "Invalid payment confirmation", code: "INVALID_PAYMENT_SIGNATURE" }, { status: 400 });
-  }
-  const rows = await sql`
-    UPDATE commuter_passes
-    SET payment_status = 'PAID', razorpay_payment_id = ${paymentId}, status = 'PENDING_MATCH', updated_at = CURRENT_TIMESTAMP
-    WHERE id = ${passId}
-      AND passenger_id = ${session.user.id}
-      AND razorpay_order_id = ${orderId}
-      AND payment_status = 'PENDING'
-    RETURNING *
-  `;
-  if (!rows[0]) return Response.json({ error: "Pass payment was already processed or not found" }, { status: 409 });
-  return Response.json({ pass: rows[0] });
+  const body = await request.json().catch(() => ({}));
+  if (!body.passId) return Response.json({ error: "passId is required" }, { status: 400 });
+  const result = await createPassPaymentLink({ passId: body.passId, passengerId: session.user.id });
+  if (result.error) return Response.json({ error: result.error }, { status: result.status });
+  return Response.json(result);
 }
