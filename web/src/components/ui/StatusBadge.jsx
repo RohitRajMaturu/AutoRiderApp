@@ -12,6 +12,16 @@ const STATUS = {
   approved: { label: "Approved", color: "var(--ar-ok)", dim: "var(--ar-ok-dim)", pulse: false },
   rejected: { label: "Rejected", color: "var(--ar-err)", dim: "var(--ar-err-dim)", pulse: false },
   resubmission_required: { label: "Resubmit", color: "var(--ar-err)", dim: "var(--ar-err-dim)", pulse: false },
+  active: { label: "Active", color: "var(--ar-ok)", dim: "var(--ar-ok-dim)", pulse: false },
+  paused: { label: "Paused", color: "var(--ar-warn)", dim: "var(--ar-warn-dim)", pulse: false },
+  expired: { label: "Expired", color: "var(--ar-t3)", dim: "var(--ar-s3)", pulse: false },
+  pending_match: { label: "Finding Driver", color: "var(--ar-info)", dim: "var(--ar-info-dim)", pulse: true },
+  driver_no_show: { label: "No-Show", color: "var(--ar-err)", dim: "var(--ar-err-dim)", pulse: false },
+  trial: { label: "Trial", color: "var(--ar-info)", dim: "var(--ar-info-dim)", pulse: false },
+  suspended: { label: "Suspended", color: "var(--ar-err)", dim: "var(--ar-err-dim)", pulse: false },
+  churned: { label: "Churned", color: "var(--ar-t3)", dim: "var(--ar-s3)", pulse: false },
+  scheduled: { label: "Scheduled", color: "var(--ar-t2)", dim: "var(--ar-s3)", pulse: false },
+  in_progress: { label: "In Progress", color: "var(--ar-accent)", dim: "var(--ar-accent-dim)", pulse: true },
 };
 
 export function statusForDriver(driver) {

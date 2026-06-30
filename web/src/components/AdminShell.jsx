@@ -7,6 +7,7 @@ import {
   FileCheck2,
   LayoutDashboard,
   LogOut,
+  Network,
   RefreshCw,
 } from "lucide-react";
 import { ICON } from "@/lib/iconScale";
@@ -25,6 +26,7 @@ const navItems = [
   { label: "Command Center", route: "/admin", Icon: LayoutDashboard },
   { label: "Operations", route: "/admin-ops", Icon: Activity },
   { label: "KYC Review", route: "/admin-kyc", Icon: FileCheck2 },
+  { label: "Phase 2 Console", route: "/admin-phase2", Icon: Network },
 ];
 
 export default function AdminShell({
