@@ -8,6 +8,7 @@ import {
   Ticket,
   Users,
 } from "lucide-react";
+import { readJsonResponse } from "@/app/api/utils/client-response";
 const G = "#F5A623",
   B = "#0A0A0A",
   C = "#171717",
@@ -40,14 +41,20 @@ export default function Phase2Operations() {
     [data, setData] = useState(null),
     [error, setError] = useState("");
   useEffect(() => {
-    fetch("/api/admin/phase2", { credentials: "same-origin", cache: "no-store" })
+    fetch("/api/admin/phase2", {
+      credentials: "same-origin",
+      cache: "no-store",
+    })
       .then(async (r) => {
-        const b = await r.json();
         if (r.status === 401) {
-          window.location.replace(`/admin-login?callbackUrl=${encodeURIComponent("/admin-phase2")}`);
+          window.location.replace(
+            `/admin-login?callbackUrl=${encodeURIComponent("/admin-phase2")}`,
+          );
           return new Promise(() => {});
         }
-        if (!r.ok) throw new Error(b.error);
+        const b = await readJsonResponse(r, "Phase 2 console");
+        if (!r.ok)
+          throw new Error(b.error || `Phase 2 console failed (${r.status})`);
         return b;
       })
       .then(setData)

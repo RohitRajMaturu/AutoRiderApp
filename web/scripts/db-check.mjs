@@ -118,6 +118,16 @@ async function main() {
       `,
       [Object.keys(REQUIRED_COLUMNS)],
     );
+    const legacyPhase2MoneyColumns = await pool.query(
+      `
+        SELECT table_name, column_name
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name IN ('commuter_passes', 'pass_rides', 'institutions', 'institution_invoices')
+          AND column_name LIKE '%\\_paise' ESCAPE '\\'
+        ORDER BY table_name, column_name
+      `,
+    );
     const zoneReadiness = await pool.query(
       `
         SELECT
@@ -215,6 +225,9 @@ async function main() {
           existingTables: [...found].sort(),
           missingTables: missing,
           missingColumns,
+          legacyPhase2MoneyColumns: legacyPhase2MoneyColumns.rows.map(
+            (row) => `${row.table_name}.${row.column_name}`,
+          ),
           serviceZones: zoneReadiness.rows[0],
           vehicleTypes: vehicleTypeReadiness.rows[0],
           rideLifecycle: rideLifecycleHealth.rows[0],
@@ -227,6 +240,7 @@ async function main() {
     if (
       missing.length > 0 ||
       missingColumns.length > 0 ||
+      legacyPhase2MoneyColumns.rows.length > 0 ||
       vehicleTypeReadiness.rows[0].non_auto_drivers > 0 ||
       vehicleTypeReadiness.rows[0].non_auto_rides > 0
     ) {
