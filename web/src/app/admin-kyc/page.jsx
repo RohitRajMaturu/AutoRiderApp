@@ -205,7 +205,7 @@ export default function AdminKycPage() {
                   disabled={busyId === selected.id}
                   onClick={() => review(selected.id, "approve")}
                   className="inline-flex h-11 items-center gap-2 rounded-lg px-4 text-sm font-bold"
-                  style={{ background: "var(--ar-ok)", color: "#000" }}
+                  style={{ background: "var(--ar-ok)", color: "white" }}
                 >
                   <CheckCircle2 size={ICON.md} />
                   Approve

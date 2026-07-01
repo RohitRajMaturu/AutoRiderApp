@@ -515,8 +515,8 @@ function ZoneMapPreview({ geometry }) {
         }).addTo(map);
         const boundary = L.geoJSON(geometry, {
           style: {
-            color: "#22C55E",
-            fillColor: "#22C55E",
+            color: "var(--ar-ok)",
+            fillColor: "var(--ar-ok)",
             fillOpacity: 0.18,
             opacity: 1,
             weight: 4,
@@ -537,7 +537,7 @@ function ZoneMapPreview({ geometry }) {
   }, [geometry]);
 
   return (
-    <div className="relative h-72 w-full bg-[#111820]">
+    <div className="relative h-72 w-full bg-[var(--ar-s3)]">
       <div ref={containerRef} className="h-full w-full" aria-label="Validated GeoJSON region map preview" />
       {mapError ? (
         <div className="absolute inset-0 flex items-center justify-center px-6 text-center text-sm text-red-300">
@@ -660,7 +660,7 @@ function ZoneGeoJsonCreator() {
           type="button"
           onClick={validate}
           className="rounded-lg px-4 py-2 text-sm font-semibold"
-          style={{ background: "var(--ar-accent)", color: "var(--ar-bg)" }}
+          style={{ background: "var(--ar-accent)", color: "white" }}
         >
           Validate & Preview
         </button>
@@ -676,7 +676,7 @@ function ZoneGeoJsonCreator() {
         ) : null}
       </div>
       {validated ? (
-        <div className="mt-4 overflow-hidden rounded-xl border" style={{ borderColor: "var(--ar-ok)", background: "#111820" }}>
+        <div className="mt-4 overflow-hidden rounded-xl border" style={{ borderColor: "var(--ar-ok)", background: "var(--ar-s3)" }}>
           <ZoneMapPreview geometry={validated.geometry} />
           <div className="grid border-t px-3 py-2 text-xs sm:grid-cols-2" style={{ borderColor: "var(--ar-border)", color: "var(--ar-t2)" }}>
             <span>North/South: {previewBounds?.north.toFixed(5)} / {previewBounds?.south.toFixed(5)}</span>
@@ -690,7 +690,7 @@ function ZoneGeoJsonCreator() {
           disabled={!validated || createZone.isPending}
           onClick={() => createZone.mutate()}
           className="rounded-lg px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40"
-          style={{ background: "var(--ar-ok)", color: "#07120b" }}
+          style={{ background: "var(--ar-ok)", color: "white" }}
         >
           {createZone.isPending ? "Saving..." : "Save Zone"}
         </button>
@@ -1213,7 +1213,7 @@ function DriverTable({ drivers, sectionRef }) {
                       })
                     }
                     className="rounded-lg px-3 py-2 text-xs font-semibold"
-                    style={{ backgroundColor: "var(--ar-accent)", color: "var(--ar-bg)" }}
+                    style={{ backgroundColor: "var(--ar-accent)", color: "white" }}
                   >
                     Approve
                   </button>
@@ -1390,9 +1390,9 @@ function AuditLog({ sectionRef }) {
           <div
             className="mb-3 rounded-lg border px-4 py-3 text-sm"
             style={{
-              background: "rgba(239, 68, 68, 0.08)",
-              borderColor: "rgba(239, 68, 68, 0.35)",
-              color: "#fca5a5",
+              background: "var(--ar-err-dim)",
+              borderColor: "var(--ar-err)",
+              color: "var(--ar-err)",
             }}
           >
             Audit activity could not be loaded. Please refresh and try again.

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Building2, Bus, ShieldCheck, Ticket, Users } from "lucide-react";
+import { Building2, Bus, Clock3, ShieldCheck, Ticket, Users } from "lucide-react";
 import AdminShell from "@/components/AdminShell";
 import { ChartSkeleton } from "@/components/AdminECharts";
 import StatusBadge from "@/components/ui/StatusBadge";
@@ -43,7 +43,7 @@ function TabButton({ active, label, Icon, onClick }) {
       className="flex h-10 items-center gap-2 rounded-lg border px-4 text-sm font-semibold transition"
       style={{
         background: active ? "var(--ar-accent)" : "var(--ar-s2)",
-        color: active ? "var(--ar-bg)" : "var(--ar-t1)",
+        color: active ? "white" : "var(--ar-t1)",
         borderColor: active ? "var(--ar-accent)" : "var(--ar-border)",
       }}
     >
@@ -164,13 +164,42 @@ export default function Phase2Operations() {
   );
 }
 
+function DriverSchedule({ items }) {
+  if (!items?.length) {
+    return (
+      <div className="flex items-center gap-2 rounded-lg border border-dashed border-[var(--ar-border-h)] bg-[var(--ar-s3)] px-3 py-2 text-xs text-[var(--ar-t3)]">
+        <Clock3 size={14} />
+        Open for assignments
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid min-w-[250px] gap-2">
+      {items.map((item, index) => (
+        <div
+          key={`${item.time}-${item.type}-${item.label}-${index}`}
+          className="flex items-center gap-3 rounded-lg border border-[var(--ar-border)] bg-[var(--ar-s3)] px-2.5 py-2 shadow-[var(--ar-shadow-sm)]"
+        >
+          <span className="rounded-md bg-[var(--ar-accent-dim)] px-2 py-1 text-[11px] font-bold tabular-nums text-[var(--ar-accent)]">
+            {String(item.time || "—").slice(0, 5)}
+          </span>
+          <span className="min-w-0">
+            <span className="block text-[10px] font-semibold uppercase tracking-wider text-[var(--ar-t3)]">
+              {item.type || "Assignment"}
+            </span>
+            <span className="block truncate text-xs font-semibold text-[var(--ar-t1)]">
+              {item.label || "Scheduled route"}
+            </span>
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function DriverLoadTab({ drivers }) {
   if (!drivers.length) return <EmptyState>No approved drivers are available yet.</EmptyState>;
-
-  const scheduleText = (driver) =>
-    driver.today_schedule
-      ?.map((item) => `${String(item.time).slice(0, 5)} ${item.type}: ${item.label}`)
-      .join(" · ") || "No recurring assignments";
 
   return (
     <>
@@ -194,7 +223,7 @@ function DriverLoadTab({ drivers }) {
           </thead>
           <tbody>
             {drivers.map((driver) => (
-              <tr key={driver.id}>
+              <tr key={driver.id} className="ar-tr">
                 <td className="border-b px-3 py-3 font-semibold" style={{ borderColor: "var(--ar-border)" }}>
                   {driver.name}
                 </td>
@@ -210,8 +239,8 @@ function DriverLoadTab({ drivers }) {
                 <td className="border-b px-3 py-3 font-semibold" style={{ borderColor: "var(--ar-border)", color: driver.sla_score < 50 ? "var(--ar-err)" : "var(--ar-ok)" }}>
                   {driver.sla_score}
                 </td>
-                <td className="border-b px-3 py-3 text-xs" style={{ borderColor: "var(--ar-border)", color: "var(--ar-t2)" }}>
-                  {scheduleText(driver)}
+                <td className="border-b px-3 py-3" style={{ borderColor: "var(--ar-border)" }}>
+                  <DriverSchedule items={driver.today_schedule} />
                 </td>
               </tr>
             ))}
@@ -233,8 +262,12 @@ function DriverLoadTab({ drivers }) {
               <span>Passes <b style={{ color: "var(--ar-accent)" }}>{driver.active_passes}</b></span>
               <span>Routes <b style={{ color: "var(--ar-accent)" }}>{driver.institution_routes}</b></span>
             </div>
-            <div className="mt-2 text-xs" style={{ color: "var(--ar-t3)" }}>
-              {scheduleText(driver)}
+            <div className="mt-4 border-t border-[var(--ar-border)] pt-3">
+              <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--ar-t3)]">
+                <Clock3 size={13} />
+                Today&apos;s schedule
+              </div>
+              <DriverSchedule items={driver.today_schedule} />
             </div>
           </div>
         ))}
@@ -313,7 +346,7 @@ function InstitutionOnboarding({ onCreated }) {
           type="button"
           onClick={() => { setOpen((value) => !value); setError(""); setMessage(""); }}
           className="rounded-lg px-4 py-2 text-sm font-bold"
-          style={{ background: "var(--ar-accent)", color: "var(--ar-bg)" }}
+          style={{ background: "var(--ar-accent)", color: "white" }}
         >
           {open ? "Close" : "Add institution"}
         </button>
@@ -346,7 +379,7 @@ function InstitutionOnboarding({ onCreated }) {
             type="submit"
             disabled={saving}
             className="h-10 rounded-lg text-sm font-bold disabled:opacity-60 md:col-span-2 xl:col-span-1"
-            style={{ background: "var(--ar-ok)", color: "var(--ar-bg)" }}
+            style={{ background: "var(--ar-ok)", color: "white" }}
           >
             {saving ? "Creating…" : "Create institution & admin"}
           </button>

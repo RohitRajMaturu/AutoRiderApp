@@ -187,7 +187,7 @@ function Metric({
         </div>
       ) : null}
       <div className="mt-3">
-        <Sparkline data={sparkline} color={color.startsWith("#") ? color : "#F5A623"} loading={loading} />
+        <Sparkline data={sparkline} color={color || "var(--ar-accent)"} loading={loading} />
       </div>
     </div>
   );

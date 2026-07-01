@@ -3,34 +3,43 @@
 @tailwind utilities;
 
 :root {
-  --ar-bg: #121417;
-  --ar-s1: #181B20;
-  --ar-s2: #1F232A;
-  --ar-s3: #272B33;
-  --ar-border: rgba(255,255,255,0.07);
-  --ar-border-h: rgba(255,255,255,0.13);
-  --ar-accent: #F5A623;
+  /* Surfaces */
+  --ar-bg: #EEECE6;
+  --ar-s1: #F8F7F3;
+  --ar-s2: #FCFBF8;
+  --ar-s3: #E8E5DE;
+  --ar-border: rgba(15,15,15,0.08);
+  --ar-border-h: rgba(15,15,15,0.16);
+
+  /* Brand */
+  --ar-accent: #D9821F;
   --ar-primary: var(--ar-accent);
-  --ar-accent-dim: rgba(245,166,35,0.12);
+  --ar-accent-dim: rgba(217,130,31,0.10);
   --ar-primary-dim: var(--ar-accent-dim);
-  --ar-t1: #EDEFF2;
-  --ar-t2: #8B91A0;
-  --ar-t3: #565C6E;
-  --ar-ok: #5EA88B;
-  --ar-ok-dim: rgba(94,168,139,0.12);
-  --ar-err: #C5635A;
-  --ar-err-dim: rgba(197,99,90,0.12);
-  --ar-warn: #C99A4A;
-  --ar-warn-dim: rgba(201,154,74,0.12);
-  --ar-info: #5A8FB0;
-  --ar-info-dim: rgba(90,143,176,0.12);
+
+  /* Text */
+  --ar-t1: #1A1A18;
+  --ar-t2: #5C5B56;
+  --ar-t3: #8C8A83;
+
+  /* Status */
+  --ar-ok: #3F7D5C;
+  --ar-ok-dim: rgba(63,125,92,0.10);
+  --ar-err: #B0463D;
+  --ar-err-dim: rgba(176,70,61,0.10);
+  --ar-warn: #A8762E;
+  --ar-warn-dim: rgba(168,118,46,0.10);
+  --ar-info: #3D6E8C;
+  --ar-info-dim: rgba(61,110,140,0.10);
+
   --ar-surface: var(--ar-s2);
   --ar-surface-raised: var(--ar-s3);
-  --ar-shadow-sm: 0 1px 3px rgba(0,0,0,0.35), 0 1px 2px rgba(0,0,0,0.25);
-  --ar-shadow-md: 0 4px 16px rgba(0,0,0,0.4), 0 2px 6px rgba(0,0,0,0.25);
-  --ar-shadow-glow: 0 0 0 1px rgba(245,166,35,0.18), 0 4px 20px rgba(245,166,35,0.07);
-  --ar-gradient-amber: linear-gradient(135deg, #F5A623 0%, #E0941F 100%);
+  --ar-shadow-sm: 0 1px 2px rgba(20,18,14,0.04), 0 1px 1px rgba(20,18,14,0.03);
+  --ar-shadow-md: 0 4px 14px rgba(20,18,14,0.07), 0 2px 4px rgba(20,18,14,0.04);
+  --ar-shadow-glow: 0 0 0 1px rgba(217,130,31,0.14), 0 4px 16px rgba(217,130,31,0.06);
+  --ar-gradient-amber: linear-gradient(135deg, #D9821F 0%, #C26F16 100%);
   --ar-gradient-surface: linear-gradient(180deg, var(--ar-s2) 0%, var(--ar-s1) 100%);
+
   --ar-fast: 150ms ease;
   --ar-base: 200ms ease;
   --ar-slow: 280ms cubic-bezier(0.4,0,0.2,1);
@@ -273,7 +282,7 @@
 
   .ar-chart-skeleton {
     border-radius: 10px;
-    background: linear-gradient(90deg, #1A1A1A, #2A2A2A, #1A1A1A);
+    background: linear-gradient(90deg, var(--ar-s2), var(--ar-s3), var(--ar-s2));
     background-size: 200% 100%;
     animation: ar-shimmer 1.4s ease-in-out infinite;
   }

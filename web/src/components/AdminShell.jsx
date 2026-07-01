@@ -187,7 +187,7 @@ export default function AdminShell({
         <header
           className="sticky top-0 z-40 flex min-h-14 flex-wrap items-center justify-between gap-3 border-b px-6 py-3"
           style={{
-            background: "rgba(13,15,18,0.88)",
+            background: "var(--ar-s1)",
             borderColor: "var(--ar-border)",
             backdropFilter: "blur(14px)",
           }}

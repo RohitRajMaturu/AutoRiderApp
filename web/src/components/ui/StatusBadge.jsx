@@ -13,6 +13,9 @@ const STATUS = {
   rejected: { label: "Rejected", color: "var(--ar-err)", dim: "var(--ar-err-dim)", pulse: false },
   resubmission_required: { label: "Resubmit", color: "var(--ar-err)", dim: "var(--ar-err-dim)", pulse: false },
   active: { label: "Active", color: "var(--ar-ok)", dim: "var(--ar-ok-dim)", pulse: false },
+  inactive: { label: "Inactive", color: "var(--ar-t3)", dim: "var(--ar-s3)", pulse: false },
+  assigned: { label: "Assigned", color: "var(--ar-ok)", dim: "var(--ar-ok-dim)", pulse: false },
+  unassigned: { label: "Unassigned", color: "var(--ar-err)", dim: "var(--ar-err-dim)", pulse: false },
   paused: { label: "Paused", color: "var(--ar-warn)", dim: "var(--ar-warn-dim)", pulse: false },
   expired: { label: "Expired", color: "var(--ar-t3)", dim: "var(--ar-s3)", pulse: false },
   pending_match: { label: "Finding Driver", color: "var(--ar-info)", dim: "var(--ar-info-dim)", pulse: true },
@@ -32,7 +35,8 @@ export function statusForDriver(driver) {
 }
 
 export default function StatusBadge({ status, label }) {
-  const config = STATUS[status] || STATUS.offline;
+  const normalizedStatus = String(status || "").trim().toLowerCase();
+  const config = STATUS[normalizedStatus] || STATUS.offline;
   return (
     <span
       className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-semibold"
