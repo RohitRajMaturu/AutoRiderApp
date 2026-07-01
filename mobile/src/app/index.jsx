@@ -98,27 +98,16 @@ export default function Index() {
           bg: "#F0FDF4",
           border: "#BBF7D0",
         }
-      : selectedRole === "admin"
-        ? {
-            id: "admin",
-            label: "Admin",
-            title: "Admin access",
-            subtitle: "Sign in to manage drivers, rides, zones, and reviews.",
-            Icon: ShieldCheck,
-            color: DARK,
-            bg: "#F5F5F4",
-            border: "#D8E4E5",
-          }
-        : {
-            id: "passenger",
-            label: "Passenger",
-            title: "Passenger account",
-            subtitle: "Book autos, track rides, and view trip history.",
-            Icon: UserRound,
-            color: SAFFRON,
-            bg: "#E7F6F4",
-            border: "#BFE5E0",
-          };
+      : {
+          id: "passenger",
+          label: "Passenger",
+          title: "Passenger account",
+          subtitle: "Book autos, track rides, and view trip history.",
+          Icon: UserRound,
+          color: SAFFRON,
+          bg: "#E7F6F4",
+          border: "#BFE5E0",
+        };
   const SelectedRoleIcon = selectedRoleMeta.Icon;
 
   return (
@@ -355,12 +344,10 @@ export default function Index() {
             {[
               { id: "passenger", label: "Passenger", Icon: UserRound },
               { id: "driver", label: "Driver", Icon: Gauge },
-              { id: "admin", label: "Admin", Icon: ShieldCheck },
             ].map((item) => {
               const selected = selectedRole === item.id;
               const RoleIcon = item.Icon;
-              const color =
-                item.id === "driver" ? "#16A34A" : item.id === "admin" ? DARK : SAFFRON;
+              const color = item.id === "driver" ? "#16A34A" : SAFFRON;
               return (
                 <TouchableOpacity
                   key={item.id}
@@ -450,50 +437,45 @@ export default function Index() {
             </Text>
           </TouchableOpacity>
 
-          {selectedRole === "admin" ? (
-            <View
-              style={{
-                alignItems: "center",
-                backgroundColor: "#F7FBFA",
-                borderColor: "#D8E4E5",
-                borderRadius: 14,
-                borderWidth: 1,
-                flexDirection: "row",
-                gap: 8,
-                justifyContent: "center",
-                marginTop: 10,
-                paddingHorizontal: 14,
-                paddingVertical: 14,
-              }}
-            >
-              <ShieldCheck size={18} color="#586C70" />
-              <Text style={{ color: "#586C70", flex: 1, fontSize: 13, fontWeight: "800", textAlign: "center" }}>
-                Admin accounts are managed by platform owners
-              </Text>
-            </View>
-          ) : (
-            <TouchableOpacity
-              onPress={() => signUp({ params: { role: selectedRole } })}
-              style={{
-                borderColor: selectedRoleMeta.border,
-                borderRadius: 14,
-                borderWidth: 1,
-                alignItems: "center",
-                backgroundColor: "#fff",
-                flexDirection: "row",
-                gap: 8,
-                justifyContent: "center",
-                marginTop: 10,
-                paddingVertical: 14,
-              }}
-              activeOpacity={0.85}
-            >
-              <UserPlus size={18} color={selectedRoleMeta.color} />
-              <Text style={{ color: selectedRoleMeta.color, fontSize: 14, fontWeight: "900" }}>
-                Create {selectedRoleMeta.label} Account
-              </Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            onPress={() => signUp({ params: { role: selectedRole } })}
+            style={{
+              borderColor: selectedRoleMeta.border,
+              borderRadius: 14,
+              borderWidth: 1,
+              alignItems: "center",
+              backgroundColor: "#fff",
+              flexDirection: "row",
+              gap: 8,
+              justifyContent: "center",
+              marginTop: 10,
+              paddingVertical: 14,
+            }}
+            activeOpacity={0.85}
+          >
+            <UserPlus size={18} color={selectedRoleMeta.color} />
+            <Text style={{ color: selectedRoleMeta.color, fontSize: 14, fontWeight: "900" }}>
+              Create {selectedRoleMeta.label} Account
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => signIn({ params: { role: "admin" } })}
+            activeOpacity={0.72}
+            style={{
+              alignItems: "center",
+              flexDirection: "row",
+              gap: 6,
+              justifyContent: "center",
+              marginTop: 14,
+              paddingVertical: 4,
+            }}
+          >
+            <ShieldCheck size={14} color="#647678" />
+            <Text style={{ color: "#647678", fontSize: 12, fontWeight: "700" }}>
+              Platform admin sign in
+            </Text>
+          </TouchableOpacity>
 
           <Text
             style={{

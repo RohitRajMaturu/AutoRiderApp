@@ -1,106 +1,63 @@
 import { Tabs } from "expo-router";
 import { View } from "react-native";
-import { Bell, Home, Ticket, Wallet, User } from "lucide-react-native";
+import { Home, Ticket, User, Wallet } from "lucide-react-native";
 import { ICON } from "@/theme/iconScale";
-import { useLanguage } from "@/i18n/LanguageContext";
-import { useAuth } from "@/utils/auth/useAuth";
-import useNotificationStore, { notificationOwnerKey } from "@/store/useNotificationStore";
+
+const tabScreenOptions = {
+  headerShown: false,
+  tabBarActiveBackgroundColor: "#E7F6F4",
+  tabBarActiveTintColor: "#2E9C97",
+  tabBarHideOnKeyboard: true,
+  tabBarInactiveTintColor: "#647678",
+  tabBarItemStyle: {
+    borderRadius: 14,
+    marginHorizontal: 2,
+    marginVertical: 5,
+  },
+  tabBarLabelStyle: {
+    fontSize: 10,
+    fontWeight: "800",
+    marginTop: 0,
+  },
+  tabBarStyle: {
+    backgroundColor: "#FFFFFF",
+    borderTopColor: "#D8E4E5",
+    borderTopWidth: 1,
+    height: 72,
+    paddingBottom: 6,
+    paddingHorizontal: 6,
+    paddingTop: 4,
+  },
+};
+
+function tabIcon(Icon) {
+  return function TabIcon({ color, focused }) {
+    return <Icon color={color} size={ICON.lg} strokeWidth={focused ? 2.5 : 1.7} />;
+  };
+}
 
 export default function DriverLayout() {
-  const { t } = useLanguage();
-  const { auth } = useAuth();
-  const ownerKey = notificationOwnerKey(auth);
-  const unreadCount = useNotificationStore((state) =>
-    state.notifications.filter((item) => item.ownerKey === ownerKey && !item.read).length,
-  );
   return (
     <View style={{ flex: 1 }}>
-      <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: {
-          backgroundColor: "#FFFFFF",
-          borderTopWidth: 1,
-          borderTopColor: "#D8E4E5",
-          paddingTop: 8,
-          paddingBottom: 4,
-        },
-        tabBarActiveTintColor: "#43B8B3",
-        tabBarInactiveTintColor: "#647678",
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: "600",
-          marginTop: 2,
-        },
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: t("nav.dashboard"),
-          tabBarIcon: ({ color }) => (
-            <Home
-              color={color}
-              size={ICON.lg}
-              strokeWidth={color === "#43B8B3" ? 2.5 : 1.5}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="wallet"
-        options={{
-          title: t("nav.subscription"),
-          tabBarIcon: ({ color }) => (
-            <Wallet
-              color={color}
-              size={ICON.lg}
-              strokeWidth={color === "#43B8B3" ? 2.5 : 1.5}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="pass"
-        options={{
-          title: "Pass",
-          tabBarIcon: ({ color }) => <Ticket color={color} size={ICON.lg} />,
-        }}
-      />
-      <Tabs.Screen
-        name="notifications"
-        options={{
-          title: "Alerts",
-          tabBarBadge: unreadCount ? (unreadCount > 99 ? "99+" : unreadCount) : undefined,
-          tabBarBadgeStyle: { backgroundColor: "#DC2626", color: "#FFFFFF", fontSize: 10 },
-          tabBarIcon: ({ color }) => (
-            <Bell
-              color={color}
-              size={ICON.lg}
-              strokeWidth={color === "#43B8B3" ? 2.5 : 1.5}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: t("nav.profile"),
-          tabBarIcon: ({ color }) => (
-            <User
-              color={color}
-              size={ICON.lg}
-              strokeWidth={color === "#43B8B3" ? 2.5 : 1.5}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="kyc-submit"
-        options={{
-          href: null,
-        }}
-      />
+      <Tabs screenOptions={tabScreenOptions}>
+        <Tabs.Screen
+          name="index"
+          options={{ title: "Drive", tabBarIcon: tabIcon(Home) }}
+        />
+        <Tabs.Screen
+          name="wallet"
+          options={{ title: "Earnings", tabBarIcon: tabIcon(Wallet) }}
+        />
+        <Tabs.Screen
+          name="pass"
+          options={{ title: "Pass", tabBarIcon: tabIcon(Ticket) }}
+        />
+        <Tabs.Screen name="notifications" options={{ href: null }} />
+        <Tabs.Screen
+          name="profile"
+          options={{ title: "Account", tabBarIcon: tabIcon(User) }}
+        />
+        <Tabs.Screen name="kyc-submit" options={{ href: null }} />
       </Tabs>
     </View>
   );

@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { Alert, FlatList, Text, TouchableOpacity, View } from "react-native";
-import { Bell, CheckCheck, Trash2 } from "lucide-react-native";
+import { ArrowLeft, Bell, CheckCheck, Trash2 } from "lucide-react-native";
+import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/utils/auth/useAuth";
 import useNotificationStore, { notificationOwnerKey } from "@/store/useNotificationStore";
@@ -25,6 +26,7 @@ function formatNotificationTime(value) {
 }
 
 export default function NotificationCenter() {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { auth } = useAuth();
   const ownerKey = notificationOwnerKey(auth);
@@ -51,9 +53,14 @@ export default function NotificationCenter() {
   return (
     <View style={{ flex: 1, backgroundColor: BG, paddingTop: insets.top }}>
       <View style={{ paddingHorizontal: 18, paddingTop: 14, paddingBottom: 12, flexDirection: "row", alignItems: "center" }}>
-        <View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: "#E7F6F4", alignItems: "center", justifyContent: "center" }}>
-          <Bell size={ICON.md} color={PRIMARY} />
-        </View>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: SURFACE, borderWidth: 1, borderColor: BORDER, alignItems: "center", justifyContent: "center" }}
+        >
+          <ArrowLeft size={ICON.md} color={TEXT} />
+        </TouchableOpacity>
         <View style={{ flex: 1, marginLeft: 12 }}>
           <Text style={{ fontSize: 22, fontWeight: "900", color: TEXT }}>Notifications</Text>
           <Text style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 2 }}>Ride updates saved on this device</Text>

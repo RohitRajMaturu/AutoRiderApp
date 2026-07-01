@@ -41,6 +41,7 @@ import { toast } from "sonner-native";
 import TukTukGoLoader from "@/components/TukTukGoLoader";
 import AutoRideIcon from "@/components/AutoRideIcon";
 import ChatDrawer from "@/components/ChatDrawer";
+import NotificationBell from "@/components/NotificationBell";
 import { Button, RIDE_STATUS_CONFIG, StatusBadge } from "@/components/ui";
 import { ICON } from "@/theme/iconScale";
 import { useAuth } from "@/utils/auth/useAuth";
@@ -1347,6 +1348,7 @@ export default function PassengerHome() {
             </Text>
             </View>
           </View>
+          <NotificationBell />
         </View>
       </View>
 

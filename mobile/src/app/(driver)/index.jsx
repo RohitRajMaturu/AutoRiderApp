@@ -46,6 +46,7 @@ import { Audio } from "expo-av";
 import { toast } from "sonner-native";
 import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedView";
 import ChatDrawer from "@/components/ChatDrawer";
+import NotificationBell from "@/components/NotificationBell";
 import { Button } from "@/components/ui";
 import { MotionPressable } from "@/components/motion";
 import { useAuth } from "@/utils/auth/useAuth";
@@ -2509,17 +2510,37 @@ export default function DriverHome() {
               Dashboard
             </Text>
             <Text style={{ fontSize: 13, color: TEXT_SECONDARY, marginTop: 2 }}>
-              {driver.vehicle_number} ·{" "}
-              {driver.is_online ? t("driver.online") : t("driver.offline")}
-            </Text>
-            <Text style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 3 }}>
-              {driver.is_online
-                ? "మీరు ఆన్‌లైన్‌లో ఉన్నారు / आप ऑनलाइन हैं"
-                : "ఆఫ్‌లైన్ / ऑफलाइन"}
+              {driver.vehicle_number || "Driver account"}
             </Text>
             </View>
           </View>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginLeft: 10 }}>
+          <NotificationBell />
+        </View>
+
+        <View
+          style={{
+            alignItems: "center",
+            backgroundColor: driver.is_online ? SUCCESS_LIGHT : BG,
+            borderColor: driver.is_online ? "#BBF7D0" : BORDER,
+            borderRadius: 15,
+            borderWidth: 1,
+            flexDirection: "row",
+            justifyContent: "space-between",
+            marginTop: 14,
+            paddingHorizontal: 14,
+            paddingVertical: 11,
+          }}
+        >
+          <View style={{ flex: 1, paddingRight: 12 }}>
+            <Text style={{ color: TEXT, fontSize: 13, fontWeight: "900" }}>
+              {driver.is_online ? "Online for rides" : "You are offline"}
+            </Text>
+            <Text style={{ color: TEXT_SECONDARY, fontSize: 11, marginTop: 2 }}>
+              {driver.is_online
+                ? "మీరు ఆన్‌లైన్‌లో ఉన్నారు / आप ऑनलाइन हैं"
+                : "Go online when you are ready to drive"}
+            </Text>
+          </View>
           <TouchableOpacity
             onPress={() => {
               if (!driver.is_online && isExpired) {
@@ -2573,7 +2594,6 @@ export default function DriverHome() {
               </Animated.View>
             </Animated.View>
           </TouchableOpacity>
-          </View>
         </View>
 
         {canBrowseRideRequests && driver.is_online && availableRides.length > 0 ? (
