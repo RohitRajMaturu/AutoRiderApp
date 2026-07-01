@@ -3,13 +3,13 @@ import { useRouter } from "expo-router";
 import { Bus, Settings, Ticket } from "lucide-react-native";
 import {
   ActivityIndicator,
-  Alert,
   ScrollView,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { toast } from "sonner-native";
 import { theme as THEME } from "@/theme/tokens";
 const G = THEME.accent,
   B = THEME.bg,
@@ -43,7 +43,7 @@ export default function DriverPass() {
     },
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ["driverPasses"] }),
-    onError: (error) => Alert.alert("Pass unavailable", error.message),
+    onError: (error) => toast.error("Pass unavailable", { description: error.message }),
   });
   const tripAction = useMutation({
     mutationFn: async ({ tripId, action, memberId, reason }) => {
@@ -58,7 +58,7 @@ export default function DriverPass() {
       return body;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["driverPasses"] }),
-    onError: (error) => Alert.alert("Trip update failed", error.message),
+    onError: (error) => toast.error("Trip update failed", { description: error.message }),
   });
   const guaranteed = passes.reduce(
     (s, p) => s + Number(p.driver_payout || 0),
@@ -131,7 +131,7 @@ export default function DriverPass() {
               <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
                 {trip.status === "SCHEDULED" ? <TouchableOpacity disabled={tripAction.isPending} onPress={() => tripAction.mutate({ tripId: trip.id, action: "start" })} style={{ flex: 1, backgroundColor: G, borderRadius: 11, padding: 12, alignItems: "center" }}><Text style={{ color: THEME.surface1, fontWeight: "900" }}>Start route</Text></TouchableOpacity> : null}
                 {trip.status === "IN_PROGRESS" ? <TouchableOpacity disabled={tripAction.isPending} onPress={() => tripAction.mutate({ tripId: trip.id, action: "complete" })} style={{ flex: 1, backgroundColor: G, borderRadius: 11, padding: 12, alignItems: "center" }}><Text style={{ color: THEME.surface1, fontWeight: "900" }}>Complete</Text></TouchableOpacity> : null}
-                <TouchableOpacity onPress={() => Alert.alert("Cancel institution route?", "Guardians will be notified immediately.", [{ text: "Keep route", style: "cancel" }, { text: "Cancel route", style: "destructive", onPress: () => tripAction.mutate({ tripId: trip.id, action: "cancel", reason: "Driver cancelled" }) }])} style={{ borderWidth: 1, borderColor: THEME.err, borderRadius: 11, padding: 12, alignItems: "center" }}><Text style={{ color: THEME.err, fontWeight: "900" }}>Cancel</Text></TouchableOpacity>
+                <TouchableOpacity onPress={() => toast.warning("Cancel institution route?", { description: "Guardians will be notified immediately.", duration: 7000, action: { label: "Cancel route", onClick: () => tripAction.mutate({ tripId: trip.id, action: "cancel", reason: "Driver cancelled" }) } })} style={{ borderWidth: 1, borderColor: THEME.err, borderRadius: 11, padding: 12, alignItems: "center" }}><Text style={{ color: THEME.err, fontWeight: "900" }}>Cancel</Text></TouchableOpacity>
               </View>
             </View>
           ))}

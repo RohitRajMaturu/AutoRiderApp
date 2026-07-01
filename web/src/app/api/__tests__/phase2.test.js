@@ -3,6 +3,7 @@ import {
   calculatePassFare,
   countScheduledRides,
   haversineMeters,
+  readCoordinate,
   readDays,
   readTime,
 } from "@/app/api/utils/phase2";
@@ -10,6 +11,7 @@ import { assertDriverAvailable } from "@/app/api/utils/driver-conflicts";
 import { isCronAuthorized } from "@/app/api/utils/cron-auth";
 import { sendWhatsAppTemplate } from "@/app/api/utils/notifications/fast2smsWhatsapp";
 import { readJsonResponse } from "@/app/api/utils/client-response";
+import { getAutocomplete, getPlaceDetails } from "@/app/api/utils/locations";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -43,10 +45,34 @@ describe("TukTukPass pricing and schedule validation", () => {
     expect(readTime("25:00")).toBeNull();
   });
 
+  it("rejects missing coordinates instead of coercing them to zero", () => {
+    expect(readCoordinate({ label: "Destination", lat: null, lng: null })).toBeNull();
+    expect(readCoordinate({ label: "Destination", lat: "", lng: "" })).toBeNull();
+    expect(readCoordinate({ label: "Destination", lat: 12.9716, lng: 77.5946 })).toEqual({
+      label: "Destination",
+      lat: 12.9716,
+      lng: 77.5946,
+    });
+  });
+
   it("rejects a pass route shorter than 100 metres", () => {
     expect(haversineMeters(17.4399, 78.4983, 17.43991, 78.49831)).toBeLessThan(
       100,
     );
+  });
+
+  it("keeps demo place selection resolvable when the maps provider is offline", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+    const search = await getAutocomplete("Demo Office");
+    const suggestion = search.suggestions[0];
+    const details = await getPlaceDetails(suggestion.placeId);
+
+    expect(suggestion.placeId).toMatch(/^local-search-/);
+    expect(details).toMatchObject({
+      label: "Demo Office",
+      lat: expect.any(Number),
+      lng: expect.any(Number),
+    });
   });
 });
 

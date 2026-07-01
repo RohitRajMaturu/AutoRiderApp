@@ -17,9 +17,12 @@ export function readTime(value) {
 }
 
 export function readCoordinate(value) {
-  const lat = Number(value?.lat);
-  const lng = Number(value?.lng);
-  const label = readBoundedString(value?.label, { min: 3, max: 200 });
+  const rawLat = value?.lat ?? value?.latitude;
+  const rawLng = value?.lng ?? value?.longitude;
+  if (rawLat === null || rawLat === undefined || rawLat === "" || rawLng === null || rawLng === undefined || rawLng === "") return null;
+  const lat = Number(rawLat);
+  const lng = Number(rawLng);
+  const label = readBoundedString(value?.label || value?.address, { min: 3, max: 200 });
   return isLatitude(lat) && isLongitude(lng) && label ? { lat, lng, label } : null;
 }
 

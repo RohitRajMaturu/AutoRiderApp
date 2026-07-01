@@ -185,7 +185,7 @@ export default function PassengerHome() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { auth } = useAuth();
+  const { auth, isSigningOut } = useAuth();
   const authUserKey = auth?.user?.id || auth?.user?.email || auth?.user?.phone || "anonymous";
   const notificationUserKey = notificationOwnerKey(auth);
   const notifyPassenger = useCallback(
@@ -1283,7 +1283,7 @@ export default function PassengerHome() {
     );
   };
 
-  if (!auth) {
+  if (!auth || isSigningOut) {
     return (
       <View style={{ flex: 1, backgroundColor: BG }}>
         <StatusBar style="dark" />

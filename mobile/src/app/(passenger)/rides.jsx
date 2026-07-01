@@ -1,9 +1,10 @@
 import React, { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Animated, View, Text, TouchableOpacity, RefreshControl, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { FlashList } from "@shopify/flash-list";
-import { ChevronLeft, ChevronRight, Clock, CheckCircle2, XCircle, MapPin, IndianRupee } from "lucide-react-native";
+import { ChevronLeft, ChevronRight, Clock, CheckCircle2, XCircle, MapPin, IndianRupee, Ticket, CalendarDays } from "lucide-react-native";
 import { StatusBar } from "expo-status-bar";
 import { SkeletonLoader, StatusBadge } from "@/components/ui";
 import AutoRideIcon from "@/components/AutoRideIcon";
@@ -16,6 +17,7 @@ const FILTERS = [
   { key: "pending", label: "Pending" },
   { key: "completed", label: "Completed" },
   { key: "cancelled", label: "Cancelled" },
+  { key: "passes", label: "Passes" },
 ];
 const PAGE_SIZE = 6;
 
@@ -262,6 +264,56 @@ const RideCard = memo(function RideCard({ ride }) {
   );
 });
 
+const PassCard = memo(function PassCard({ pass, onPress }) {
+  const theme = useTheme();
+  const status = String(pass.status || "PENDING_MATCH").toUpperCase();
+  const statusTone = status === "ACTIVE"
+    ? { bg: theme.successLight, text: theme.success }
+    : status === "CANCELLED"
+      ? { bg: theme.errorLight, text: theme.error }
+      : { bg: theme.warningLight, text: theme.warning };
+  const created = new Date(pass.created_at);
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.86}
+      onPress={onPress}
+      style={{ backgroundColor: theme.surface, borderColor: theme.border, borderRadius: theme.radii.lg, borderWidth: 1, marginBottom: theme.spacing[2], padding: theme.spacing[3] }}
+    >
+      <View style={{ alignItems: "center", flexDirection: "row", justifyContent: "space-between", gap: theme.spacing[2] }}>
+        <View style={{ alignItems: "center", flexDirection: "row", flex: 1, gap: theme.spacing[2] }}>
+          <View style={{ alignItems: "center", backgroundColor: theme.primaryLight, borderRadius: 12, height: 34, justifyContent: "center", width: 34 }}>
+            <Ticket size={ICON.sm} color={theme.primaryDark} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[theme.typography.caption, { color: theme.text, fontWeight: "800" }]}>TukTukPass</Text>
+            <Text style={[theme.typography.micro, { color: theme.textMuted, marginTop: 2 }]}>
+              {Number.isNaN(created.getTime()) ? "Pass history" : created.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+            </Text>
+          </View>
+        </View>
+        <View style={{ backgroundColor: statusTone.bg, borderRadius: theme.radii.pill, paddingHorizontal: 10, paddingVertical: 5 }}>
+          <Text style={[theme.typography.micro, { color: statusTone.text, fontWeight: "900" }]}>{status.replace(/_/g, " ")}</Text>
+        </View>
+      </View>
+      <View style={{ flexDirection: "row", gap: theme.spacing[2], marginTop: theme.spacing[3] }}>
+        <MapPin size={ICON.sm} color={theme.textMuted} />
+        <View style={{ flex: 1 }}>
+          <Text style={[theme.typography.caption, { color: theme.text }]} numberOfLines={1}>{pass.dropoff_label}</Text>
+          <Text style={[theme.typography.micro, { color: theme.textMuted, marginTop: 2 }]} numberOfLines={1}>From {pass.pickup_label}</Text>
+        </View>
+      </View>
+      <View style={{ alignItems: "center", flexDirection: "row", gap: theme.spacing[2], marginTop: theme.spacing[3] }}>
+        <CalendarDays size={ICON.xs} color={theme.textMuted} />
+        <Text style={[theme.typography.micro, { color: theme.textSecondary, flex: 1 }]}>
+          {(pass.scheduled_days || []).join(" · ")} · {String(pass.scheduled_time || "").slice(0, 5)} · {pass.duration_type === "WEEKLY" ? "7 days" : "30 days"}
+        </Text>
+        <ChevronRight size={ICON.sm} color={theme.primaryDark} />
+      </View>
+    </TouchableOpacity>
+  );
+});
+
 function FilterTabs({ activeFilter, onChange, counts }) {
   const theme = useTheme();
 
@@ -442,13 +494,14 @@ function RidesEmptyState({ title, description }) {
 export default function PassengerRides() {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
+  const router = useRouter();
   const [activeFilter, setActiveFilter] = useState("all");
   const [page, setPage] = useState(1);
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["passengerRides", activeFilter, page],
     queryFn: async () => {
       const params = new URLSearchParams({
-        filter: activeFilter,
+        filter: activeFilter === "passes" ? "all" : activeFilter,
         offset: String((page - 1) * PAGE_SIZE),
         pageSize: String(PAGE_SIZE),
       });
@@ -460,14 +513,34 @@ export default function PassengerRides() {
     refetchOnWindowFocus: true,
   });
 
+  const { data: passData, isLoading: passesLoading, refetch: refetchPasses, isRefetching: passesRefetching } = useQuery({
+    queryKey: ["passengerPasses"],
+    queryFn: async () => {
+      const res = await fetch("/api/passes");
+      if (!res.ok) throw new Error("Failed to fetch passes");
+      return res.json();
+    },
+    staleTime: 60000,
+  });
+
   const rides = useMemo(() => data?.rides || [], [data?.rides]);
+  const passes = useMemo(() => passData?.passes || [], [passData?.passes]);
+  const historyItems = useMemo(() => {
+    const passItems = passes.map((pass) => ({ ...pass, historyType: "pass" }));
+    if (activeFilter === "passes") return passItems;
+    const rideItems = rides.map((ride) => ({ ...ride, historyType: "ride" }));
+    if (activeFilter !== "all" || page !== 1) return rideItems;
+    return [...passItems, ...rideItems].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  }, [activeFilter, page, passes, rides]);
   const filterCounts = data?.counts || {};
-  const totalCount = data?.total ?? 0;
-  const totalPages = Math.max(Math.ceil(totalCount / PAGE_SIZE), 1);
+  const displayCounts = { ...filterCounts, all: (filterCounts.all || 0) + passes.length, passes: passes.length };
+  const totalCount = activeFilter === "passes" ? passes.length : activeFilter === "all" ? (data?.total || 0) + passes.length : data?.total ?? 0;
+  const rideTotal = data?.total ?? 0;
+  const totalPages = activeFilter === "passes" ? 1 : Math.max(Math.ceil(rideTotal / PAGE_SIZE), 1);
   const safePage = Math.min(page, totalPages);
   const pageStart = (safePage - 1) * PAGE_SIZE;
   const visibleStart = totalCount ? pageStart + 1 : 0;
-  const visibleEnd = pageStart + rides.length;
+  const visibleEnd = Math.min(pageStart + historyItems.length, totalCount);
 
   useEffect(() => {
     setPage(1);
@@ -494,6 +567,10 @@ export default function PassengerRides() {
       title: "No cancelled rides",
       description: "Cancelled trip records will appear here when available.",
     },
+    passes: {
+      title: "No pass history",
+      description: "Active, paused, cancelled, and previous TukTukPass records will appear here.",
+    },
   }[activeFilter];
 
   return (
@@ -511,12 +588,12 @@ export default function PassengerRides() {
       >
         <Text style={[theme.typography.heading, { color: theme.text }]}>My Rides</Text>
         <Text style={[theme.typography.caption, { color: theme.textSecondary, marginTop: theme.spacing[1] }]}>
-          {filterCounts.all ?? totalCount} total trips - newest first
+          {displayCounts.all ?? totalCount} trips and passes - newest first
         </Text>
-        <FilterTabs activeFilter={activeFilter} counts={filterCounts} onChange={setActiveFilter} />
+        <FilterTabs activeFilter={activeFilter} counts={displayCounts} onChange={setActiveFilter} />
       </View>
 
-      {isLoading ? (
+      {isLoading || passesLoading ? (
         <View style={{ gap: theme.spacing[3], padding: theme.spacing[4] }}>
           <SkeletonLoader variant="list-item" />
           <SkeletonLoader variant="list-item" />
@@ -524,13 +601,13 @@ export default function PassengerRides() {
         </View>
       ) : (
         <FlashList
-          data={rides}
+          data={historyItems}
           estimatedItemSize={142}
-          keyExtractor={(ride) => String(ride.id)}
+          keyExtractor={(item) => `${item.historyType}-${item.id}`}
           refreshControl={
             <RefreshControl
-              refreshing={isRefetching}
-              onRefresh={refetch}
+              refreshing={isRefetching || passesRefetching}
+              onRefresh={() => Promise.all([refetch(), refetchPasses()])}
               tintColor={theme.primary}
             />
           }
@@ -552,7 +629,9 @@ export default function PassengerRides() {
               totalPages={totalPages}
             />
           }
-          renderItem={({ item }) => <RideCard ride={item} />}
+          renderItem={({ item }) => item.historyType === "pass"
+            ? <PassCard pass={item} onPress={() => router.push(`/(passenger)/pass/${item.id}`)} />
+            : <RideCard ride={item} />}
           showsVerticalScrollIndicator={false}
         />
       )}

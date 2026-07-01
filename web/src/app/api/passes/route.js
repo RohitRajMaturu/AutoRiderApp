@@ -1,6 +1,6 @@
 import sql from "@/app/api/utils/sql";
 import { auth } from "@/auth";
-import { getRouteEstimate } from "@/app/api/utils/locations";
+import { getAutocomplete, getPlaceDetails, getRouteEstimate } from "@/app/api/utils/locations";
 import {
   addDays,
   calculatePassFare,
@@ -11,6 +11,28 @@ import {
   readDays,
   readTime,
 } from "@/app/api/utils/phase2";
+
+async function resolveCoordinateInput(value) {
+  const direct = readCoordinate(value);
+  if (direct) return direct;
+
+  const label = String(value?.label || value?.address || "").trim();
+  if (label.length < 3) return null;
+
+  let place = value?.placeId ? await getPlaceDetails(String(value.placeId)) : null;
+  if (!place) {
+    const search = await getAutocomplete(label);
+    place = search.suggestions?.[0] || null;
+  }
+  if (place?.placeId && (!Number.isFinite(Number(place.lat)) || !Number.isFinite(Number(place.lng)))) {
+    place = await getPlaceDetails(place.placeId);
+  }
+  return readCoordinate({
+    label: place?.address || place?.label || label,
+    lat: place?.lat,
+    lng: place?.lng,
+  });
+}
 
 export async function GET(request) {
   const session = await auth(request);
@@ -45,16 +67,27 @@ export async function POST(request) {
       return Response.json({ error: "Only passengers can create a TukTukPass" }, { status: 403 });
     }
     const body = await request.json();
-    const pickup = readCoordinate(body.pickup || { lat: body.pickup_lat, lng: body.pickup_lng, label: body.pickup_label });
-    const dropoff = readCoordinate(body.dropoff || { lat: body.dropoff_lat, lng: body.dropoff_lng, label: body.dropoff_label });
+    const pickup = await resolveCoordinateInput(body.pickup || { lat: body.pickup_lat, lng: body.pickup_lng, label: body.pickup_label });
+    const dropoff = await resolveCoordinateInput(body.dropoff || { lat: body.dropoff_lat, lng: body.dropoff_lng, label: body.dropoff_label });
     const scheduledDays = readDays(body.scheduledDays || body.scheduled_days);
     const scheduledTime = readTime(body.scheduledTime || body.scheduled_time);
     const requestedDuration = String(body.durationType || body.duration_type || "").toUpperCase();
     const durationType = requestedDuration === "WEEKLY" || requestedDuration === "MONTHLY" ? requestedDuration : null;
     const startDate = /^\d{4}-\d{2}-\d{2}$/.test(body.startDate || "") ? body.startDate : new Date().toISOString().slice(0, 10);
     if (!pickup || !dropoff || !scheduledDays || !scheduledTime || !durationType) {
+      const fieldErrors = {
+        ...(!pickup ? { pickup: "We couldn't verify the pickup. Search again or use current location." } : {}),
+        ...(!dropoff ? { dropoff: "We couldn't verify the destination. Enter a more specific address and try again." } : {}),
+        ...(!scheduledDays ? { scheduledDays: "Choose at least one travel day" } : {}),
+        ...(!scheduledTime ? { scheduledTime: "Choose a valid pickup time" } : {}),
+        ...(!durationType ? { durationType: "Choose weekly or monthly" } : {}),
+      };
       return Response.json(
-        { error: "Valid route, days, time, and duration are required", code: "INVALID_PASS_INPUT" },
+        {
+          error: Object.values(fieldErrors)[0] || "Complete the pass details before continuing",
+          code: "INVALID_PASS_INPUT",
+          fieldErrors,
+        },
         { status: 400 },
       );
     }
@@ -108,12 +141,38 @@ export async function POST(request) {
         AND existing.scheduled_days && ${scheduledDays}::text[]
         AND abs(extract(epoch FROM (existing.scheduled_time - ${scheduledTime}::time))) < 900
     `;
+    const passengerOverlapRows = await sql`
+      SELECT
+        existing.id,
+        existing.pickup_label,
+        existing.dropoff_label,
+        existing.scheduled_time,
+        existing.scheduled_days
+      FROM commuter_passes existing
+      WHERE existing.id <> ${pass.id}
+        AND existing.passenger_id = ${session.user.id}
+        AND existing.status IN ('PENDING_MATCH', 'ACTIVE', 'PAUSED')
+        AND existing.start_date <= ${endDate}::date
+        AND existing.end_date >= ${startDate}::date
+        AND existing.scheduled_days && ${scheduledDays}::text[]
+        AND abs(extract(epoch FROM (existing.scheduled_time - ${scheduledTime}::time))) < 900
+      ORDER BY existing.created_at DESC
+      LIMIT 1
+    `;
+    const overlappingPass = passengerOverlapRows[0] || null;
     return Response.json(
       {
         pass,
         paymentRequired: true,
         fare: { ...fare, rideCount },
         sharedRouteOpportunity: Number(overlapRows[0]?.count || 0) > 0,
+        overlappingPass,
+        warnings: overlappingPass
+          ? [{
+              code: "OVERLAPPING_PASS_SCHEDULE",
+              message: `This schedule overlaps your existing ${overlappingPass.pickup_label} to ${overlappingPass.dropoff_label} pass. The new pass was still created.`,
+            }]
+          : [],
       },
       { status: 201 },
     );

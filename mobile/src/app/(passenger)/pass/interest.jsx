@@ -2,8 +2,9 @@ import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { ArrowLeft, Check, MapPin } from "lucide-react-native";
 import { useState } from "react";
-import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { toast } from "sonner-native";
 import { theme as T } from "@/theme/tokens";
 import { ICON } from "@/theme/iconScale";
 
@@ -61,7 +62,7 @@ export default function Interest() {
       return body;
     },
     onSuccess: setDone,
-    onError: (error) => Alert.alert("Could not register", error.message),
+    onError: (error) => toast.error("Could not register route interest", { description: error.message }),
   });
 
   return (

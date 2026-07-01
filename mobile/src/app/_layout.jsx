@@ -199,7 +199,7 @@ function ConsentGate() {
 }
 
 export default function RootLayout() {
-  const { initiate, isReady, auth } = useAuth();
+  const { initiate, isReady, auth, isSigningOut } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const segments = useSegments();
@@ -232,10 +232,10 @@ export default function RootLayout() {
       pathname.startsWith("/driver") ||
       pathname.startsWith("/admin");
 
-    if (!auth && inProtectedGroup) {
+    if (!auth && inProtectedGroup && !isSigningOut) {
       router.replace("/");
     }
-  }, [auth, firstSegment, isReady, pathname, router]);
+  }, [auth, firstSegment, isReady, isSigningOut, pathname, router]);
 
   useEffect(() => {
     if (!auth) return;

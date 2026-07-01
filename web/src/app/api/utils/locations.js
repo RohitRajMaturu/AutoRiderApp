@@ -29,8 +29,8 @@ function getConfiguredFallbackPlaces() {
     address:
       process.env.LOCATION_FALLBACK_PICKUP_ADDRESS ||
       "Configured local pickup",
-    lat: getEnvNumber("LOCATION_FALLBACK_PICKUP_LAT", 0),
-    lng: getEnvNumber("LOCATION_FALLBACK_PICKUP_LNG", 0),
+    lat: getEnvNumber("LOCATION_FALLBACK_PICKUP_LAT", 12.9716),
+    lng: getEnvNumber("LOCATION_FALLBACK_PICKUP_LNG", 77.5946),
   };
   const destination = {
     provider: "local",
@@ -41,8 +41,8 @@ function getConfiguredFallbackPlaces() {
     address:
       process.env.LOCATION_FALLBACK_DESTINATION_ADDRESS ||
       "Configured local destination",
-    lat: getEnvNumber("LOCATION_FALLBACK_DESTINATION_LAT", pickup.lat),
-    lng: getEnvNumber("LOCATION_FALLBACK_DESTINATION_LNG", pickup.lng),
+    lat: getEnvNumber("LOCATION_FALLBACK_DESTINATION_LAT", 12.9352),
+    lng: getEnvNumber("LOCATION_FALLBACK_DESTINATION_LNG", 77.6245),
   };
 
   return [pickup, destination];
@@ -53,11 +53,19 @@ function makeSearchFallbackPlace(text, locationBias = {}) {
   if (!query) return null;
 
   const destination = getConfiguredFallbackPlaces()[1];
-  const lat = parseNumber(locationBias.lat) ?? destination.lat;
-  const lng = parseNumber(locationBias.lng) ?? destination.lng;
+  // Stable, nearby demo coordinates keep location search usable when the maps
+  // provider is unavailable. Different labels resolve to different points.
+  const hash = [...query.toLowerCase()].reduce(
+    (value, character) => ((value * 31) + character.charCodeAt(0)) >>> 0,
+    7,
+  );
+  const baseLat = parseNumber(locationBias.lat) ?? destination.lat;
+  const baseLng = parseNumber(locationBias.lng) ?? destination.lng;
+  const lat = baseLat + (((hash % 1201) - 600) / 100000);
+  const lng = baseLng + ((((Math.floor(hash / 1201)) % 1201) - 600) / 100000);
   return {
     ...destination,
-    placeId: `local-search-${encodeURIComponent(query.toLowerCase())}`,
+    placeId: `local-search-${encodeURIComponent(query)}`,
     label: query,
     address: query,
     lat,
@@ -180,7 +188,17 @@ function localPlacesForQuery(text = "", locationBias = {}) {
 }
 
 function localPlaceById(placeId) {
-  return getConfiguredFallbackPlaces().find((place) => place.placeId === placeId);
+  const configured = getConfiguredFallbackPlaces().find((place) => place.placeId === placeId);
+  if (configured) return configured;
+  if (placeId.startsWith("local-search-")) {
+    const encodedQuery = placeId.slice("local-search-".length);
+    try {
+      return makeSearchFallbackPlace(decodeURIComponent(encodedQuery));
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }
 
 function fallbackReverseGeocode(lat, lng) {

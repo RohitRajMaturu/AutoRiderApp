@@ -1783,7 +1783,7 @@ export default function DriverHome() {
   const [confirmAction, setConfirmAction] = useState(null);
   const [activeRideChannel, setActiveRideChannel] = useState(null);
   const onlineToggleAnim = useRef(new Animated.Value(0)).current;
-  const { auth } = useAuth();
+  const { auth, isSigningOut } = useAuth();
   const authUserKey =
     auth?.user?.id || auth?.user?.email || auth?.user?.phone || "anonymous";
   const notificationUserKey = notificationOwnerKey(auth);
@@ -2362,7 +2362,7 @@ export default function DriverHome() {
     0,
   );
 
-  if (!auth) {
+  if (!auth || isSigningOut) {
     return (
       <View style={{ flex: 1, backgroundColor: BG }}>
         <StatusBar style="dark" />
