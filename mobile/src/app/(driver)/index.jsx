@@ -54,22 +54,23 @@ import { ICON } from "@/theme/iconScale";
 import { createRidePusher } from "@/utils/pusher";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { addInAppNotification, notificationOwnerKey } from "@/store/useNotificationStore";
+import { theme } from "@/theme/tokens";
 
 const TUKTUKGO_ICON = require("../../../assets/images/icon.png");
 const RIDE_REQUEST_CHIME = require("../../../assets/sounds/ride-request.wav");
-const PRIMARY = "#43B8B3";
-const PRIMARY_DARK = "#339E9A";
-const PRIMARY_LIGHT = "#E7F6F4";
-const PRIMARY_BORDER = "#BFE5E0";
-const BG = "#EAF0F1";
-const SURFACE = "#FFFFFF";
-const BORDER = "#D8E4E5";
-const TEXT = "#17272B";
-const TEXT_SECONDARY = "#586C70";
-const TEXT_MUTED = "#647678";
-const SUCCESS = "#16A34A";
-const SUCCESS_LIGHT = "#DCFCE7";
-const DARK = "#17272B";
+const PRIMARY = theme.accent;
+const PRIMARY_DARK = theme.accentText;
+const PRIMARY_LIGHT = theme.accentDim;
+const PRIMARY_BORDER = theme.borderH;
+const BG = theme.bg;
+const SURFACE = theme.surface1;
+const BORDER = theme.border;
+const TEXT = theme.text1;
+const TEXT_SECONDARY = theme.text2;
+const TEXT_MUTED = theme.text3;
+const SUCCESS = theme.ok;
+const SUCCESS_LIGHT = theme.okDim;
+const DARK = theme.text1;
 const PRIVACY_POLICY_URL = process.env.EXPO_PUBLIC_PRIVACY_URL ?? "#";
 
 function openGoogleMaps(destLat, destLng, destLabel) {
@@ -291,7 +292,7 @@ function RegistrationScreen() {
             borderWidth: 1,
             borderColor,
             borderRadius: 14,
-            backgroundColor: "#F5F5F4",
+            backgroundColor: theme.surface2,
             padding: 12,
             gap: 12,
           }}
@@ -303,7 +304,7 @@ function RegistrationScreen() {
                 width: "100%",
                 height: 150,
                 borderRadius: 12,
-                backgroundColor: "#D8E4E5",
+                backgroundColor: theme.border,
               }}
               resizeMode="cover"
             />
@@ -313,7 +314,7 @@ function RegistrationScreen() {
                 height: 130,
                 borderRadius: 12,
                 borderWidth: 1,
-                borderColor: "#D6D3D1",
+                borderColor: theme.text2,
                 borderStyle: "dashed",
                 alignItems: "center",
                 justifyContent: "center",
@@ -429,7 +430,7 @@ function RegistrationScreen() {
                 style={{
                   height: 4,
                   borderRadius: 2,
-                  backgroundColor: s.num <= step ? PRIMARY : "#D8E4E5",
+                  backgroundColor: s.num <= step ? PRIMARY : theme.border,
                 }}
               />
               <Text
@@ -491,7 +492,7 @@ function RegistrationScreen() {
                 onChangeText={setVehicle}
                 autoCapitalize="characters"
                 style={{
-                  backgroundColor: "#F5F5F4",
+                  backgroundColor: theme.surface2,
                   borderRadius: 12,
                   paddingHorizontal: 16,
                   paddingVertical: 14,
@@ -519,7 +520,7 @@ function RegistrationScreen() {
                 style={{
                   flex: 1,
                   fontSize: 13,
-                  color: "#286B68",
+                  color: theme.accentText,
                   lineHeight: 20,
                 }}
               >
@@ -530,14 +531,14 @@ function RegistrationScreen() {
               onPress={() => setStep(2)}
               disabled={!vehicle.trim()}
               style={{
-                backgroundColor: !vehicle.trim() ? "#BFD1D3" : PRIMARY,
+                backgroundColor: !vehicle.trim() ? theme.border : PRIMARY,
                 borderRadius: 14,
                 paddingVertical: 17,
                 alignItems: "center",
               }}
               activeOpacity={0.85}
             >
-              <Text style={{ color: "#fff", fontSize: 16, fontWeight: "700" }}>
+              <Text style={{ color: theme.surface1, fontSize: 16, fontWeight: "700" }}>
                 Next →
               </Text>
             </TouchableOpacity>
@@ -611,7 +612,7 @@ function RegistrationScreen() {
                 disabled={!licenseUrl.trim()}
                 style={{
                   flex: 2,
-                  backgroundColor: !licenseUrl.trim() ? "#BFD1D3" : PRIMARY,
+                  backgroundColor: !licenseUrl.trim() ? theme.border : PRIMARY,
                   borderRadius: 14,
                   paddingVertical: 17,
                   alignItems: "center",
@@ -619,7 +620,7 @@ function RegistrationScreen() {
                 activeOpacity={0.85}
               >
                 <Text
-                  style={{ color: "#fff", fontSize: 15, fontWeight: "700" }}
+                  style={{ color: theme.surface1, fontSize: 15, fontWeight: "700" }}
                 >
                   Next →
                 </Text>
@@ -669,7 +670,7 @@ function RegistrationScreen() {
                   style={{
                     padding: 16,
                     borderBottomWidth: i < 2 ? 1 : 0,
-                    borderBottomColor: "#F5F5F4",
+                    borderBottomColor: theme.surface2,
                   }}
                 >
                   <Text
@@ -698,7 +699,7 @@ function RegistrationScreen() {
                 backgroundColor: SUCCESS_LIGHT,
                 borderRadius: 14,
                 borderWidth: 1,
-                borderColor: "#BBF7D0",
+                borderColor: theme.okDim,
                 padding: 16,
                 flexDirection: "row",
                 gap: 12,
@@ -709,7 +710,7 @@ function RegistrationScreen() {
                 style={{
                   flex: 1,
                   fontSize: 13,
-                  color: "#166534",
+                  color: theme.ok,
                   lineHeight: 20,
                 }}
               >
@@ -744,7 +745,7 @@ function RegistrationScreen() {
                   width: 22,
                 }}
               >
-                <Text style={{ color: "#fff", fontSize: 14, fontWeight: "900" }}>
+                <Text style={{ color: theme.surface1, fontSize: 14, fontWeight: "900" }}>
                   {consentGiven ? "✓" : ""}
                 </Text>
               </View>
@@ -788,7 +789,7 @@ function RegistrationScreen() {
                 disabled={registerDriver.isPending || !consentGiven}
                 style={{
                   flex: 2,
-                  backgroundColor: consentGiven ? PRIMARY : "#BFD1D3",
+                  backgroundColor: consentGiven ? PRIMARY : theme.border,
                   borderRadius: 14,
                   paddingVertical: 17,
                   alignItems: "center",
@@ -802,7 +803,7 @@ function RegistrationScreen() {
                 activeOpacity={0.85}
               >
                 <Text
-                  style={{ color: "#fff", fontSize: 15, fontWeight: "700" }}
+                  style={{ color: theme.surface1, fontSize: 15, fontWeight: "700" }}
                 >
                   {registerDriver.isPending
                     ? "Submitting..."
@@ -837,13 +838,13 @@ function PendingScreen() {
           width: 96,
           height: 96,
           borderRadius: 48,
-          backgroundColor: "#FEF3C7",
+          backgroundColor: theme.warnDim,
           justifyContent: "center",
           alignItems: "center",
           marginBottom: 24,
         }}
       >
-        <Clock size={ICON.xxl} color="#B88700" />
+        <Clock size={ICON.xxl} color={theme.warn} />
       </View>
       <Text
         style={{
@@ -923,23 +924,23 @@ function RideRequestCard({
   };
 
   return (
-    <View style={{ backgroundColor: SURFACE, borderRadius: 16, borderWidth: 1, borderColor: BORDER, marginBottom: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3, overflow: "hidden" }}>
-      <View style={{ padding: isNegotiating ? 16 : 14, borderBottomWidth: 1, borderBottomColor: "#F5F5F4", flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+    <View style={{ backgroundColor: SURFACE, borderRadius: 16, borderWidth: 1, borderColor: BORDER, marginBottom: 12, shadowColor: theme.text1, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3, overflow: "hidden" }}>
+      <View style={{ padding: isNegotiating ? 16 : 14, borderBottomWidth: 1, borderBottomColor: theme.surface2, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
           <View
             style={{
               width: 10,
               height: 10,
               borderRadius: 5,
-              backgroundColor: isNegotiating ? "#0369A1" : "#22C55E",
-              shadowColor: isNegotiating ? "#0369A1" : "#22C55E",
+              backgroundColor: isNegotiating ? theme.info : theme.ok,
+              shadowColor: isNegotiating ? theme.info : theme.ok,
               shadowOffset: { width: 0, height: 0 },
               shadowOpacity: 0.6,
               shadowRadius: 4,
               elevation: 2,
             }}
           />
-          <Text style={{ fontSize: isNegotiating ? 14 : 12, fontWeight: "900", color: isNegotiating ? "#0369A1" : SUCCESS }}>
+          <Text style={{ fontSize: isNegotiating ? 14 : 12, fontWeight: "900", color: isNegotiating ? theme.info : SUCCESS }}>
             {isWaitingForPassenger
               ? "Waiting for Passenger"
               : isNegotiating
@@ -970,14 +971,14 @@ function RideRequestCard({
         </View>
 
         {isNegotiating && (
-          <View style={{ marginTop: 14, borderRadius: 12, borderWidth: 1, borderColor: "#BAE6FD", backgroundColor: "#F0F9FF", padding: 12 }}>
-            <Text style={{ fontSize: 11, fontWeight: "800", color: "#0369A1", textTransform: "uppercase" }}>Passenger offer</Text>
+          <View style={{ marginTop: 14, borderRadius: 12, borderWidth: 1, borderColor: theme.infoDim, backgroundColor: theme.infoDim, padding: 12 }}>
+            <Text style={{ fontSize: 11, fontWeight: "800", color: theme.info, textTransform: "uppercase" }}>Passenger offer</Text>
             <Text style={{ fontSize: 22, fontWeight: "900", color: TEXT, marginTop: 2 }}>{formatCurrency(ride.fare_max)}</Text>
             <Text style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 2 }}>Accept this fare or send one higher counter.</Text>
 
             {isWaitingForPassenger ? (
-              <View style={{ marginTop: 12, borderRadius: 10, borderWidth: 1, borderColor: "#BFDBFE", backgroundColor: SURFACE, padding: 12 }}>
-                <Text style={{ fontSize: 12, fontWeight: "900", color: "#0369A1" }}>Counter sent: {formatCurrency(driverOffer.offered_fare)}</Text>
+              <View style={{ marginTop: 12, borderRadius: 10, borderWidth: 1, borderColor: theme.infoDim, backgroundColor: SURFACE, padding: 12 }}>
+                <Text style={{ fontSize: 12, fontWeight: "900", color: theme.info }}>Counter sent: {formatCurrency(driverOffer.offered_fare)}</Text>
                 <Text style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 4, lineHeight: 18 }}>Waiting for the passenger to accept. This card will update when they respond.</Text>
               </View>
             ) : (
@@ -995,13 +996,13 @@ function RideRequestCard({
                         alignItems: "center",
                         borderRadius: 14,
                         borderWidth: 2,
-                        borderColor: isBelowOffer ? "#DC2626" : counterFare ? PRIMARY : BORDER,
+                        borderColor: isBelowOffer ? theme.err : counterFare ? PRIMARY : BORDER,
                         backgroundColor: SURFACE,
                         overflow: "hidden",
                       }}
                     >
-                      <View style={{ paddingHorizontal: 14, paddingVertical: 16, borderRightWidth: 1, borderRightColor: BORDER, backgroundColor: isBelowOffer ? "#FEF2F2" : PRIMARY_LIGHT }}>
-                        <Text style={{ fontSize: 22, fontWeight: "900", color: isBelowOffer ? "#DC2626" : PRIMARY_DARK }}>₹</Text>
+                      <View style={{ paddingHorizontal: 14, paddingVertical: 16, borderRightWidth: 1, borderRightColor: BORDER, backgroundColor: isBelowOffer ? theme.errDim : PRIMARY_LIGHT }}>
+                        <Text style={{ fontSize: 22, fontWeight: "900", color: isBelowOffer ? theme.err : PRIMARY_DARK }}>₹</Text>
                       </View>
                       <TextInput
                         value={counterFare}
@@ -1019,7 +1020,7 @@ function RideRequestCard({
                     </View>
 
                     {isBelowOffer ? (
-                      <Text style={{ fontSize: 12, color: "#DC2626", fontWeight: "700", paddingHorizontal: 4 }}>
+                      <Text style={{ fontSize: 12, color: theme.err, fontWeight: "700", paddingHorizontal: 4 }}>
                         Counter must be higher than passenger&apos;s ₹{passengerOffer} offer
                       </Text>
                     ) : counterFare ? (
@@ -1039,13 +1040,13 @@ function RideRequestCard({
                       accessibilityRole="button"
                       style={({ pressed }) => ({
                         borderRadius: 14,
-                        backgroundColor: isDisabled ? BORDER : pressed ? "#38A89D" : PRIMARY,
+                        backgroundColor: isDisabled ? BORDER : pressed ? theme.accentText : PRIMARY,
                         paddingVertical: 16,
                         alignItems: "center",
                         opacity: isOffering ? 0.7 : 1,
                       })}
                     >
-                      <Text style={{ fontSize: 16, fontWeight: "900", color: isDisabled ? TEXT_MUTED : "#FFFFFF" }}>
+                      <Text style={{ fontSize: 16, fontWeight: "900", color: isDisabled ? TEXT_MUTED : theme.surface1 }}>
                         {isOffering ? "Sending…" : "Send Counter Fare"}
                       </Text>
                     </Pressable>
@@ -1083,13 +1084,13 @@ function RideRequestCard({
               marginTop: 10,
               borderRadius: 12,
               borderWidth: 1,
-              borderColor: "#FECACA",
-              backgroundColor: pressed ? "#FEF2F2" : SURFACE,
+              borderColor: theme.errDim,
+              backgroundColor: pressed ? theme.errDim : SURFACE,
               paddingVertical: 14,
               alignItems: "center",
             })}
           >
-            <Text style={{ color: "#DC2626", fontSize: 15, fontWeight: "700" }}>Decline Request</Text>
+            <Text style={{ color: theme.err, fontSize: 15, fontWeight: "700" }}>Decline Request</Text>
           </Pressable>
         )}
 
@@ -1123,15 +1124,15 @@ function KycGateScreen({ status, reason }) {
             width: 82,
             height: 82,
             borderRadius: 26,
-            backgroundColor: isRejected ? "#FEF2F2" : PRIMARY_LIGHT,
+            backgroundColor: isRejected ? theme.errDim : PRIMARY_LIGHT,
             borderWidth: 1,
-            borderColor: isRejected ? "#FECACA" : PRIMARY_BORDER,
+            borderColor: isRejected ? theme.errDim : PRIMARY_BORDER,
             alignItems: "center",
             justifyContent: "center",
             marginBottom: 24,
           }}
         >
-          <FileText size={ICON.xxl} color={isRejected ? "#DC2626" : PRIMARY} />
+          <FileText size={ICON.xxl} color={isRejected ? theme.err : PRIMARY} />
         </View>
         <Text style={{ fontSize: 24, fontWeight: "900", color: TEXT, textAlign: "center" }}>
           {isPending
@@ -1159,7 +1160,7 @@ function KycGateScreen({ status, reason }) {
               alignItems: "center",
             }}
           >
-            <Text style={{ color: "#fff", fontSize: 15, fontWeight: "900" }}>
+            <Text style={{ color: theme.surface1, fontSize: 15, fontWeight: "900" }}>
               {isRejected ? "Resubmit KYC" : "Start KYC"}
             </Text>
           </TouchableOpacity>
@@ -1189,7 +1190,7 @@ function ActiveRideCard({
         borderRadius: 18,
         marginBottom: 20,
         overflow: "hidden",
-        shadowColor: "#000",
+        shadowColor: theme.text1,
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.2,
         shadowRadius: 20,
@@ -1210,7 +1211,7 @@ function ActiveRideCard({
               style={{
                 fontSize: 11,
                 fontWeight: "700",
-                color: "#647678",
+                color: theme.text3,
                 textTransform: "uppercase",
                 letterSpacing: 0.8,
               }}
@@ -1221,7 +1222,7 @@ function ActiveRideCard({
               style={{
                 fontSize: 22,
                 fontWeight: "800",
-                color: "#FFFFFF",
+                color: theme.surface1,
                 marginTop: 4,
                 letterSpacing: -0.5,
               }}
@@ -1246,7 +1247,7 @@ function ActiveRideCard({
                     opacity: isCalling ? 0.65 : 1,
                   }}
                 >
-                  <Phone size={ICON.md} color="#fff" />
+                  <Phone size={ICON.md} color={theme.surface1} />
                 </MotionPressable>
               ) : null}
               <ChatDrawer
@@ -1260,10 +1261,10 @@ function ActiveRideCard({
                 paddingHorizontal: 12,
                 paddingVertical: 6,
                 borderRadius: 99,
-                backgroundColor: "#22C55E",
+                backgroundColor: theme.ok,
               }}
             >
-              <Text style={{ fontSize: 11, fontWeight: "700", color: "#fff" }}>
+              <Text style={{ fontSize: 11, fontWeight: "700", color: theme.surface1 }}>
                 {hasStarted ? "ON TRIP" : "PICKUP"}
               </Text>
             </View>
@@ -1278,7 +1279,7 @@ function ActiveRideCard({
                 width: 34,
                 height: 34,
                 borderRadius: 17,
-                backgroundColor: "#FFFFFF15",
+                backgroundColor: theme.accentDim,
                 justifyContent: "center",
                 alignItems: "center",
                 marginTop: 2,
@@ -1291,7 +1292,7 @@ function ActiveRideCard({
                 style={{
                   fontSize: 10,
                   fontWeight: "700",
-                  color: "#586C70",
+                  color: theme.text2,
                   textTransform: "uppercase",
                   letterSpacing: 0.5,
                 }}
@@ -1302,7 +1303,7 @@ function ActiveRideCard({
                 style={{
                   fontSize: 14,
                   fontWeight: "600",
-                  color: "#fff",
+                  color: theme.surface1,
                   marginTop: 2,
                 }}
                 numberOfLines={2}
@@ -1345,20 +1346,20 @@ function ActiveRideCard({
                 width: 34,
                 height: 34,
                 borderRadius: 8,
-                backgroundColor: "#FFFFFF15",
+                backgroundColor: theme.accentDim,
                 justifyContent: "center",
                 alignItems: "center",
                 marginTop: 2,
               }}
             >
-              <MapPin size={ICON.sm} color="#647678" />
+              <MapPin size={ICON.sm} color={theme.text3} />
             </View>
             <View style={{ flex: 1 }}>
               <Text
                 style={{
                   fontSize: 10,
                   fontWeight: "700",
-                  color: "#586C70",
+                  color: theme.text2,
                   textTransform: "uppercase",
                   letterSpacing: 0.5,
                 }}
@@ -1369,7 +1370,7 @@ function ActiveRideCard({
                 style={{
                   fontSize: 14,
                   fontWeight: "600",
-                  color: "#fff",
+                  color: theme.surface1,
                   marginTop: 2,
                 }}
                 numberOfLines={2}
@@ -1422,10 +1423,10 @@ function ActiveRideCard({
 function QueuedRideCard({ ride, onCancel, isCancelling }) {
   if (!ride) return null;
   return (
-    <View style={{ marginBottom: 14, borderRadius: 18, borderWidth: 2, borderColor: "#7DD3FC", backgroundColor: SURFACE, padding: 16 }}>
+    <View style={{ marginBottom: 14, borderRadius: 18, borderWidth: 2, borderColor: theme.infoDim, backgroundColor: SURFACE, padding: 16 }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-        <View style={{ borderRadius: 999, backgroundColor: "#E0F2FE", paddingHorizontal: 10, paddingVertical: 5 }}>
-          <Text style={{ color: "#0369A1", fontSize: 10, fontWeight: "900", letterSpacing: 0.6 }}>NEXT RIDE</Text>
+        <View style={{ borderRadius: 999, backgroundColor: theme.infoDim, paddingHorizontal: 10, paddingVertical: 5 }}>
+          <Text style={{ color: theme.info, fontSize: 10, fontWeight: "900", letterSpacing: 0.6 }}>NEXT RIDE</Text>
         </View>
         <Text style={{ flex: 1, color: TEXT_SECONDARY, fontSize: 11, fontWeight: "700" }}>Starts after your current trip</Text>
         <Text style={{ color: SUCCESS, fontSize: 15, fontWeight: "900" }}>{formatCurrency(rideFare(ride))}</Text>
@@ -1439,15 +1440,15 @@ function QueuedRideCard({ ride, onCancel, isCancelling }) {
           </View>
         </View>
         <View style={{ flexDirection: "row", gap: 10 }}>
-          <Navigation size={ICON.sm} color="#0369A1" />
+          <Navigation size={ICON.sm} color={theme.info} />
           <View style={{ flex: 1 }}>
             <Text style={{ color: TEXT_MUTED, fontSize: 10, fontWeight: "800", textTransform: "uppercase" }}>Drop-off</Text>
             <Text style={{ color: TEXT, fontSize: 13, fontWeight: "700", marginTop: 2 }} numberOfLines={2}>{ride.dest_address}</Text>
           </View>
         </View>
       </View>
-      <View style={{ marginTop: 14, borderRadius: 12, backgroundColor: "#F0F9FF", padding: 11 }}>
-        <Text style={{ color: "#075985", fontSize: 11, lineHeight: 17, fontWeight: "700" }}>
+      <View style={{ marginTop: 14, borderRadius: 12, backgroundColor: theme.infoDim, padding: 11 }}>
+        <Text style={{ color: theme.info, fontSize: 11, lineHeight: 17, fontWeight: "700" }}>
           Complete the current trip first. This ride will automatically become your main ride next.
         </Text>
       </View>
@@ -1458,7 +1459,7 @@ function QueuedRideCard({ ride, onCancel, isCancelling }) {
         accessibilityLabel="Cancel queued next ride"
         style={{ alignSelf: "flex-end", paddingTop: 13, paddingHorizontal: 4 }}
       >
-        <Text style={{ color: "#DC2626", fontSize: 12, fontWeight: "900" }}>
+        <Text style={{ color: theme.err, fontSize: 12, fontWeight: "900" }}>
           {isCancelling ? "Cancelling..." : "Cancel next ride"}
         </Text>
       </TouchableOpacity>
@@ -1488,7 +1489,7 @@ function CompletedRideSummary({
         backgroundColor: SURFACE,
         borderRadius: 16,
         borderWidth: 1,
-        borderColor: "#BBF7D0",
+        borderColor: theme.okDim,
         marginBottom: 20,
         overflow: "hidden",
       }}
@@ -1499,7 +1500,7 @@ function CompletedRideSummary({
           paddingHorizontal: 16,
           paddingVertical: 14,
           borderBottomWidth: 1,
-          borderBottomColor: "#BBF7D0",
+          borderBottomColor: theme.okDim,
         }}
       >
         <Text style={{ fontSize: 15, fontWeight: "900", color: SUCCESS }}>
@@ -1511,7 +1512,7 @@ function CompletedRideSummary({
           style={{
             alignItems: "center",
             backgroundColor: SUCCESS_LIGHT,
-            borderColor: "#BBF7D0",
+            borderColor: theme.okDim,
             borderRadius: 14,
             borderWidth: 1,
             padding: 16,
@@ -1558,8 +1559,8 @@ function CompletedRideSummary({
         {!ride.passenger_rating ? (
           <View
             style={{
-              backgroundColor: "#FFFBEB",
-              borderColor: "#FDE68A",
+              backgroundColor: theme.warnDim,
+              borderColor: theme.warnDim,
               borderRadius: 14,
               borderWidth: 1,
               padding: 14,
@@ -1576,8 +1577,8 @@ function CompletedRideSummary({
                 <TouchableOpacity key={value} onPress={() => setRatingValue(value)}>
                   <Star
                     size={ICON.xl}
-                    color={value <= ratingValue ? "#F3B51B" : TEXT_MUTED}
-                    fill={value <= ratingValue ? "#F3B51B" : "none"}
+                    color={value <= ratingValue ? theme.accent : TEXT_MUTED}
+                    fill={value <= ratingValue ? theme.accent : "none"}
                   />
                 </TouchableOpacity>
               ))}
@@ -1591,7 +1592,7 @@ function CompletedRideSummary({
               maxLength={280}
               style={{
                 backgroundColor: SURFACE,
-                borderColor: "#FDE68A",
+                borderColor: theme.warnDim,
                 borderRadius: 10,
                 borderWidth: 1,
                 color: TEXT,
@@ -1747,12 +1748,12 @@ function ConfirmActionModal({ config, onClose }) {
               style={{
                 flex: 1,
                 borderRadius: 12,
-                backgroundColor: config.destructive ? "#DC2626" : PRIMARY,
+                backgroundColor: config.destructive ? theme.err : PRIMARY,
                 paddingVertical: 13,
                 alignItems: "center",
               }}
             >
-              <Text style={{ color: "#fff", fontWeight: "900" }}>
+              <Text style={{ color: theme.surface1, fontWeight: "900" }}>
                 {config.confirmLabel}
               </Text>
             </TouchableOpacity>
@@ -2425,7 +2426,7 @@ export default function DriverHome() {
             paddingVertical: 12,
           }}
         >
-          <Text style={{ color: "#fff", fontWeight: "800" }}>Retry</Text>
+          <Text style={{ color: theme.surface1, fontWeight: "800" }}>Retry</Text>
         </TouchableOpacity>
       </View>
     );
@@ -2486,7 +2487,7 @@ export default function DriverHome() {
                 borderRadius: 12,
                 backgroundColor: DARK,
                 borderWidth: 1,
-                borderColor: "#26363A",
+                borderColor: theme.text1,
                 justifyContent: "center",
                 alignItems: "center",
                 overflow: "hidden",
@@ -2521,7 +2522,7 @@ export default function DriverHome() {
           style={{
             alignItems: "center",
             backgroundColor: driver.is_online ? SUCCESS_LIGHT : BG,
-            borderColor: driver.is_online ? "#BBF7D0" : BORDER,
+            borderColor: driver.is_online ? theme.okDim : BORDER,
             borderRadius: 15,
             borderWidth: 1,
             flexDirection: "row",
@@ -2563,9 +2564,9 @@ export default function DriverHome() {
                 height: 34,
                 borderRadius: 17,
                 padding: 3,
-                backgroundColor: driver.is_online ? SUCCESS : "#D8E4E5",
+                backgroundColor: driver.is_online ? SUCCESS : theme.border,
                 borderWidth: 1,
-                borderColor: driver.is_online ? "#BBF7D0" : BORDER,
+                borderColor: driver.is_online ? theme.okDim : BORDER,
                 opacity: toggleStatus.isPending ? 0.7 : 1,
                 justifyContent: "center",
               }}
@@ -2578,7 +2579,7 @@ export default function DriverHome() {
                   backgroundColor: SURFACE,
                   alignItems: "center",
                   justifyContent: "center",
-                  shadowColor: "#000",
+                  shadowColor: theme.text1,
                   shadowOffset: { width: 0, height: 2 },
                   shadowOpacity: 0.12,
                   shadowRadius: 4,
@@ -2602,8 +2603,8 @@ export default function DriverHome() {
               marginTop: 12,
               borderRadius: 14,
               borderWidth: 1,
-              borderColor: "#FDBA74",
-              backgroundColor: "#FFF7ED",
+              borderColor: theme.warnDim,
+              backgroundColor: theme.warnDim,
               paddingHorizontal: 14,
               paddingVertical: 12,
               flexDirection: "row",
@@ -2611,7 +2612,7 @@ export default function DriverHome() {
               gap: 10,
             }}
           >
-            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: "#EA580C" }} />
+            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: theme.warn }} />
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 14, fontWeight: "900", color: TEXT }}>
                 {availableRides.length} new ride {availableRides.length === 1 ? "request" : "requests"}
@@ -2692,7 +2693,7 @@ export default function DriverHome() {
                 marginTop: 12,
                 borderRadius: 14,
                 borderWidth: 1,
-                borderColor: "#BBF7D0",
+                borderColor: theme.okDim,
                 backgroundColor: SUCCESS_LIGHT,
                 padding: 14,
                 flexDirection: "row",
@@ -2703,7 +2704,7 @@ export default function DriverHome() {
               <Star size={ICON.md} color={SUCCESS} fill={SUCCESS} />
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 14, fontWeight: "900", color: SUCCESS }}>Daily target achieved!</Text>
-                <Text style={{ fontSize: 11, color: "#166534", marginTop: 3 }}>
+                <Text style={{ fontSize: 11, color: theme.ok, marginTop: 3 }}>
                   {incentiveData.daily.completed}/{incentiveData.daily.target} rides — ₹{incentiveData.daily.bonus} bonus earned
                 </Text>
               </View>
@@ -2720,8 +2721,8 @@ export default function DriverHome() {
               }}
             >
               <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                <View style={{ width: 34, height: 34, borderRadius: 12, backgroundColor: "#FFF7ED", alignItems: "center", justifyContent: "center" }}>
-                  <Star size={ICON.sm} color="#EA580C" />
+                <View style={{ width: 34, height: 34, borderRadius: 12, backgroundColor: theme.warnDim, alignItems: "center", justifyContent: "center" }}>
+                  <Star size={ICON.sm} color={theme.warn} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 14, fontWeight: "900", color: TEXT }}>
@@ -2732,7 +2733,7 @@ export default function DriverHome() {
                   </Text>
                 </View>
               </View>
-              <View style={{ height: 7, borderRadius: 999, backgroundColor: "#E7ECEC", marginTop: 12, overflow: "hidden" }}>
+              <View style={{ height: 7, borderRadius: 999, backgroundColor: theme.border, marginTop: 12, overflow: "hidden" }}>
                 <View
                   style={{
                     height: "100%",
@@ -2750,10 +2751,10 @@ export default function DriverHome() {
           <View
             style={{
               marginTop: 12,
-              backgroundColor: "#FEF3C7",
+              backgroundColor: theme.warnDim,
               borderRadius: 10,
               borderWidth: 1,
-              borderColor: "#FDE68A",
+              borderColor: theme.warnDim,
               padding: 10,
               flexDirection: "row",
               alignItems: "center",
@@ -2764,7 +2765,7 @@ export default function DriverHome() {
             <Text
               style={{
                 fontSize: 12,
-                color: "#286B68",
+                color: theme.accentText,
                 flex: 1,
                 fontWeight: "600",
               }}
@@ -2849,8 +2850,8 @@ export default function DriverHome() {
               marginBottom: 16,
               borderRadius: 14,
               borderWidth: 1,
-              borderColor: queuedRide ? "#7DD3FC" : PRIMARY_BORDER,
-              backgroundColor: queuedRide ? "#F0F9FF" : PRIMARY_LIGHT,
+              borderColor: queuedRide ? theme.infoDim : PRIMARY_BORDER,
+              backgroundColor: queuedRide ? theme.infoDim : PRIMARY_LIGHT,
               padding: 13,
             }}
           >
@@ -2885,8 +2886,8 @@ export default function DriverHome() {
         {canBrowseRideRequests && driver.is_online && negotiatingRidesForDriver.length > 0 ? (
           <View style={{ marginBottom: 12 }}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8, paddingHorizontal: 2 }}>
-              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#0369A1" }} />
-              <Text style={{ fontSize: 12, fontWeight: "800", color: "#0369A1", textTransform: "uppercase", letterSpacing: 0.5 }}>
+              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: theme.info }} />
+              <Text style={{ fontSize: 12, fontWeight: "800", color: theme.info, textTransform: "uppercase", letterSpacing: 0.5 }}>
                 {negotiatingRidesForDriver.length} Fare Negotiation
                 {negotiatingRidesForDriver.length > 1 ? "s" : ""} — Action needed
               </Text>

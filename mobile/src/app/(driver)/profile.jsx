@@ -27,19 +27,20 @@ import {
   normalizeLanguage,
   useLanguage,
 } from "@/i18n/LanguageContext";
+import { theme } from "@/theme/tokens";
 
-const PRIMARY = "#43B8B3";
-const PRIMARY_LIGHT = "#E7F6F4";
-const PRIMARY_BORDER = "#BFE5E0";
-const BG = "#EAF0F1";
-const SURFACE = "#FFFFFF";
-const BORDER = "#D8E4E5";
-const TEXT = "#17272B";
-const TEXT_SECONDARY = "#586C70";
-const TEXT_MUTED = "#647678";
-const SUCCESS = "#16A34A";
-const SUCCESS_LIGHT = "#DCFCE7";
-const DARK = "#17272B";
+const PRIMARY = theme.accent;
+const PRIMARY_LIGHT = theme.accentDim;
+const PRIMARY_BORDER = theme.borderH;
+const BG = theme.bg;
+const SURFACE = theme.surface1;
+const BORDER = theme.border;
+const TEXT = theme.text1;
+const TEXT_SECONDARY = theme.text2;
+const TEXT_MUTED = theme.text3;
+const SUCCESS = theme.ok;
+const SUCCESS_LIGHT = theme.okDim;
+const DARK = theme.text1;
 const SUPPORT_WHATSAPP_URL = `https://wa.me/${process.env.EXPO_PUBLIC_SUPPORT_PHONE ?? "919999999999"}`;
 const DRIVER_GUIDELINES_URL = process.env.EXPO_PUBLIC_GUIDELINES_URL ?? "#";
 
@@ -89,7 +90,7 @@ function MenuItem({
         padding: 16,
         gap: 14,
         borderBottomWidth: 1,
-        borderBottomColor: "#F5F5F4",
+        borderBottomColor: theme.surface2,
       }}
       activeOpacity={0.7}
     >
@@ -98,7 +99,7 @@ function MenuItem({
           width: 36,
           height: 36,
           borderRadius: 10,
-          backgroundColor: "#F5F5F4",
+          backgroundColor: theme.surface2,
           justifyContent: "center",
           alignItems: "center",
         }}
@@ -127,8 +128,8 @@ function ProfileFetchNotice({ visible }) {
     <View
       style={{
         alignItems: "center",
-        backgroundColor: "#FFFFFF12",
-        borderColor: "#FFFFFF24",
+        backgroundColor: theme.accentDim,
+        borderColor: theme.border,
         borderRadius: 14,
         borderWidth: 1,
         marginTop: 16,
@@ -136,7 +137,7 @@ function ProfileFetchNotice({ visible }) {
         width: "100%",
       }}
     >
-      <TukTukGoLoader label="Loading profile..." size={32} textColor="#FFFFFFCC" />
+      <TukTukGoLoader label="Loading profile..." size={32} textColor={theme.text2} />
     </View>
   );
 }
@@ -148,7 +149,7 @@ function SignOutSheet({ visible, onCancel, onConfirm }) {
         onPress={onCancel}
         style={{
           flex: 1,
-          backgroundColor: "#00000066",
+          backgroundColor: "rgba(0,0,0,0.40)",
           justifyContent: "flex-end",
         }}
       >
@@ -176,15 +177,15 @@ function SignOutSheet({ visible, onCancel, onConfirm }) {
               width: 50,
               height: 50,
               borderRadius: 16,
-              backgroundColor: "#FEF2F2",
+              backgroundColor: theme.errDim,
               borderWidth: 1,
-              borderColor: "#FECACA",
+              borderColor: theme.errDim,
               alignItems: "center",
               justifyContent: "center",
               marginBottom: 14,
             }}
           >
-            <LogOut size={ICON.lg} color="#DC2626" />
+            <LogOut size={ICON.lg} color={theme.err} />
           </View>
           <Text style={{ fontSize: 20, fontWeight: "800", color: TEXT }}>
             Sign out?
@@ -211,12 +212,12 @@ function SignOutSheet({ visible, onCancel, onConfirm }) {
               style={{
                 flex: 1,
                 borderRadius: 14,
-                backgroundColor: "#DC2626",
+                backgroundColor: theme.err,
                 paddingVertical: 14,
                 alignItems: "center",
               }}
             >
-              <Text style={{ color: "#fff", fontSize: 14, fontWeight: "800" }}>Sign Out</Text>
+              <Text style={{ color: theme.surface1, fontSize: 14, fontWeight: "800" }}>Sign Out</Text>
             </TouchableOpacity>
           </View>
         </Pressable>
@@ -381,7 +382,7 @@ export default function DriverProfile() {
           <TouchableOpacity
             onPress={handleExitTestMode}
             style={{
-              backgroundColor: "#FFFBEB",
+              backgroundColor: theme.warnDim,
               paddingTop: insets.top + 8,
               paddingBottom: 10,
               paddingHorizontal: 16,
@@ -391,18 +392,18 @@ export default function DriverProfile() {
             }}
             activeOpacity={0.8}
           >
-            <FlaskConical size={ICON.sm} color="#B88700" />
+            <FlaskConical size={ICON.sm} color={theme.warn} />
             <Text
               style={{
                 flex: 1,
                 fontSize: 12,
-                color: "#286B68",
+                color: theme.accentText,
                 fontWeight: "600",
               }}
             >
               🧪 Test Mode Active — Tap to Sign In with real account
             </Text>
-            <Text style={{ fontSize: 12, color: "#B88700", fontWeight: "700" }}>
+            <Text style={{ fontSize: 12, color: theme.warn, fontWeight: "700" }}>
               Exit →
             </Text>
           </TouchableOpacity>
@@ -426,7 +427,7 @@ export default function DriverProfile() {
               width: 180,
               height: 180,
               borderRadius: 90,
-              backgroundColor: "#FFFFFF08",
+              backgroundColor: theme.surface2,
             }}
           />
           <View
@@ -437,7 +438,7 @@ export default function DriverProfile() {
               width: 120,
               height: 120,
               borderRadius: 60,
-              backgroundColor: "#FFFFFF05",
+              backgroundColor: theme.surface2,
             }}
           />
 
@@ -465,7 +466,7 @@ export default function DriverProfile() {
                 resizeMode="cover"
               />
             ) : null}
-            <Text style={{ fontSize: 36, fontWeight: "800", color: "#fff", opacity: !testMode && user?.image ? 0 : 1 }}>
+            <Text style={{ fontSize: 36, fontWeight: "800", color: theme.surface1, opacity: !testMode && user?.image ? 0 : 1 }}>
               {testMode
                 ? "🛺"
                 : auth?.user?.email
@@ -474,7 +475,7 @@ export default function DriverProfile() {
             </Text>
           </View>
 
-          <Text style={{ fontSize: 20, fontWeight: "700", color: "#fff" }}>
+          <Text style={{ fontSize: 20, fontWeight: "700", color: theme.surface1 }}>
             {testMode ? "Guest Driver" : auth?.user?.email || "Driver"}
           </Text>
           <ProfileFetchNotice visible={!testMode && (profileLoading || driverProfileLoading)} />
@@ -487,11 +488,11 @@ export default function DriverProfile() {
               paddingHorizontal: 14,
               paddingVertical: 6,
               borderRadius: 99,
-              backgroundColor: "#FFFFFF15",
+              backgroundColor: theme.accentDim,
             }}
           >
             <AutoRideIcon size={ICON.xs} />
-            <Text style={{ fontSize: 12, fontWeight: "700", color: "#fff" }}>
+            <Text style={{ fontSize: 12, fontWeight: "700", color: theme.surface1 }}>
               {testMode ? "Test Vehicle" : driver ? `${driver.vehicle_number} - ${getVehicleLabel(driver.vehicle_type)}` : "Registration pending"}
             </Text>
           </View>
@@ -503,17 +504,17 @@ export default function DriverProfile() {
               paddingVertical: 7,
               borderRadius: 99,
               backgroundColor: testMode
-                ? "#FFFFFF20"
+                ? theme.accentDim
                 : isSubscribed
                   ? SUCCESS_LIGHT
-                  : "#FEE2E2",
+                  : theme.errDim,
             }}
           >
             <Text
               style={{
                 fontSize: 12,
                 fontWeight: "700",
-                color: testMode ? "#fff" : isSubscribed ? SUCCESS : "#DC2626",
+                color: testMode ? theme.surface1 : isSubscribed ? SUCCESS : theme.err,
               }}
             >
               {testMode
@@ -545,7 +546,7 @@ export default function DriverProfile() {
                   <View
                     style={{
                       alignItems: "center",
-                      backgroundColor: "#F5F5F4",
+                      backgroundColor: theme.surface2,
                       borderColor: BORDER,
                       borderRadius: 14,
                       borderWidth: 1,
@@ -576,7 +577,7 @@ export default function DriverProfile() {
                   <View
                     style={{
                       alignItems: "center",
-                      backgroundColor: "#F5F5F4",
+                      backgroundColor: theme.surface2,
                       borderColor: BORDER,
                       borderRadius: 14,
                       borderWidth: 1,
@@ -604,7 +605,7 @@ export default function DriverProfile() {
                   </TouchableOpacity>
                 </View>
               </View>
-              <View style={{ backgroundColor: "#F7FBFA", borderColor: BORDER, borderRadius: 12, borderWidth: 1, padding: 12 }}>
+              <View style={{ backgroundColor: theme.surface2, borderColor: BORDER, borderRadius: 12, borderWidth: 1, padding: 12 }}>
                 <Text style={{ color: TEXT_MUTED, fontSize: 11, fontWeight: "800", textTransform: "uppercase" }}>Registration plate</Text>
                 <Text style={{ color: TEXT, fontSize: 17, fontWeight: "900", marginTop: 3 }}>
                   {driver?.vehicle_number || "Not registered"}
@@ -668,7 +669,7 @@ export default function DriverProfile() {
                     borderRadius: 12,
                     borderWidth: 1,
                     borderColor: BORDER,
-                    backgroundColor: "#F5F5F4",
+                    backgroundColor: theme.surface2,
                     paddingHorizontal: 14,
                     paddingVertical: 13,
                   }}
@@ -693,7 +694,7 @@ export default function DriverProfile() {
                         disabled={testMode || updateProfile.isPending}
                         style={{
                           alignItems: "center",
-                          backgroundColor: selected ? PRIMARY : "#F7FBFA",
+                          backgroundColor: selected ? PRIMARY : theme.surface2,
                           borderColor: selected ? PRIMARY : BORDER,
                           borderRadius: 12,
                           borderWidth: 1,
@@ -703,7 +704,7 @@ export default function DriverProfile() {
                       >
                         <Text
                           style={{
-                            color: selected ? "#fff" : TEXT_SECONDARY,
+                            color: selected ? theme.surface1 : TEXT_SECONDARY,
                             fontSize: 12,
                             fontWeight: "800",
                           }}
@@ -746,14 +747,14 @@ export default function DriverProfile() {
                 disabled={testMode || updateProfile.isPending}
                 style={{
                   borderRadius: 12,
-                  backgroundColor: testMode ? "#BFD1D3" : PRIMARY,
+                  backgroundColor: testMode ? theme.border : PRIMARY,
                   paddingVertical: 14,
                   alignItems: "center",
                   opacity: updateProfile.isPending ? 0.7 : 1,
                 }}
                 activeOpacity={0.85}
               >
-                <Text style={{ color: "#fff", fontSize: 14, fontWeight: "800" }}>
+                <Text style={{ color: theme.surface1, fontSize: 14, fontWeight: "800" }}>
                   {updateProfile.isPending ? "Saving..." : "Save Profile"}
                 </Text>
               </TouchableOpacity>
@@ -765,7 +766,7 @@ export default function DriverProfile() {
                   borderRadius: 12,
                   borderWidth: 1,
                   borderColor: BORDER,
-                  backgroundColor: "#F8FAFA",
+                  backgroundColor: theme.surface2,
                   padding: 14,
                 }}
               >
@@ -811,7 +812,7 @@ export default function DriverProfile() {
                 >
                   Vehicle Details
                 </Text>
-                <Text style={{ fontSize: 12, color: "#286B68", marginTop: 4 }}>
+                <Text style={{ fontSize: 12, color: theme.accentText, marginTop: 4 }}>
                   వాహన వివరాలు / वाहन विवरण
                 </Text>
               </View>
@@ -853,7 +854,7 @@ export default function DriverProfile() {
                     alignItems: "center",
                     gap: 14,
                     borderBottomWidth: i < arr.length - 1 ? 1 : 0,
-                    borderBottomColor: "#F5F5F4",
+                    borderBottomColor: theme.surface2,
                   }}
                 >
                   <View
@@ -861,7 +862,7 @@ export default function DriverProfile() {
                       width: 36,
                       height: 36,
                       borderRadius: 10,
-                      backgroundColor: "#F5F5F4",
+                      backgroundColor: theme.surface2,
                       justifyContent: "center",
                       alignItems: "center",
                     }}
@@ -929,10 +930,10 @@ export default function DriverProfile() {
             <TouchableOpacity
               onPress={handleExitTestMode}
               style={{
-                backgroundColor: "#FFFBEB",
+                backgroundColor: theme.warnDim,
                 borderRadius: 14,
                 borderWidth: 1.5,
-                borderColor: "#FDE68A",
+                borderColor: theme.warnDim,
                 padding: 16,
                 flexDirection: "row",
                 alignItems: "center",
@@ -941,9 +942,9 @@ export default function DriverProfile() {
               }}
               activeOpacity={0.8}
             >
-              <FlaskConical size={ICON.sm} color="#B88700" />
+              <FlaskConical size={ICON.sm} color={theme.warn} />
               <Text
-                style={{ color: "#B88700", fontSize: 15, fontWeight: "700" }}
+                style={{ color: theme.warn, fontSize: 15, fontWeight: "700" }}
               >
                 Exit Test Mode → Sign In
               </Text>
@@ -952,10 +953,10 @@ export default function DriverProfile() {
             <TouchableOpacity
               onPress={() => setShowSignOutSheet(true)}
               style={{
-                backgroundColor: "#FEF2F2",
+                backgroundColor: theme.errDim,
                 borderRadius: 14,
                 borderWidth: 1,
-                borderColor: "#FECACA",
+                borderColor: theme.errDim,
                 padding: 16,
                 flexDirection: "row",
                 alignItems: "center",
@@ -964,9 +965,9 @@ export default function DriverProfile() {
               }}
               activeOpacity={0.8}
             >
-              <LogOut size={ICON.sm} color="#DC2626" />
+              <LogOut size={ICON.sm} color={theme.err} />
               <Text
-                style={{ color: "#DC2626", fontSize: 15, fontWeight: "700" }}
+                style={{ color: theme.err, fontSize: 15, fontWeight: "700" }}
               >
                 Sign Out
               </Text>

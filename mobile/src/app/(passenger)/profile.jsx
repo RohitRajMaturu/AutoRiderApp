@@ -32,16 +32,17 @@ import {
   normalizeLanguage,
   useLanguage,
 } from "@/i18n/LanguageContext";
+import { theme } from "@/theme/tokens";
 
-const PRIMARY = "#43B8B3";
-const PRIMARY_LIGHT = "#E7F6F4";
-const PRIMARY_BORDER = "#BFE5E0";
-const BG = "#EAF0F1";
-const SURFACE = "#FFFFFF";
-const BORDER = "#D8E4E5";
-const TEXT = "#17272B";
-const TEXT_SECONDARY = "#586C70";
-const TEXT_MUTED = "#647678";
+const PRIMARY = theme.accent;
+const PRIMARY_LIGHT = theme.accentDim;
+const PRIMARY_BORDER = theme.borderH;
+const BG = theme.bg;
+const SURFACE = theme.surface1;
+const BORDER = theme.border;
+const TEXT = theme.text1;
+const TEXT_SECONDARY = theme.text2;
+const TEXT_MUTED = theme.text3;
 const SUPPORT_WHATSAPP_URL = `https://wa.me/${process.env.EXPO_PUBLIC_SUPPORT_PHONE ?? "919999999999"}`;
 const PRIVACY_POLICY_URL = process.env.EXPO_PUBLIC_PRIVACY_URL ?? "#";
 const GENDER_OPTIONS = [
@@ -213,7 +214,7 @@ function MenuItem({
         padding: 16,
         gap: 14,
         borderBottomWidth: 1,
-        borderBottomColor: "#F5F5F4",
+        borderBottomColor: theme.surface2,
       }}
       activeOpacity={0.7}
     >
@@ -222,7 +223,7 @@ function MenuItem({
           width: 36,
           height: 36,
           borderRadius: 10,
-          backgroundColor: "#F5F5F4",
+          backgroundColor: theme.surface2,
           justifyContent: "center",
           alignItems: "center",
         }}
@@ -405,7 +406,7 @@ function SavedPlacesSection({ savedPlaces, onChange, pending, disabled }) {
               <Pencil size={ICON.sm} color={PRIMARY} />
             </TouchableOpacity>
             <TouchableOpacity onPress={() => remove(place)} disabled={pending || disabled} hitSlop={8}>
-              <Trash2 size={ICON.sm} color="#DC2626" />
+              <Trash2 size={ICON.sm} color={theme.err} />
             </TouchableOpacity>
           </View>
         ))}
@@ -430,7 +431,7 @@ function SavedPlacesSection({ savedPlaces, onChange, pending, disabled }) {
             <View style={{ flexDirection: "row", gap: 8, marginTop: 18 }}>
               {["Home", "Work", "Other"].map((preset) => (
                 <TouchableOpacity key={preset} onPress={() => setLabel(preset)} style={{ borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: label === preset ? PRIMARY : PRIMARY_LIGHT }}>
-                  <Text style={{ color: label === preset ? "#fff" : PRIMARY, fontWeight: "800", fontSize: 12 }}>{preset}</Text>
+                  <Text style={{ color: label === preset ? theme.surface1 : PRIMARY, fontWeight: "800", fontSize: 12 }}>{preset}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -446,7 +447,7 @@ function SavedPlacesSection({ savedPlaces, onChange, pending, disabled }) {
             </ScrollView>
             <View style={{ flexDirection: "row", gap: 10, marginTop: 18 }}>
               <TouchableOpacity onPress={close} style={{ flex: 1, borderRadius: 12, borderWidth: 1, borderColor: BORDER, paddingVertical: 13, alignItems: "center" }}><Text style={{ color: TEXT_SECONDARY, fontWeight: "800" }}>Cancel</Text></TouchableOpacity>
-              <TouchableOpacity onPress={save} disabled={pending} style={{ flex: 1, borderRadius: 12, backgroundColor: PRIMARY, paddingVertical: 13, alignItems: "center", opacity: pending ? 0.6 : 1 }}><Text style={{ color: "#fff", fontWeight: "800" }}>{pending ? "Saving..." : "Save Place"}</Text></TouchableOpacity>
+              <TouchableOpacity onPress={save} disabled={pending} style={{ flex: 1, borderRadius: 12, backgroundColor: PRIMARY, paddingVertical: 13, alignItems: "center", opacity: pending ? 0.6 : 1 }}><Text style={{ color: theme.surface1, fontWeight: "800" }}>{pending ? "Saving..." : "Save Place"}</Text></TouchableOpacity>
             </View>
           </Pressable>
         </Pressable>
@@ -481,7 +482,7 @@ function IndianPhoneField({
           style={{
             alignItems: "center",
             alignSelf: "stretch",
-            backgroundColor: "#F5F5F4",
+            backgroundColor: theme.surface2,
             borderRightColor: BORDER,
             borderRightWidth: 1,
             justifyContent: "center",
@@ -546,7 +547,7 @@ function CompactSelect({ label, value, options, onChange, disabled }) {
       <Modal visible={visible} transparent animationType="fade" onRequestClose={() => setVisible(false)}>
         <Pressable
           onPress={() => setVisible(false)}
-          style={{ flex: 1, backgroundColor: "#00000066", justifyContent: "flex-end" }}
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.40)", justifyContent: "flex-end" }}
         >
           <Pressable
             style={{
@@ -572,7 +573,7 @@ function CompactSelect({ label, value, options, onChange, disabled }) {
                     }}
                     style={{
                       alignItems: "center",
-                      borderTopColor: "#F5F5F4",
+                      borderTopColor: theme.surface2,
                       borderTopWidth: 1,
                       flexDirection: "row",
                       justifyContent: "space-between",
@@ -683,7 +684,7 @@ function DatePickerField({ label, value, onChange, disabled }) {
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <Pressable
           onPress={() => setOpen(false)}
-          style={{ alignItems: "center", backgroundColor: "#00000066", flex: 1, justifyContent: "center", padding: 20 }}
+          style={{ alignItems: "center", backgroundColor: "rgba(0,0,0,0.40)", flex: 1, justifyContent: "center", padding: 20 }}
         >
           <Pressable onPress={() => {}} style={{ width: "100%" }}>
             <View style={{ backgroundColor: SURFACE, borderRadius: 22, padding: 18 }}>
@@ -700,7 +701,7 @@ function DatePickerField({ label, value, onChange, disabled }) {
               {mode === "calendar" ? (
                 <View style={{ marginTop: 18 }}>
                   <View style={{ alignItems: "center", flexDirection: "row", justifyContent: "space-between" }}>
-                    <TouchableOpacity onPress={() => changeMonth(-1)} style={{ alignItems: "center", backgroundColor: "#F5F5F4", borderRadius: 12, height: 42, justifyContent: "center", width: 42 }}>
+                    <TouchableOpacity onPress={() => changeMonth(-1)} style={{ alignItems: "center", backgroundColor: theme.surface2, borderRadius: 12, height: 42, justifyContent: "center", width: 42 }}>
                       <ChevronLeft size={ICON.md} color={TEXT_SECONDARY} />
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => setMode("years")} style={{ alignItems: "center", padding: 10 }}>
@@ -709,7 +710,7 @@ function DatePickerField({ label, value, onChange, disabled }) {
                       </Text>
                       <Text style={{ color: PRIMARY, fontSize: 11, fontWeight: "800" }}>Tap to change year</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => changeMonth(1)} style={{ alignItems: "center", backgroundColor: "#F5F5F4", borderRadius: 12, height: 42, justifyContent: "center", width: 42 }}>
+                    <TouchableOpacity onPress={() => changeMonth(1)} style={{ alignItems: "center", backgroundColor: theme.surface2, borderRadius: 12, height: 42, justifyContent: "center", width: 42 }}>
                       <ChevronRight size={ICON.md} color={TEXT_SECONDARY} />
                     </TouchableOpacity>
                   </View>
@@ -739,13 +740,13 @@ function DatePickerField({ label, value, onChange, disabled }) {
               ) : (
                 <View style={{ marginTop: 18 }}>
                   <View style={{ alignItems: "center", flexDirection: "row", justifyContent: "space-between" }}>
-                    <TouchableOpacity onPress={() => moveYearRange(-12)} style={{ alignItems: "center", backgroundColor: "#F5F5F4", borderRadius: 12, height: 42, justifyContent: "center", width: 42 }}>
+                    <TouchableOpacity onPress={() => moveYearRange(-12)} style={{ alignItems: "center", backgroundColor: theme.surface2, borderRadius: 12, height: 42, justifyContent: "center", width: 42 }}>
                       <ChevronLeft size={ICON.md} color={TEXT_SECONDARY} />
                     </TouchableOpacity>
                     <Text style={{ color: TEXT, fontSize: 17, fontWeight: "900" }}>
                       {yearRange[0]} - {yearRange[yearRange.length - 1]}
                     </Text>
-                    <TouchableOpacity onPress={() => moveYearRange(12)} style={{ alignItems: "center", backgroundColor: "#F5F5F4", borderRadius: 12, height: 42, justifyContent: "center", width: 42 }}>
+                    <TouchableOpacity onPress={() => moveYearRange(12)} style={{ alignItems: "center", backgroundColor: theme.surface2, borderRadius: 12, height: 42, justifyContent: "center", width: 42 }}>
                       <ChevronRight size={ICON.md} color={TEXT_SECONDARY} />
                     </TouchableOpacity>
                   </View>
@@ -757,7 +758,7 @@ function DatePickerField({ label, value, onChange, disabled }) {
                           setDraft((current) => clampDateParts({ ...current, year }, minYear, maxYear));
                           setMode("calendar");
                         }}
-                        style={{ alignItems: "center", backgroundColor: year === draft.year ? PRIMARY : "#F7FBFA", borderColor: year === draft.year ? PRIMARY : BORDER, borderRadius: 14, borderWidth: 1, height: 48, justifyContent: "center", width: "31.6%" }}
+                        style={{ alignItems: "center", backgroundColor: year === draft.year ? PRIMARY : theme.surface2, borderColor: year === draft.year ? PRIMARY : BORDER, borderRadius: 14, borderWidth: 1, height: 48, justifyContent: "center", width: "31.6%" }}
                       >
                         <Text style={{ color: year === draft.year ? SURFACE : TEXT, fontSize: 15, fontWeight: "900" }}>{year}</Text>
                       </TouchableOpacity>
@@ -795,7 +796,7 @@ function SignOutSheet({ visible, onCancel, onConfirm }) {
         onPress={onCancel}
         style={{
           flex: 1,
-          backgroundColor: "#00000066",
+          backgroundColor: "rgba(0,0,0,0.40)",
           justifyContent: "flex-end",
         }}
       >
@@ -823,15 +824,15 @@ function SignOutSheet({ visible, onCancel, onConfirm }) {
               width: 50,
               height: 50,
               borderRadius: 16,
-              backgroundColor: "#FEF2F2",
+              backgroundColor: theme.errDim,
               borderWidth: 1,
-              borderColor: "#FECACA",
+              borderColor: theme.errDim,
               alignItems: "center",
               justifyContent: "center",
               marginBottom: 14,
             }}
           >
-            <LogOut size={ICON.lg} color="#DC2626" />
+            <LogOut size={ICON.lg} color={theme.err} />
           </View>
           <Text style={{ fontSize: 20, fontWeight: "800", color: TEXT }}>
             Sign out?
@@ -858,12 +859,12 @@ function SignOutSheet({ visible, onCancel, onConfirm }) {
               style={{
                 flex: 1,
                 borderRadius: 14,
-                backgroundColor: "#DC2626",
+                backgroundColor: theme.err,
                 paddingVertical: 14,
                 alignItems: "center",
               }}
             >
-              <Text style={{ color: "#fff", fontSize: 14, fontWeight: "800" }}>Sign Out</Text>
+              <Text style={{ color: theme.surface1, fontSize: 14, fontWeight: "800" }}>Sign Out</Text>
             </TouchableOpacity>
           </View>
         </Pressable>
@@ -1069,9 +1070,9 @@ export default function PassengerProfile() {
           <TouchableOpacity
             onPress={handleExitTestMode}
             style={{
-              backgroundColor: "#FFFBEB",
+              backgroundColor: theme.warnDim,
               borderBottomWidth: 1,
-              borderBottomColor: "#FDE68A",
+              borderBottomColor: theme.warnDim,
               paddingTop: insets.top + 8,
               paddingBottom: 10,
               paddingHorizontal: 16,
@@ -1081,18 +1082,18 @@ export default function PassengerProfile() {
             }}
             activeOpacity={0.8}
           >
-            <FlaskConical size={ICON.sm} color="#B88700" />
+            <FlaskConical size={ICON.sm} color={theme.warn} />
             <Text
               style={{
                 flex: 1,
                 fontSize: 12,
-                color: "#286B68",
+                color: theme.accentText,
                 fontWeight: "600",
               }}
             >
               🧪 Test Mode Active — Tap to Sign In with real account
             </Text>
-            <Text style={{ fontSize: 12, color: "#B88700", fontWeight: "700" }}>
+            <Text style={{ fontSize: 12, color: theme.warn, fontWeight: "700" }}>
               Exit →
             </Text>
           </TouchableOpacity>
@@ -1126,7 +1127,7 @@ export default function PassengerProfile() {
               elevation: 8,
             }}
           >
-            <Text style={{ fontSize: 32, fontWeight: "800", color: "#fff" }}>
+            <Text style={{ fontSize: 32, fontWeight: "800", color: theme.surface1 }}>
               {testMode
                 ? "?"
                 : user?.name || auth?.user?.email
@@ -1273,7 +1274,7 @@ export default function PassengerProfile() {
                     borderRadius: 12,
                     borderWidth: 1,
                     borderColor: BORDER,
-                    backgroundColor: "#F5F5F4",
+                    backgroundColor: theme.surface2,
                     paddingHorizontal: 14,
                     paddingVertical: 13,
                   }}
@@ -1372,14 +1373,14 @@ export default function PassengerProfile() {
                 disabled={testMode || updateProfile.isPending}
                 style={{
                   borderRadius: 12,
-                  backgroundColor: testMode ? "#BFD1D3" : PRIMARY,
+                  backgroundColor: testMode ? theme.border : PRIMARY,
                   paddingVertical: 14,
                   alignItems: "center",
                   opacity: updateProfile.isPending ? 0.7 : 1,
                 }}
                 activeOpacity={0.85}
               >
-                <Text style={{ color: "#fff", fontSize: 14, fontWeight: "800" }}>
+                <Text style={{ color: theme.surface1, fontSize: 14, fontWeight: "800" }}>
                   {updateProfile.isPending ? "Saving..." : "Save Profile"}
                 </Text>
               </TouchableOpacity>
@@ -1413,7 +1414,7 @@ export default function PassengerProfile() {
                 alignItems: "center",
                 gap: 14,
                 borderBottomWidth: 1,
-                borderBottomColor: "#F5F5F4",
+                borderBottomColor: theme.surface2,
               }}
             >
               <View
@@ -1421,7 +1422,7 @@ export default function PassengerProfile() {
                   width: 36,
                   height: 36,
                   borderRadius: 10,
-                  backgroundColor: "#F5F5F4",
+                  backgroundColor: theme.surface2,
                   justifyContent: "center",
                   alignItems: "center",
                 }}
@@ -1477,10 +1478,10 @@ export default function PassengerProfile() {
             <TouchableOpacity
               onPress={handleExitTestMode}
               style={{
-                backgroundColor: "#FFFBEB",
+                backgroundColor: theme.warnDim,
                 borderRadius: 14,
                 borderWidth: 1.5,
-                borderColor: "#FDE68A",
+                borderColor: theme.warnDim,
                 padding: 16,
                 flexDirection: "row",
                 alignItems: "center",
@@ -1489,9 +1490,9 @@ export default function PassengerProfile() {
               }}
               activeOpacity={0.8}
             >
-              <FlaskConical size={ICON.sm} color="#B88700" />
+              <FlaskConical size={ICON.sm} color={theme.warn} />
               <Text
-                style={{ color: "#B88700", fontSize: 15, fontWeight: "700" }}
+                style={{ color: theme.warn, fontSize: 15, fontWeight: "700" }}
               >
                 Exit Test Mode → Sign In
               </Text>
@@ -1500,10 +1501,10 @@ export default function PassengerProfile() {
             <TouchableOpacity
               onPress={() => setShowSignOutSheet(true)}
               style={{
-                backgroundColor: "#FEF2F2",
+                backgroundColor: theme.errDim,
                 borderRadius: 14,
                 borderWidth: 1,
-                borderColor: "#FECACA",
+                borderColor: theme.errDim,
                 padding: 16,
                 flexDirection: "row",
                 alignItems: "center",
@@ -1512,9 +1513,9 @@ export default function PassengerProfile() {
               }}
               activeOpacity={0.8}
             >
-              <LogOut size={ICON.sm} color="#DC2626" />
+              <LogOut size={ICON.sm} color={theme.err} />
               <Text
-                style={{ color: "#DC2626", fontSize: 15, fontWeight: "700" }}
+                style={{ color: theme.err, fontSize: 15, fontWeight: "700" }}
               >
                 Sign Out
               </Text>

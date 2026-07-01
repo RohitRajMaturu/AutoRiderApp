@@ -34,19 +34,20 @@ import { useAuth } from "@/utils/auth/useAuth";
 import { StatusBar } from "expo-status-bar";
 import { ICON } from "@/theme/iconScale";
 import AutoRideIcon from "@/components/AutoRideIcon";
+import { adminTheme as T } from "@/theme/tokens";
 
-const PRIMARY = "#F5A623";
-const PRIMARY_DARK = "#D97706";
-const PRIMARY_LIGHT = "rgba(245,166,35,0.12)";
-const BG = "#0D0F12";
-const SURFACE = "#1C2028";
-const BORDER = "rgba(255,255,255,0.16)";
-const TEXT = "#F0F2F5";
-const TEXT_SECONDARY = "#C3C8D4";
-const SUCCESS = "#22C55E";
-const ERROR = "#EF4444";
-const GOLD = "#F59E0B";
-const PURPLE = "#38BDF8";
+const PRIMARY = T.accent;
+const PRIMARY_DARK = T.accent;
+const PRIMARY_LIGHT = T.accentDim;
+const BG = T.bg;
+const SURFACE = T.surface2;
+const BORDER = T.border;
+const TEXT = T.text1;
+const TEXT_SECONDARY = T.text2;
+const SUCCESS = T.ok;
+const ERROR = T.err;
+const GOLD = T.warn;
+const PURPLE = T.info;
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -126,7 +127,7 @@ function SignOutSheet({ visible, onCancel, onConfirm }) {
                 paddingVertical: 14,
               }}
             >
-              <Text style={{ color: "#fff", fontSize: 14, fontWeight: "900" }}>Sign Out</Text>
+              <Text style={{ color: T.text1, fontSize: 14, fontWeight: "900" }}>Sign Out</Text>
             </TouchableOpacity>
           </View>
         </Pressable>
@@ -442,9 +443,9 @@ function RankBadge({ rank }) {
     rank === 1
       ? GOLD
       : rank === 2
-        ? "#9CA3AF"
+        ? T.text2
         : rank === 3
-          ? "#B45309"
+          ? T.warn
           : PRIMARY;
 
   return (
@@ -816,7 +817,7 @@ export default function AdminDashboard() {
           >
             <View style={{ flex: 1 }}>
               <Text
-                style={{ fontSize: 11, color: "#FFFFFFB3", fontWeight: "800" }}
+                style={{ fontSize: 11, color: T.text2, fontWeight: "800" }}
               >
                 Total Fare Value
               </Text>
@@ -825,7 +826,7 @@ export default function AdminDashboard() {
                 prefix={"\u20B9"}
                 style={{ fontSize: 32, fontWeight: "900", color: SURFACE }}
               />
-              <Text style={{ fontSize: 11, color: "#FFFFFFA6", marginTop: 2 }}>
+              <Text style={{ fontSize: 11, color: T.text2, marginTop: 2 }}>
                 Today: {formatCurrency(stats.todayFareValue)} {"\u00B7"}{" "}
                 {numberValue(stats.todayRides)} rides
               </Text>
@@ -837,7 +838,7 @@ export default function AdminDashboard() {
                 width={100}
                 height={44}
               />
-              <Text style={{ fontSize: 10, color: "#FFFFFFA6", marginTop: 4 }}>
+              <Text style={{ fontSize: 10, color: T.text2, marginTop: 4 }}>
                 7-day trend
               </Text>
             </View>
@@ -1205,10 +1206,10 @@ export default function AdminDashboard() {
           {pendingDrivers.length > 0 && (
             <View
               style={{
-                backgroundColor: "#FEF3C7",
+                backgroundColor: T.warnDim,
                 borderRadius: 14,
                 borderWidth: 1,
-                borderColor: "#FDE68A",
+                borderColor: T.warnDim,
                 padding: 14,
                 flexDirection: "row",
                 alignItems: "center",
@@ -1218,12 +1219,12 @@ export default function AdminDashboard() {
               <Text style={{ fontSize: 22, color: GOLD, fontWeight: "900" }}>!</Text>
               <View style={{ flex: 1 }}>
                 <Text
-                  style={{ fontSize: 14, fontWeight: "700", color: "#286B68" }}
+                  style={{ fontSize: 14, fontWeight: "700", color: T.accent }}
                 >
                   {pendingDrivers.length} Driver
                   {pendingDrivers.length > 1 ? "s" : ""} Awaiting Approval
                 </Text>
-                <Text style={{ fontSize: 12, color: "#586C70", marginTop: 2 }}>
+                <Text style={{ fontSize: 12, color: T.text2, marginTop: 2 }}>
                   Tap Drivers tab to review
                 </Text>
               </View>

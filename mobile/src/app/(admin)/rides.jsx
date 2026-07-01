@@ -25,17 +25,18 @@ import { StatusBar } from "expo-status-bar";
 import AutoRideIcon from "@/components/AutoRideIcon";
 import { getVehicleLabel } from "@/utils/vehicles";
 import { ICON } from "@/theme/iconScale";
+import { adminTheme as T } from "@/theme/tokens";
 
-const PRIMARY = "#F5A623";
-const BG = "#0D0F12";
-const SURFACE = "#1C2028";
-const BORDER = "rgba(255,255,255,0.16)";
-const TEXT = "#F0F2F5";
-const TEXT_SECONDARY = "#C3C8D4";
-const SUCCESS = "#22C55E";
-const ERROR = "#EF4444";
-const GOLD = "#F59E0B";
-const WARNING = "#F59E0B";
+const PRIMARY = T.accent;
+const BG = T.bg;
+const SURFACE = T.surface2;
+const BORDER = T.border;
+const TEXT = T.text1;
+const TEXT_SECONDARY = T.text2;
+const SUCCESS = T.ok;
+const ERROR = T.err;
+const GOLD = T.warn;
+const WARNING = T.warn;
 
 function maskPhone(value) {
   const digits = String(value || "").replace(/\D/g, "");

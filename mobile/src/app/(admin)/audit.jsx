@@ -25,15 +25,16 @@ import {
   UserX,
 } from "lucide-react-native";
 import { ICON } from "@/theme/iconScale";
+import { adminTheme as T } from "@/theme/tokens";
 
-const PRIMARY = "#F5A623";
-const BG = "#0D0F12";
-const SURFACE = "#1C2028";
-const BORDER = "rgba(255,255,255,0.16)";
-const TEXT = "#F0F2F5";
-const TEXT_SECONDARY = "#C3C8D4";
-const SUCCESS = "#22C55E";
-const ERROR = "#EF4444";
+const PRIMARY = T.accent;
+const BG = T.bg;
+const SURFACE = T.surface2;
+const BORDER = T.border;
+const TEXT = T.text1;
+const TEXT_SECONDARY = T.text2;
+const SUCCESS = T.ok;
+const ERROR = T.err;
 
 function readMetadata(value) {
   if (!value) return {};
@@ -237,7 +238,7 @@ export default function AdminAudit() {
                 setPage(1);
               }}
               style={{
-                backgroundColor: category === value ? `${PRIMARY}20` : SURFACE,
+                backgroundColor: category === value ? T.accentDim : SURFACE,
                 borderColor: category === value ? PRIMARY : BORDER,
                 borderRadius: 99,
                 borderWidth: 1,
@@ -267,7 +268,7 @@ export default function AdminAudit() {
                 setPage(1);
               }}
               style={{
-                backgroundColor: sort === value ? `${SUCCESS}20` : SURFACE,
+                backgroundColor: sort === value ? T.okDim : SURFACE,
                 borderColor: sort === value ? SUCCESS : BORDER,
                 borderRadius: 99,
                 borderWidth: 1,
@@ -290,15 +291,15 @@ export default function AdminAudit() {
         {isError ? (
           <View
             style={{
-              backgroundColor: "rgba(239, 68, 68, 0.08)",
-              borderColor: "rgba(239, 68, 68, 0.35)",
+              backgroundColor: T.errDim,
+              borderColor: T.err,
               borderRadius: 10,
               borderWidth: 1,
               marginTop: 10,
               padding: 11,
             }}
           >
-            <Text style={{ color: "#fca5a5", fontSize: 12 }}>
+            <Text style={{ color: T.err, fontSize: 12 }}>
               Audit activity could not be loaded. Pull down to try again.
             </Text>
           </View>
@@ -311,7 +312,7 @@ export default function AdminAudit() {
         </View>
       ) : (
         <ScrollView
-          contentContainerStyle={{ padding: 16, paddingBottom: 90 }}
+          contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 24 }}
           refreshControl={
             <RefreshControl
               refreshing={isRefetching}

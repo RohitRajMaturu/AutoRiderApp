@@ -49,19 +49,20 @@ import { createRidePusher } from "@/utils/pusher";
 import { getVehicleLabel } from "@/utils/vehicles";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { addInAppNotification, notificationOwnerKey } from "@/store/useNotificationStore";
+import { theme } from "@/theme/tokens";
 
 const TUKTUKGO_ICON = require("../../../assets/images/icon.png");
-const PRIMARY = "#43B8B3";
-const PRIMARY_LIGHT = "#E7F6F4";
-const PRIMARY_BORDER = "#BFE5E0";
-const BG = "#EAF0F1";
-const SURFACE = "#FFFFFF";
-const BORDER = "#D8E4E5";
-const TEXT = "#17272B";
-const TEXT_SECONDARY = "#586C70";
-const TEXT_MUTED = "#647678";
-const SUCCESS = "#16A34A";
-const SUCCESS_LIGHT = "#DCFCE7";
+const PRIMARY = theme.accent;
+const PRIMARY_LIGHT = theme.accentDim;
+const PRIMARY_BORDER = theme.borderH;
+const BG = theme.bg;
+const SURFACE = theme.surface1;
+const BORDER = theme.border;
+const TEXT = theme.text1;
+const TEXT_SECONDARY = theme.text2;
+const TEXT_MUTED = theme.text3;
+const SUCCESS = theme.ok;
+const SUCCESS_LIGHT = theme.okDim;
 const configuredMaxTripKm = Number(process.env.EXPO_PUBLIC_MAX_TRIP_DISTANCE_KM);
 const MAX_TRIP_KM = Number.isFinite(configuredMaxTripKm) && configuredMaxTripKm >= 5
   ? configuredMaxTripKm
@@ -1242,7 +1243,7 @@ export default function PassengerHome() {
           borderRadius: 14,
           borderWidth: 1,
           borderColor: BORDER,
-          backgroundColor: "#fff",
+          backgroundColor: theme.surface1,
           overflow: "hidden",
         }}
       >
@@ -1255,7 +1256,7 @@ export default function PassengerHome() {
               paddingHorizontal: 14,
               paddingVertical: 12,
               borderBottomWidth: index === suggestions.length - 1 ? 0 : 1,
-              borderBottomColor: "#F5F5F4",
+              borderBottomColor: theme.surface2,
               flexDirection: "row",
               alignItems: "center",
               gap: 10,
@@ -1320,7 +1321,7 @@ export default function PassengerHome() {
                 borderRadius: 12,
                 backgroundColor: TEXT,
                 borderWidth: 1,
-                borderColor: "#26363A",
+                borderColor: theme.text1,
                 justifyContent: "center",
                 alignItems: "center",
                 overflow: "hidden",
@@ -1370,7 +1371,7 @@ export default function PassengerHome() {
                 borderColor:
                   activeRide.status === "accepted" ? PRIMARY_BORDER : BORDER,
                 overflow: "hidden",
-                shadowColor: "#000",
+                shadowColor: theme.text1,
                 shadowOffset: { width: 0, height: 2 },
                 shadowOpacity: 0.06,
                 shadowRadius: 12,
@@ -1385,7 +1386,7 @@ export default function PassengerHome() {
                       ? SUCCESS_LIGHT
                       : activeRide.status === "accepted"
                       ? PRIMARY_LIGHT
-                      : "#FFFBEB",
+                      : theme.warnDim,
                   paddingHorizontal: 20,
                   paddingVertical: 14,
                   flexDirection: "row",
@@ -1394,10 +1395,10 @@ export default function PassengerHome() {
                   borderBottomWidth: 1,
                   borderBottomColor:
                     isTripStarted
-                      ? "#BBF7D0"
+                      ? theme.okDim
                       : activeRide.status === "accepted"
                       ? PRIMARY_BORDER
-                      : "#FDE68A",
+                      : theme.warnDim,
                 }}
               >
                 <View
@@ -1411,7 +1412,7 @@ export default function PassengerHome() {
                     <Animated.View
                       style={{ transform: [{ scale: pulseAnim }] }}
                     >
-                      <Clock3 size={ICON.md} color="#B88700" />
+                      <Clock3 size={ICON.md} color={theme.warn} />
                     </Animated.View>
                   ) : (
                     <CheckCircle2 size={ICON.md} color={PRIMARY} />
@@ -1481,7 +1482,7 @@ export default function PassengerHome() {
                         }}
                         title="Driver"
                         description={activeRide.vehicle_number || "Your driver"}
-                        pinColor="#2563EB"
+                        pinColor={theme.info}
                       />
                     )}
                   </MapView>
@@ -1498,10 +1499,10 @@ export default function PassengerHome() {
                       top: 10,
                       right: 10,
                       zIndex: 10,
-                      backgroundColor: "#FFFFFF",
+                      backgroundColor: theme.surface1,
                       borderRadius: 8,
                       padding: 7,
-                      shadowColor: "#000",
+                      shadowColor: theme.text1,
                       shadowOffset: { width: 0, height: 2 },
                       shadowOpacity: 0.15,
                       shadowRadius: 4,
@@ -1511,8 +1512,8 @@ export default function PassengerHome() {
                       gap: 5,
                     }}
                   >
-                    <Navigation size={ICON.sm} color="#43B8B3" />
-                    <Text style={{ fontSize: 11, fontWeight: "700", color: "#17272B" }}>
+                    <Navigation size={ICON.sm} color={theme.accent} />
+                    <Text style={{ fontSize: 11, fontWeight: "700", color: theme.text1 }}>
                       Navigate
                     </Text>
                   </TouchableOpacity>
@@ -1525,17 +1526,17 @@ export default function PassengerHome() {
                   style={{
                     margin: 16,
                     marginBottom: 0,
-                    backgroundColor: "#FEF3C7",
+                    backgroundColor: theme.warnDim,
                     borderRadius: 12,
                     borderWidth: 1,
-                    borderColor: "#FDE68A",
+                    borderColor: theme.warnDim,
                     padding: 12,
                   }}
                 >
-                  <Text style={{ fontSize: 13, fontWeight: "900", color: "#92400E" }}>
+                  <Text style={{ fontSize: 13, fontWeight: "900", color: theme.warn }}>
                     Taking longer than usual
                   </Text>
-                  <Text style={{ fontSize: 12, color: "#92400E", marginTop: 4, lineHeight: 18 }}>
+                  <Text style={{ fontSize: 12, color: theme.warn, marginTop: 4, lineHeight: 18 }}>
                     Nearby drivers may be busy. You can keep waiting or cancel and try again.
                   </Text>
                 </View>
@@ -1615,15 +1616,15 @@ export default function PassengerHome() {
                   <View
                     style={{
                       marginTop: 16,
-                      backgroundColor: "#F0F9FF",
+                      backgroundColor: theme.infoDim,
                       borderRadius: 12,
                       borderWidth: 1,
-                      borderColor: "#BAE6FD",
+                      borderColor: theme.infoDim,
                       padding: 14,
                     }}
                   >
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                      <IndianRupee size={ICON.md} color="#0369A1" />
+                      <IndianRupee size={ICON.md} color={theme.info} />
                       <View style={{ flex: 1 }}>
                         <Text style={{ fontSize: 14, fontWeight: "800", color: TEXT }}>
                           Your offer {formatCurrency(activeRide.fare_max)}
@@ -1638,10 +1639,10 @@ export default function PassengerHome() {
                           fontWeight: "900",
                           color:
                             negotiationRemaining <= 10
-                              ? "#DC2626"
+                              ? theme.err
                               : negotiationRemaining <= 20
-                                ? "#D97706"
-                                : "#0369A1",
+                                ? theme.warn
+                                : theme.info,
                         }}
                       >
                         {negotiationRemaining}s
@@ -1651,8 +1652,8 @@ export default function PassengerHome() {
                     {counterOffers.length > 0 && (
                       <Animated.View style={{ marginTop: 12, gap: 10, transform: [{ scale: counterPulseAnim }] }}>
                         <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#0369A1" }} />
-                          <Text style={{ fontSize: 11, fontWeight: "800", color: "#0369A1", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: theme.info }} />
+                          <Text style={{ fontSize: 11, fontWeight: "800", color: theme.info, textTransform: "uppercase", letterSpacing: 0.5 }}>
                             {counterOffers.length} driver counter{counterOffers.length > 1 ? "s" : ""} — tap to accept
                           </Text>
                         </View>
@@ -1662,7 +1663,7 @@ export default function PassengerHome() {
                             style={{
                               borderRadius: 10,
                               borderWidth: 1,
-                              borderColor: "#BAE6FD",
+                              borderColor: theme.infoDim,
                               backgroundColor: SURFACE,
                               padding: 12,
                               flexDirection: "row",
@@ -1691,7 +1692,7 @@ export default function PassengerHome() {
                               accessibilityRole="button"
                               style={({ pressed }) => ({
                                 borderRadius: 12,
-                                backgroundColor: pressed ? "#38A89D" : PRIMARY,
+                                backgroundColor: pressed ? theme.accentText : PRIMARY,
                                 paddingVertical: 14,
                                 paddingHorizontal: 20,
                                 alignItems: "center",
@@ -1699,7 +1700,7 @@ export default function PassengerHome() {
                                 minWidth: 100,
                               })}
                             >
-                              <Text style={{ color: "#fff", fontSize: 15, fontWeight: "900" }}>
+                              <Text style={{ color: theme.surface1, fontSize: 15, fontWeight: "900" }}>
                                 {approveCounter.isPending ? "…" : "Accept ✓"}
                               </Text>
                             </Pressable>
@@ -1721,7 +1722,7 @@ export default function PassengerHome() {
                         padding: 16,
                         borderWidth: 1,
                         borderColor: PRIMARY_BORDER,
-                        shadowColor: "#12343A",
+                        shadowColor: theme.accentText,
                         shadowOpacity: 0.08,
                         shadowRadius: 18,
                         shadowOffset: { width: 0, height: 8 },
@@ -1859,7 +1860,7 @@ export default function PassengerHome() {
                         }}
                         accessibilityLabel="Call assigned driver"
                       >
-                        <Phone size={ICON.md} color="#fff" />
+                        <Phone size={ICON.md} color={theme.surface1} />
                       </TouchableOpacity>
                     ) : null}
                     <ChatDrawer
@@ -1880,7 +1881,7 @@ export default function PassengerHome() {
                         paddingVertical: 13,
                         alignItems: "center",
                         borderWidth: 1,
-                        borderColor: "#BBF7D0",
+                        borderColor: theme.okDim,
                       }}
                       activeOpacity={0.85}
                     >
@@ -1905,7 +1906,7 @@ export default function PassengerHome() {
                         ],
                       )}
                       style={{
-                        backgroundColor: sosActive ? "#FEF2F2" : "#DC2626",
+                        backgroundColor: sosActive ? theme.errDim : theme.err,
                         borderRadius: 12,
                         paddingVertical: 13,
                         alignItems: "center",
@@ -1913,12 +1914,12 @@ export default function PassengerHome() {
                         flexDirection: "row",
                         gap: 8,
                         borderWidth: 1,
-                        borderColor: sosActive ? "#FECACA" : "#DC2626",
+                        borderColor: sosActive ? theme.errDim : theme.err,
                         opacity: sosPending ? 0.6 : 1,
                       }}
                     >
-                      <ShieldAlert size={ICON.sm} color={sosActive ? "#DC2626" : "#fff"} />
-                      <Text style={{ color: sosActive ? "#DC2626" : "#fff", fontSize: 14, fontWeight: "800" }}>
+                      <ShieldAlert size={ICON.sm} color={sosActive ? theme.err : theme.surface1} />
+                      <Text style={{ color: sosActive ? theme.err : theme.surface1, fontSize: 14, fontWeight: "800" }}>
                         {sosPending ? "Please wait..." : sosActive ? "Yes, I’m Safe — Stop SOS" : "SOS — Send Live Link"}
                       </Text>
                     </TouchableOpacity>
@@ -1938,10 +1939,10 @@ export default function PassengerHome() {
                   <View
                     style={{
                       marginTop: 16,
-                      backgroundColor: "#EFF6FF",
+                      backgroundColor: theme.infoDim,
                       borderRadius: 12,
                       borderWidth: 1,
-                      borderColor: "#BFDBFE",
+                      borderColor: theme.infoDim,
                       padding: 14,
                     }}
                   >
@@ -1949,7 +1950,7 @@ export default function PassengerHome() {
                       style={{
                         fontSize: 11,
                         fontWeight: "800",
-                        color: "#2563EB",
+                        color: theme.info,
                         textTransform: "uppercase",
                       }}
                     >
@@ -1980,10 +1981,10 @@ export default function PassengerHome() {
                   <View
                     style={{
                       marginTop: 16,
-                      backgroundColor: "#FFFBEB",
+                      backgroundColor: theme.warnDim,
                       borderRadius: 12,
                       borderWidth: 1,
-                      borderColor: "#FDE68A",
+                      borderColor: theme.warnDim,
                       padding: 14,
                     }}
                   >
@@ -2007,8 +2008,8 @@ export default function PassengerHome() {
                         >
                           <Star
                             size={ICON.xl}
-                            color={value <= ratingValue ? "#F3B51B" : TEXT_MUTED}
-                            fill={value <= ratingValue ? "#F3B51B" : "none"}
+                            color={value <= ratingValue ? theme.accent : TEXT_MUTED}
+                            fill={value <= ratingValue ? theme.accent : "none"}
                           />
                         </TouchableOpacity>
                       ))}
@@ -2027,8 +2028,8 @@ export default function PassengerHome() {
                         minHeight: 72,
                         borderRadius: 10,
                         borderWidth: 1,
-                        borderColor: "#FDE68A",
-                        backgroundColor: "#fff",
+                        borderColor: theme.warnDim,
+                        backgroundColor: theme.surface1,
                         paddingHorizontal: 12,
                         paddingVertical: 10,
                         fontSize: 13,
@@ -2091,7 +2092,7 @@ export default function PassengerHome() {
                   >
                     <Text
                       style={{
-                        color: "#DC2626",
+                        color: theme.err,
                         fontSize: 14,
                         fontWeight: "600",
                       }}
@@ -2112,7 +2113,7 @@ export default function PassengerHome() {
                 borderRadius: 18,
                 borderWidth: 1,
                 borderColor: BORDER,
-                shadowColor: "#000",
+                shadowColor: theme.text1,
                 shadowOffset: { width: 0, height: 2 },
                 shadowOpacity: 0.05,
                 shadowRadius: 10,
@@ -2125,7 +2126,7 @@ export default function PassengerHome() {
                 style={{
                   padding: 18,
                   borderBottomWidth: 1,
-                  borderBottomColor: "#F5F5F4",
+                  borderBottomColor: theme.surface2,
                 }}
               >
                 <View
@@ -2226,7 +2227,7 @@ export default function PassengerHome() {
                       width: 38,
                       height: 38,
                       borderRadius: 10,
-                      backgroundColor: "#F5F5F4",
+                      backgroundColor: theme.surface2,
                       borderWidth: 1.5,
                       borderColor: BORDER,
                       justifyContent: "center",
@@ -2410,7 +2411,7 @@ export default function PassengerHome() {
                         borderRadius: 10,
                         borderWidth: 1,
                         borderColor: selected ? PRIMARY_BORDER : BORDER,
-                        backgroundColor: selected ? PRIMARY_LIGHT : "#F5F5F4",
+                        backgroundColor: selected ? PRIMARY_LIGHT : theme.surface2,
                         paddingVertical: 11,
                         alignItems: "center",
                       }}
@@ -2476,20 +2477,20 @@ export default function PassengerHome() {
                     marginTop: 14,
                     borderRadius: 14,
                     borderWidth: 1,
-                    borderColor: "#FECACA",
-                    backgroundColor: "#FEF2F2",
+                    borderColor: theme.errDim,
+                    backgroundColor: theme.errDim,
                     padding: 14,
                     flexDirection: "row",
                     alignItems: "flex-start",
                     gap: 10,
                   }}
                 >
-                  <MapPinOff size={ICON.md} color="#DC2626" />
+                  <MapPinOff size={ICON.md} color={theme.err} />
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 14, fontWeight: "900", color: "#B91C1C" }}>
+                    <Text style={{ fontSize: 14, fontWeight: "900", color: theme.err }}>
                       That&apos;s a bit far for an auto
                     </Text>
-                    <Text style={{ fontSize: 12, lineHeight: 18, color: "#7F1D1D", marginTop: 4 }}>
+                    <Text style={{ fontSize: 12, lineHeight: 18, color: theme.err, marginTop: 4 }}>
                       This destination is {Math.round(Number(tripEstimate.distanceKm))} km away. TukTukGo currently supports local trips up to {MAX_TRIP_KM} km. Please choose a closer drop-off.
                     </Text>
                   </View>
@@ -2513,7 +2514,7 @@ export default function PassengerHome() {
                             borderRadius: 10,
                             borderWidth: 1,
                             borderColor: selected ? PRIMARY_BORDER : BORDER,
-                            backgroundColor: selected ? PRIMARY_LIGHT : "#F5F5F4",
+                            backgroundColor: selected ? PRIMARY_LIGHT : theme.surface2,
                             paddingVertical: 10,
                             paddingHorizontal: 6,
                             alignItems: "center",
@@ -2556,7 +2557,7 @@ export default function PassengerHome() {
                         borderRadius: 10,
                         borderWidth: 1,
                         borderColor: BORDER,
-                        backgroundColor: "#F5F5F4",
+                        backgroundColor: theme.surface2,
                         paddingHorizontal: 10,
                         paddingVertical: 10,
                         color: TEXT,
@@ -2566,7 +2567,7 @@ export default function PassengerHome() {
                     />
                   </View>
                   {!!fareInputError && (
-                    <Text style={{ fontSize: 12, color: "#DC2626", fontWeight: "700" }}>
+                    <Text style={{ fontSize: 12, color: theme.err, fontWeight: "700" }}>
                       {fareInputError}
                     </Text>
                   )}
@@ -2589,7 +2590,7 @@ export default function PassengerHome() {
                       borderRadius: 10,
                       borderWidth: 1,
                       borderColor: BORDER,
-                      backgroundColor: "#F5F5F4",
+                      backgroundColor: theme.surface2,
                       paddingHorizontal: 12,
                       paddingVertical: 12,
                       color: TEXT,
@@ -2610,7 +2611,7 @@ export default function PassengerHome() {
                       borderRadius: 10,
                       borderWidth: 1,
                       borderColor: BORDER,
-                      backgroundColor: "#F5F5F4",
+                      backgroundColor: theme.surface2,
                       paddingHorizontal: 12,
                       paddingVertical: 12,
                       color: TEXT,
@@ -2654,7 +2655,7 @@ export default function PassengerHome() {
                   <Text style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 2 }}>15 minutes to 24 hours from now</Text>
                 </View>
                 <View style={{ width: 44, height: 26, borderRadius: 999, padding: 3, backgroundColor: isScheduling ? PRIMARY : BORDER, alignItems: isScheduling ? "flex-end" : "flex-start" }}>
-                  <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: "#fff" }} />
+                  <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: theme.surface1 }} />
                 </View>
               </TouchableOpacity>
               {isScheduling && scheduledFor ? (
@@ -2714,15 +2715,15 @@ export default function PassengerHome() {
                     <Text style={{ color: PRIMARY, fontSize: 18, fontWeight: "900" }}>›</Text>
                   </TouchableOpacity>
 
-                  <View style={{ flexDirection: "row", gap: 8, borderRadius: 12, backgroundColor: "#FFF7ED", borderWidth: 1, borderColor: "#FED7AA", padding: 11 }}>
-                    <Clock size={ICON.sm} color="#C2410C" />
-                    <Text style={{ flex: 1, color: "#9A3412", fontSize: 11, lineHeight: 17, fontWeight: "700" }}>
+                  <View style={{ flexDirection: "row", gap: 8, borderRadius: 12, backgroundColor: theme.warnDim, borderWidth: 1, borderColor: theme.warnDim, padding: 11 }}>
+                    <Clock size={ICON.sm} color={theme.warn} />
+                    <Text style={{ flex: 1, color: theme.warn, fontSize: 11, lineHeight: 17, fontWeight: "700" }}>
                       Need a later ride? TukTukGo currently accepts schedules up to 24 hours ahead for reliable driver availability.
                     </Text>
                   </View>
 
                   {scheduleError ? (
-                    <Text style={{ color: "#DC2626", fontSize: 12, fontWeight: "700" }}>{scheduleError}</Text>
+                    <Text style={{ color: theme.err, fontSize: 12, fontWeight: "700" }}>{scheduleError}</Text>
                   ) : null}
                 </View>
               ) : null}
@@ -2835,10 +2836,10 @@ export default function PassengerHome() {
         <View style={{ marginHorizontal: 16, marginTop: 8 }}>
           <View
             style={{
-              backgroundColor: "#F0FDF4",
+              backgroundColor: theme.okDim,
               borderRadius: 12,
               borderWidth: 1,
-              borderColor: "#BBF7D0",
+              borderColor: theme.okDim,
               padding: 14,
               flexDirection: "row",
               alignItems: "flex-start",
@@ -2857,7 +2858,7 @@ export default function PassengerHome() {
               >
                 Safety First
               </Text>
-              <Text style={{ fontSize: 12, color: "#166534", lineHeight: 18 }}>
+              <Text style={{ fontSize: 12, color: theme.ok, lineHeight: 18 }}>
                 Always verify the vehicle number and driver details before
                 boarding.
               </Text>
@@ -2973,7 +2974,7 @@ export default function PassengerHome() {
                     alignItems: "center",
                     borderBottomWidth: 1,
                     borderBottomColor: BORDER,
-                    backgroundColor: selected ? "#FEE2E2" : SURFACE,
+                    backgroundColor: selected ? theme.errDim : SURFACE,
                     paddingHorizontal: 10,
                   }}
                 >
@@ -2983,7 +2984,7 @@ export default function PassengerHome() {
                       height: 18,
                       borderRadius: 9,
                       borderWidth: 2,
-                      borderColor: selected ? "#DC2626" : "#D6D3D1",
+                      borderColor: selected ? theme.err : theme.text2,
                       alignItems: "center",
                       justifyContent: "center",
                       marginRight: 10,
@@ -2996,7 +2997,7 @@ export default function PassengerHome() {
                           width: 8,
                           height: 8,
                           borderRadius: 4,
-                          backgroundColor: "#DC2626",
+                          backgroundColor: theme.err,
                         }}
                       />
                     ) : null}
@@ -3031,8 +3032,8 @@ export default function PassengerHome() {
                 paddingVertical: 10,
                 borderRadius: 10,
                 borderWidth: 1,
-                borderColor: "#FECACA",
-                backgroundColor: "#FEF2F2",
+                borderColor: theme.errDim,
+                backgroundColor: theme.errDim,
                 color: TEXT,
                 fontSize: 14,
                 textAlignVertical: "top",
@@ -3080,11 +3081,11 @@ export default function PassengerHome() {
                   !activeRide?.id ||
                   (selectedCancelReason === "other" &&
                     otherCancelReason.trim().length === 0)
-                    ? "#E7A3A3"
-                    : "#DC2626",
+                    ? theme.errDim
+                    : theme.err,
               }}
             >
-              <Text style={{ fontSize: 13, fontWeight: "800", color: "#fff" }}>
+              <Text style={{ fontSize: 13, fontWeight: "800", color: theme.surface1 }}>
                 {cancelRide.isPending ? "Cancelling..." : "Cancel Ride"}
               </Text>
             </TouchableOpacity>

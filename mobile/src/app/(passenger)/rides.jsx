@@ -45,8 +45,8 @@ function createStatusConfig(theme) {
       label: "Searching",
     },
     scheduled: {
-      bg: "#EDE9FE",
-      text: "#7C3AED",
+      bg: theme.infoDim,
+      text: theme.info,
       Icon: Clock,
       label: "Scheduled",
     },
@@ -57,8 +57,8 @@ function createStatusConfig(theme) {
       label: "Accepted",
     },
     negotiating: {
-      bg: "#E0F2FE",
-      text: "#0369A1",
+      bg: theme.infoDim,
+      text: theme.info,
       Icon: Clock,
       label: "Negotiating",
     },

@@ -29,15 +29,16 @@ import {
 } from "lucide-react-native";
 import { ICON } from "@/theme/iconScale";
 import { toast } from "sonner-native";
+import { adminTheme as T } from "@/theme/tokens";
 
-const PRIMARY = "#F5A623";
-const BG = "#0D0F12";
-const SURFACE = "#1C2028";
-const BORDER = "rgba(255,255,255,0.16)";
-const TEXT = "#F0F2F5";
-const TEXT_SECONDARY = "#C3C8D4";
-const SUCCESS = "#22C55E";
-const ERROR = "#EF4444";
+const PRIMARY = T.accent;
+const BG = T.bg;
+const SURFACE = T.surface2;
+const BORDER = T.border;
+const TEXT = T.text1;
+const TEXT_SECONDARY = T.text2;
+const SUCCESS = T.ok;
+const ERROR = T.err;
 const PAGE_SIZE = 10;
 const DEFAULT_REGION = {
   latitude: 17.385,
@@ -592,7 +593,7 @@ export default function AdminZones() {
               >
                 <Text
                   style={{
-                    color: mode === item.key ? "#fff" : TEXT_SECONDARY,
+                    color: mode === item.key ? T.text1 : TEXT_SECONDARY,
                     fontWeight: "800",
                     fontSize: 12,
                   }}
@@ -673,9 +674,9 @@ export default function AdminZones() {
                         }}
                       >
                         {isSearchingArea ? (
-                          <ActivityIndicator size="small" color="#fff" />
+                          <ActivityIndicator size="small" color={T.text1} />
                         ) : (
-                          <LocateFixed size={ICON.sm} color="#fff" />
+                          <LocateFixed size={ICON.sm} color={T.text1} />
                         )}
                       </TouchableOpacity>
                     </View>
@@ -719,7 +720,7 @@ export default function AdminZones() {
                         <Marker
                           coordinate={searchPin}
                           title={searchPin.title || "Selected area"}
-                          pinColor="#3B82F6"
+                          pinColor={T.info}
                         />
                       )}
                       {mapPoints.map((point, index) => (
@@ -758,7 +759,7 @@ export default function AdminZones() {
                         backgroundColor: "rgba(13,15,18,0.92)",
                         borderWidth: 1,
                         borderColor: `${PRIMARY}66`,
-                        shadowColor: "#000",
+                        shadowColor: T.bg,
                         shadowOffset: { width: 0, height: 6 },
                         shadowOpacity: 0.14,
                         shadowRadius: 12,
@@ -909,7 +910,7 @@ export default function AdminZones() {
                     paddingVertical: 11,
                   }}
                 >
-                  <Text style={{ color: "#fff", fontWeight: "800" }}>
+                  <Text style={{ color: T.text1, fontWeight: "800" }}>
                     Validate & Preview
                   </Text>
                 </TouchableOpacity>
@@ -984,7 +985,7 @@ export default function AdminZones() {
                 backgroundColor:
                   mode === "geojson" &&
                   (!validatedGeoJson || validatedGeoJsonText !== geoJson.trim())
-                    ? "#7A6334"
+                    ? T.warn
                     : PRIMARY,
                 borderRadius: 10,
                 paddingVertical: 13,
@@ -992,7 +993,7 @@ export default function AdminZones() {
                 flex: 1,
               }}
             >
-              <Text style={{ color: "#fff", fontWeight: "800" }}>
+              <Text style={{ color: T.text1, fontWeight: "800" }}>
                 {saveZone.isPending ? "Saving..." : editingZone ? "Save Zone" : "Create Zone"}
               </Text>
             </TouchableOpacity>
@@ -1068,7 +1069,7 @@ export default function AdminZones() {
                 >
                   <Text
                     style={{
-                      color: active ? "#fff" : TEXT_SECONDARY,
+                      color: active ? T.text1 : TEXT_SECONDARY,
                       fontSize: 11,
                       fontWeight: "800",
                     }}
@@ -1151,9 +1152,9 @@ export default function AdminZones() {
                   borderRadius: 12,
                   alignItems: "center",
                   justifyContent: "center",
-                  backgroundColor: "#FEF2F2",
+                  backgroundColor: T.errDim,
                   borderWidth: 1,
-                  borderColor: "#FECACA",
+                  borderColor: T.errDim,
                 }}
               >
                 <Trash2 size={ICON.md} color={ERROR} />
@@ -1188,7 +1189,7 @@ export default function AdminZones() {
                 opacity: zonePage <= 1 ? 0.6 : 1,
               }}
             >
-              <ChevronLeft size={ICON.md} color={zonePage <= 1 ? TEXT_SECONDARY : "#fff"} />
+              <ChevronLeft size={ICON.md} color={zonePage <= 1 ? TEXT_SECONDARY : T.text1} />
             </TouchableOpacity>
             <Text style={{ color: TEXT_SECONDARY, fontSize: 12, fontWeight: "800" }}>
               Page {pagination.page} of {pagination.totalPages}
@@ -1210,7 +1211,7 @@ export default function AdminZones() {
             >
               <ChevronRight
                 size={ICON.md}
-                color={zonePage >= pagination.totalPages ? TEXT_SECONDARY : "#fff"}
+                color={zonePage >= pagination.totalPages ? TEXT_SECONDARY : T.text1}
               />
             </TouchableOpacity>
           </View>

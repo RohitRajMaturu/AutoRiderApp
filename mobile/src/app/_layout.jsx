@@ -15,6 +15,7 @@ import { configureRideNotificationChannel, registerPushToken } from "@/utils/pus
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { LanguageProvider, useLanguage } from "@/i18n/LanguageContext";
 import { addInAppNotification, notificationOwnerKey } from "@/store/useNotificationStore";
+import { theme } from "@/theme/tokens";
 
 const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN;
 
@@ -30,7 +31,7 @@ if (SENTRY_DSN) {
 
 SplashScreen.preventAutoHideAsync();
 
-const PRIMARY = "#43B8B3";
+const PRIMARY = theme.accent;
 const PRIVACY_POLICY_URL = process.env.EXPO_PUBLIC_PRIVACY_URL ?? "#";
 
 function notificationTarget(data, auth) {
@@ -69,7 +70,7 @@ function AuthBootOverlay() {
       pointerEvents="none"
       style={{
         alignItems: "center",
-        backgroundColor: "#EAF0F1",
+        backgroundColor: theme.bg,
         bottom: 0,
         justifyContent: "center",
         left: 0,
@@ -80,7 +81,7 @@ function AuthBootOverlay() {
       }}
     >
       <ActivityIndicator color={PRIMARY} size="large" />
-      <Text style={{ color: "#586C70", fontSize: 13, fontWeight: "800", marginTop: 12 }}>
+      <Text style={{ color: theme.text2, fontSize: 13, fontWeight: "800", marginTop: 12 }}>
         {t("common.loading")}
       </Text>
     </View>
@@ -140,7 +141,7 @@ function ConsentGate() {
       <View
         style={{
           alignItems: "center",
-          backgroundColor: "#00000066",
+          backgroundColor: "rgba(0,0,0,0.40)",
           flex: 1,
           justifyContent: "center",
           padding: 22,
@@ -148,16 +149,16 @@ function ConsentGate() {
       >
         <View
           style={{
-            backgroundColor: "#fff",
+            backgroundColor: theme.surface1,
             borderRadius: 22,
             padding: 22,
             width: "100%",
           }}
         >
-          <Text style={{ color: "#17272B", fontSize: 20, fontWeight: "900" }}>
+          <Text style={{ color: theme.text1, fontSize: 20, fontWeight: "900" }}>
             {t("consent.title")}
           </Text>
-          <Text style={{ color: "#586C70", fontSize: 13, lineHeight: 20, marginTop: 10 }}>
+          <Text style={{ color: theme.text2, fontSize: 13, lineHeight: 20, marginTop: 10 }}>
             {t(user?.role === "driver" ? "consent.driver" : "consent.passenger")}
           </Text>
           <TouchableOpacity
@@ -165,12 +166,12 @@ function ConsentGate() {
             onPress={() => Linking.openURL(PRIVACY_POLICY_URL)}
             style={{ marginTop: 14 }}
           >
-            <Text style={{ color: "#238B86", fontSize: 13, fontWeight: "900" }}>
+            <Text style={{ color: theme.accentText, fontSize: 13, fontWeight: "900" }}>
               {t("common.privacy")}
             </Text>
           </TouchableOpacity>
           {acceptConsent.isError ? (
-            <Text style={{ color: "#DC2626", fontSize: 12, fontWeight: "700", marginTop: 12 }}>
+            <Text style={{ color: theme.err, fontSize: 12, fontWeight: "700", marginTop: 12 }}>
               {acceptConsent.error?.message || "Could not save consent. Please try again."}
             </Text>
           ) : null}
@@ -187,7 +188,7 @@ function ConsentGate() {
               paddingVertical: 15,
             }}
           >
-            <Text style={{ color: "#fff", fontSize: 14, fontWeight: "900" }}>
+            <Text style={{ color: theme.surface1, fontSize: 14, fontWeight: "900" }}>
               {acceptConsent.isPending ? t("common.saving") : t("common.agree")}
             </Text>
           </TouchableOpacity>

@@ -10,11 +10,12 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-const G = "#F5A623",
-  B = "#0A0A0A",
-  C = "#171717",
-  T = "#FFF",
-  M = "#9CA3AF";
+import { theme as THEME } from "@/theme/tokens";
+const G = THEME.accent,
+  B = THEME.bg,
+  C = THEME.surface1,
+  T = THEME.text1,
+  M = THEME.text2;
 export default function DriverPass() {
   const i = useSafeAreaInsets(),
     r = useRouter(),
@@ -90,7 +91,7 @@ export default function DriverPass() {
       >
         <Text style={{ color: M, fontSize: 11 }}>GUARANTEED THIS PERIOD</Text>
         <Text
-          style={{ color: G, fontSize: 28, fontWeight: "900", marginTop: 7 }}
+          style={{ color: THEME.accentText, fontSize: 28, fontWeight: "900", marginTop: 7 }}
         >
           {"\u20B9"}
           {Math.round(guaranteed).toLocaleString("en-IN")}
@@ -101,7 +102,7 @@ export default function DriverPass() {
         <View
           style={{
             height: 7,
-            backgroundColor: "#333",
+            backgroundColor: THEME.border,
             borderRadius: 9,
             marginTop: 10,
           }}
@@ -120,17 +121,17 @@ export default function DriverPass() {
         <View style={{ marginTop: 22 }}>
           <Text style={{ color: T, fontSize: 17, fontWeight: "900" }}>Today&apos;s institution routes</Text>
           {institutionTrips.map((trip) => (
-            <View key={trip.id} style={{ backgroundColor: C, borderRadius: 17, padding: 16, marginTop: 10, borderWidth: 1, borderColor: G }}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 9 }}><Bus color={G} /><Text style={{ color: T, fontWeight: "900", flex: 1 }}>{trip.institution_name} · {trip.route_name}</Text><Text style={{ color: G, fontSize: 11, fontWeight: "900" }}>{trip.status}</Text></View>
+            <View key={trip.id} style={{ backgroundColor: C, borderRadius: 17, padding: 16, marginTop: 10, borderWidth: 1, borderColor: THEME.border }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 9 }}><Bus color={THEME.accentText} /><Text style={{ color: T, fontWeight: "900", flex: 1 }}>{trip.institution_name} · {trip.route_name}</Text><Text style={{ color: THEME.accentText, fontSize: 11, fontWeight: "900" }}>{trip.status}</Text></View>
               <Text style={{ color: M, marginTop: 8 }}>{trip.direction} · {String(trip.scheduled_time).slice(0, 5)}</Text>
               {trip.status === "IN_PROGRESS" ? trip.members?.map((member) => {
                 const picked = trip.members_picked_up?.includes(member.id);
-                return <TouchableOpacity key={member.id} disabled={picked || tripAction.isPending} onPress={() => tripAction.mutate({ tripId: trip.id, action: "pickup", memberId: member.id })} style={{ marginTop: 9, padding: 11, borderRadius: 10, backgroundColor: picked ? "#15351F" : "#252525", flexDirection: "row", justifyContent: "space-between" }}><Text style={{ color: T }}>{member.name}</Text><Text style={{ color: picked ? "#22C55E" : G, fontWeight: "900" }}>{picked ? "Picked up" : "Confirm pickup"}</Text></TouchableOpacity>;
+                return <TouchableOpacity key={member.id} disabled={picked || tripAction.isPending} onPress={() => tripAction.mutate({ tripId: trip.id, action: "pickup", memberId: member.id })} style={{ marginTop: 9, padding: 11, borderRadius: 10, backgroundColor: picked ? THEME.okDim : THEME.surface2, flexDirection: "row", justifyContent: "space-between" }}><Text style={{ color: T }}>{member.name}</Text><Text style={{ color: picked ? THEME.ok : THEME.accentText, fontWeight: "900" }}>{picked ? "Picked up" : "Confirm pickup"}</Text></TouchableOpacity>;
               }) : null}
               <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
-                {trip.status === "SCHEDULED" ? <TouchableOpacity disabled={tripAction.isPending} onPress={() => tripAction.mutate({ tripId: trip.id, action: "start" })} style={{ flex: 1, backgroundColor: G, borderRadius: 11, padding: 12, alignItems: "center" }}><Text style={{ color: "#111", fontWeight: "900" }}>Start route</Text></TouchableOpacity> : null}
-                {trip.status === "IN_PROGRESS" ? <TouchableOpacity disabled={tripAction.isPending} onPress={() => tripAction.mutate({ tripId: trip.id, action: "complete" })} style={{ flex: 1, backgroundColor: G, borderRadius: 11, padding: 12, alignItems: "center" }}><Text style={{ color: "#111", fontWeight: "900" }}>Complete</Text></TouchableOpacity> : null}
-                <TouchableOpacity onPress={() => Alert.alert("Cancel institution route?", "Guardians will be notified immediately.", [{ text: "Keep route", style: "cancel" }, { text: "Cancel route", style: "destructive", onPress: () => tripAction.mutate({ tripId: trip.id, action: "cancel", reason: "Driver cancelled" }) }])} style={{ borderWidth: 1, borderColor: "#EF4444", borderRadius: 11, padding: 12, alignItems: "center" }}><Text style={{ color: "#EF4444", fontWeight: "900" }}>Cancel</Text></TouchableOpacity>
+                {trip.status === "SCHEDULED" ? <TouchableOpacity disabled={tripAction.isPending} onPress={() => tripAction.mutate({ tripId: trip.id, action: "start" })} style={{ flex: 1, backgroundColor: G, borderRadius: 11, padding: 12, alignItems: "center" }}><Text style={{ color: THEME.surface1, fontWeight: "900" }}>Start route</Text></TouchableOpacity> : null}
+                {trip.status === "IN_PROGRESS" ? <TouchableOpacity disabled={tripAction.isPending} onPress={() => tripAction.mutate({ tripId: trip.id, action: "complete" })} style={{ flex: 1, backgroundColor: G, borderRadius: 11, padding: 12, alignItems: "center" }}><Text style={{ color: THEME.surface1, fontWeight: "900" }}>Complete</Text></TouchableOpacity> : null}
+                <TouchableOpacity onPress={() => Alert.alert("Cancel institution route?", "Guardians will be notified immediately.", [{ text: "Keep route", style: "cancel" }, { text: "Cancel route", style: "destructive", onPress: () => tripAction.mutate({ tripId: trip.id, action: "cancel", reason: "Driver cancelled" }) }])} style={{ borderWidth: 1, borderColor: THEME.err, borderRadius: 11, padding: 12, alignItems: "center" }}><Text style={{ color: THEME.err, fontWeight: "900" }}>Cancel</Text></TouchableOpacity>
               </View>
             </View>
           ))}
@@ -150,7 +151,7 @@ export default function DriverPass() {
                 padding: 16,
                 marginTop: 10,
                 borderWidth: 1,
-                borderColor: "#3A3020",
+                borderColor: THEME.border,
               }}
             >
               <Text style={{ color: T, fontWeight: "900" }}>
@@ -163,7 +164,7 @@ export default function DriverPass() {
                 {" \u00b7 "}
                 {String(offer.scheduled_time).slice(0, 5)}
               </Text>
-              <Text style={{ color: G, fontWeight: "900", marginTop: 8 }}>
+              <Text style={{ color: THEME.accentText, fontWeight: "900", marginTop: 8 }}>
                 {"\u20B9"}
                 {Number(offer.driver_payout || 0).toLocaleString("en-IN")}{" "}
                 guaranteed payout
@@ -180,7 +181,7 @@ export default function DriverPass() {
                   opacity: acceptOffer.isPending ? 0.6 : 1,
                 }}
               >
-                <Text style={{ color: "#111", fontWeight: "900" }}>
+                <Text style={{ color: THEME.surface1, fontWeight: "900" }}>
                   Accept pass
                 </Text>
               </TouchableOpacity>
@@ -218,7 +219,7 @@ export default function DriverPass() {
                 {p.dropoff_label}
               </Text>
               <Text
-                style={{ color: "#22C55E", fontSize: 10, fontWeight: "900" }}
+                style={{ color: THEME.ok, fontSize: 10, fontWeight: "900" }}
               >
                 {p.status}
               </Text>
@@ -252,8 +253,8 @@ export default function DriverPass() {
           gap: 9,
         }}
       >
-        <Settings color={G} />
-        <Text style={{ color: G, fontWeight: "900" }}>
+        <Settings color={THEME.accentText} />
+        <Text style={{ color: THEME.accentText, fontWeight: "900" }}>
           Subscription Preferences
         </Text>
       </TouchableOpacity>

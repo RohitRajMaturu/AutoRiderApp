@@ -31,17 +31,18 @@ import {
 import TukTukGoLoader from "@/components/TukTukGoLoader";
 import { ICON } from "@/theme/iconScale";
 import { useAuth } from "@/utils/auth/useAuth";
+import { theme } from "@/theme/tokens";
 
-const PRIMARY = "#43B8B3";
-const PRIMARY_LIGHT = "#E7F6F4";
-const PRIMARY_BORDER = "#BFE5E0";
-const BG = "#EAF0F1";
-const SURFACE = "#FFFFFF";
-const BORDER = "#D8E4E5";
-const TEXT = "#17272B";
-const TEXT_SECONDARY = "#586C70";
-const TEXT_MUTED = "#647678";
-const SUCCESS = "#16A34A";
+const PRIMARY = theme.accent;
+const PRIMARY_LIGHT = theme.accentDim;
+const PRIMARY_BORDER = theme.borderH;
+const BG = theme.bg;
+const SURFACE = theme.surface1;
+const BORDER = theme.border;
+const TEXT = theme.text1;
+const TEXT_SECONDARY = theme.text2;
+const TEXT_MUTED = theme.text3;
+const SUCCESS = theme.ok;
 
 const STEPS = ["Details", "Docs", "Aadhaar", "Selfie", "Review"];
 const KYC_DRAFT_VERSION = 1;
@@ -435,8 +436,8 @@ export default function DriverKycSubmit() {
           <View
             style={{
               alignItems: "center",
-              backgroundColor: approved ? "#ECFDF5" : rejected ? "#FEF2F2" : PRIMARY_LIGHT,
-              borderColor: approved ? "#BBF7D0" : rejected ? "#FECACA" : PRIMARY_BORDER,
+              backgroundColor: approved ? theme.okDim : rejected ? theme.errDim : PRIMARY_LIGHT,
+              borderColor: approved ? theme.okDim : rejected ? theme.errDim : PRIMARY_BORDER,
               borderRadius: 32,
               borderWidth: 1,
               height: 168,
@@ -452,7 +453,7 @@ export default function DriverKycSubmit() {
                 elevation: 5,
                 height: 96,
                 justifyContent: "center",
-                shadowColor: "#000",
+                shadowColor: theme.text1,
                 shadowOffset: { width: 0, height: 8 },
                 shadowOpacity: 0.12,
                 shadowRadius: 16,
@@ -462,7 +463,7 @@ export default function DriverKycSubmit() {
               {approved ? (
                 <CheckCircle2 size={52} color={SUCCESS} />
               ) : rejected ? (
-                <FileText size={52} color="#DC2626" />
+                <FileText size={52} color={theme.err} />
               ) : (
                 <Clock3 size={52} color={PRIMARY} />
               )}
@@ -487,7 +488,7 @@ export default function DriverKycSubmit() {
             }}
             style={{ marginTop: 24, borderRadius: 14, backgroundColor: PRIMARY, paddingVertical: 15, alignItems: "center" }}
           >
-            <Text style={{ color: "#fff", fontWeight: "800" }}>Resubmit Documents</Text>
+            <Text style={{ color: theme.surface1, fontWeight: "800" }}>Resubmit Documents</Text>
           </TouchableOpacity>
         ) : null}
       </View>
@@ -572,7 +573,7 @@ export default function DriverKycSubmit() {
               ["RC photo", rcPhotoUrl ? "Uploaded" : "Missing"],
               ["Selfie", selfieUrl ? "Uploaded" : "Missing"],
             ].map(([label, value]) => (
-              <View key={label} style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "#F5F5F4" }}>
+              <View key={label} style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: theme.surface2 }}>
                 <Text style={{ color: TEXT_MUTED, fontWeight: "700" }}>{label}</Text>
                 <Text style={{ color: TEXT, fontWeight: "800", maxWidth: "58%", textAlign: "right" }}>{value}</Text>
               </View>
@@ -588,9 +589,9 @@ export default function DriverKycSubmit() {
         <TouchableOpacity
           disabled={!canContinue || submitKyc.isPending}
           onPress={() => (step === 4 ? submitKyc.mutate() : setStep((value) => Math.min(4, value + 1)))}
-          style={{ flex: 1.4, borderRadius: 14, backgroundColor: canContinue ? PRIMARY : "#BFD1D3", paddingVertical: 15, alignItems: "center" }}
+          style={{ flex: 1.4, borderRadius: 14, backgroundColor: canContinue ? PRIMARY : theme.border, paddingVertical: 15, alignItems: "center" }}
         >
-          <Text style={{ color: "#fff", fontWeight: "900" }}>
+          <Text style={{ color: theme.surface1, fontWeight: "900" }}>
             {submitKyc.isPending ? "Submitting..." : step === 4 ? "Submit KYC" : "Continue"}
           </Text>
         </TouchableOpacity>
@@ -725,7 +726,7 @@ function DatePickerField({ label, value, onChange, minYear, maxYear, fallbackYea
           onPress={() => setOpen(false)}
           style={{
             alignItems: "center",
-            backgroundColor: "#00000066",
+            backgroundColor: "rgba(0,0,0,0.40)",
             flex: 1,
             justifyContent: "center",
             padding: 20,
@@ -766,7 +767,7 @@ function DatePickerField({ label, value, onChange, minYear, maxYear, fallbackYea
                     <TouchableOpacity
                       activeOpacity={0.82}
                       onPress={() => changeMonth(-1)}
-                      style={{ alignItems: "center", backgroundColor: "#F5F5F4", borderRadius: 12, height: 42, justifyContent: "center", width: 42 }}
+                      style={{ alignItems: "center", backgroundColor: theme.surface2, borderRadius: 12, height: 42, justifyContent: "center", width: 42 }}
                     >
                       <ChevronLeft size={ICON.md} color={TEXT_SECONDARY} />
                     </TouchableOpacity>
@@ -785,7 +786,7 @@ function DatePickerField({ label, value, onChange, minYear, maxYear, fallbackYea
                     <TouchableOpacity
                       activeOpacity={0.82}
                       onPress={() => changeMonth(1)}
-                      style={{ alignItems: "center", backgroundColor: "#F5F5F4", borderRadius: 12, height: 42, justifyContent: "center", width: 42 }}
+                      style={{ alignItems: "center", backgroundColor: theme.surface2, borderRadius: 12, height: 42, justifyContent: "center", width: 42 }}
                     >
                       <ChevronRight size={ICON.md} color={TEXT_SECONDARY} />
                     </TouchableOpacity>
@@ -835,7 +836,7 @@ function DatePickerField({ label, value, onChange, minYear, maxYear, fallbackYea
                     <TouchableOpacity
                       activeOpacity={0.82}
                       onPress={() => moveYearRange(-12)}
-                      style={{ alignItems: "center", backgroundColor: "#F5F5F4", borderRadius: 12, height: 42, justifyContent: "center", width: 42 }}
+                      style={{ alignItems: "center", backgroundColor: theme.surface2, borderRadius: 12, height: 42, justifyContent: "center", width: 42 }}
                     >
                       <ChevronLeft size={ICON.md} color={TEXT_SECONDARY} />
                     </TouchableOpacity>
@@ -845,7 +846,7 @@ function DatePickerField({ label, value, onChange, minYear, maxYear, fallbackYea
                     <TouchableOpacity
                       activeOpacity={0.82}
                       onPress={() => moveYearRange(12)}
-                      style={{ alignItems: "center", backgroundColor: "#F5F5F4", borderRadius: 12, height: 42, justifyContent: "center", width: 42 }}
+                      style={{ alignItems: "center", backgroundColor: theme.surface2, borderRadius: 12, height: 42, justifyContent: "center", width: 42 }}
                     >
                       <ChevronRight size={ICON.md} color={TEXT_SECONDARY} />
                     </TouchableOpacity>
@@ -861,7 +862,7 @@ function DatePickerField({ label, value, onChange, minYear, maxYear, fallbackYea
                           onPress={() => selectYear(year)}
                           style={{
                             alignItems: "center",
-                            backgroundColor: selected ? PRIMARY : "#F7FBFA",
+                            backgroundColor: selected ? PRIMARY : theme.surface2,
                             borderColor: selected ? PRIMARY : BORDER,
                             borderRadius: 14,
                             borderWidth: 1,
@@ -925,7 +926,7 @@ function UploadField({ label, value, preview, uploading, onPick, cameraOnly = fa
   return (
     <View style={{ borderRadius: 14, borderWidth: 1, borderColor: value ? PRIMARY_BORDER : BORDER, padding: 12, gap: 12 }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-        <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: value ? PRIMARY_LIGHT : "#F5F5F4", alignItems: "center", justifyContent: "center" }}>
+        <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: value ? PRIMARY_LIGHT : theme.surface2, alignItems: "center", justifyContent: "center" }}>
           {value ? <CheckCircle2 size={ICON.md} color={SUCCESS} /> : <FileText size={ICON.md} color={TEXT_MUTED} />}
         </View>
         <View style={{ flex: 1 }}>
@@ -935,14 +936,14 @@ function UploadField({ label, value, preview, uploading, onPick, cameraOnly = fa
           </Text>
         </View>
       </View>
-      {imageSource ? <Image source={{ uri: imageSource }} style={{ height: 130, borderRadius: 12, backgroundColor: "#F5F5F4" }} resizeMode="cover" /> : null}
+      {imageSource ? <Image source={{ uri: imageSource }} style={{ height: 130, borderRadius: 12, backgroundColor: theme.surface2 }} resizeMode="cover" /> : null}
       <View style={{ flexDirection: "row", gap: 10 }}>
         <TouchableOpacity onPress={() => onPick("camera")} disabled={uploading} style={{ flex: 1, borderRadius: 12, backgroundColor: PRIMARY_LIGHT, paddingVertical: 12, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 7 }}>
           <Camera size={ICON.sm} color={PRIMARY} />
           <Text style={{ color: PRIMARY, fontWeight: "800" }}>Camera</Text>
         </TouchableOpacity>
         {!cameraOnly ? (
-          <TouchableOpacity onPress={() => onPick("gallery")} disabled={uploading} style={{ flex: 1, borderRadius: 12, backgroundColor: "#F5F5F4", paddingVertical: 12, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 7 }}>
+          <TouchableOpacity onPress={() => onPick("gallery")} disabled={uploading} style={{ flex: 1, borderRadius: 12, backgroundColor: theme.surface2, paddingVertical: 12, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 7 }}>
             <ImageIcon size={ICON.sm} color={TEXT_SECONDARY} />
             <Text style={{ color: TEXT_SECONDARY, fontWeight: "800" }}>Gallery</Text>
           </TouchableOpacity>

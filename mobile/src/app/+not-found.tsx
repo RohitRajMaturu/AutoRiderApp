@@ -2,6 +2,7 @@ import { Stack, useRouter } from 'expo-router';
 import React from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { theme } from '@/theme/tokens';
 
 export default function NotFoundScreen() {
   const router = useRouter();
@@ -15,9 +16,9 @@ export default function NotFoundScreen() {
       <Stack.Screen options={{ title: 'Not Found', headerShown: false }} />
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.flagBar}>
-          <View style={[styles.flagSegment, { backgroundColor: '#43B8B3' }]} />
-          <View style={[styles.flagSegment, { backgroundColor: '#FFFFFF22' }]} />
-          <View style={[styles.flagSegment, { backgroundColor: '#138808' }]} />
+          <View style={[styles.flagSegment, { backgroundColor: theme.accent }]} />
+          <View style={[styles.flagSegment, { backgroundColor: theme.surface1 }]} />
+          <View style={[styles.flagSegment, { backgroundColor: theme.ok }]} />
         </View>
 
         <View style={styles.content}>
@@ -47,7 +48,7 @@ export default function NotFoundScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#17272B',
+    backgroundColor: theme.bg,
   },
   flagBar: {
     height: 4,
@@ -65,7 +66,7 @@ const styles = StyleSheet.create({
     width: 82,
     height: 82,
     borderRadius: 24,
-    backgroundColor: '#43B8B3',
+    backgroundColor: theme.accent,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 28,
@@ -76,7 +77,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
   },
   kicker: {
-    color: '#43B8B3',
+    color: theme.accentText,
     fontSize: 12,
     fontWeight: '900',
     textTransform: 'uppercase',
@@ -84,7 +85,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   title: {
-    color: '#fff',
+    color: theme.text1,
     fontSize: 40,
     lineHeight: 42,
     fontWeight: '900',
@@ -92,19 +93,19 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     marginTop: 16,
-    color: '#D6D3D1',
+    color: theme.text2,
     fontSize: 15,
     lineHeight: 23,
   },
   button: {
     marginTop: 28,
-    backgroundColor: '#43B8B3',
+    backgroundColor: theme.accent,
     borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
   },
   buttonText: {
-    color: '#fff',
+    color: theme.surface1,
     fontSize: 16,
     fontWeight: '900',
   },

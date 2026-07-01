@@ -479,7 +479,7 @@ export default function DriverWallet() {
         <View style={{ margin: 16 }}>
           <View
             style={{
-              backgroundColor: isActive ? DARK : "#FEF2F2",
+              backgroundColor: isActive ? DARK : theme.errDim,
               borderRadius: 20,
               padding: 24,
               overflow: "hidden",
@@ -493,7 +493,7 @@ export default function DriverWallet() {
                 width: 120,
                 height: 120,
                 borderRadius: 60,
-                backgroundColor: "#FFFFFF0A",
+                backgroundColor: theme.surface2,
               }}
             />
             <View
@@ -504,7 +504,7 @@ export default function DriverWallet() {
                 width: 100,
                 height: 100,
                 borderRadius: 50,
-                backgroundColor: "#FFFFFF06",
+                backgroundColor: theme.surface2,
               }}
             />
 
@@ -521,7 +521,7 @@ export default function DriverWallet() {
                   style={{
                     fontSize: 12,
                     fontWeight: "700",
-                    color: isActive ? "#647678" : "#EF4444",
+                    color: isActive ? theme.text3 : theme.err,
                     textTransform: "uppercase",
                     letterSpacing: 0.8,
                   }}
@@ -532,7 +532,7 @@ export default function DriverWallet() {
                   style={{
                     fontSize: 26,
                     fontWeight: "800",
-                    color: isActive ? "#fff" : "#DC2626",
+                    color: isActive ? theme.surface1 : theme.err,
                     marginTop: 6,
                     letterSpacing: -0.5,
                   }}
@@ -545,14 +545,14 @@ export default function DriverWallet() {
                   paddingHorizontal: 12,
                   paddingVertical: 6,
                   borderRadius: 99,
-                  backgroundColor: isActive ? SUCCESS : "#FEE2E2",
+                  backgroundColor: isActive ? SUCCESS : theme.errDim,
                 }}
               >
                 <Text
                   style={{
                     fontSize: 11,
                     fontWeight: "700",
-                    color: isActive ? "#fff" : "#DC2626",
+                    color: isActive ? theme.surface1 : theme.err,
                     textTransform: "uppercase",
                   }}
                 >
@@ -562,11 +562,11 @@ export default function DriverWallet() {
             </View>
 
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <Calendar size={ICON.xs} color={isActive ? "#586C70" : "#991B1B"} />
+              <Calendar size={ICON.xs} color={isActive ? theme.text2 : theme.err} />
               <Text
                 style={{
                   fontSize: 13,
-                  color: isActive ? "#586C70" : "#991B1B",
+                  color: isActive ? theme.text2 : theme.err,
                 }}
               >
                 Expires {formatExpiry(expiry)}
@@ -613,7 +613,7 @@ export default function DriverWallet() {
                     Current plan: {currentPlan.toUpperCase()} · {subscription?.status || "pilot"}
                   </Text>
                   {queuedPlan ? (
-                    <Text style={{ color: "#92400E", fontSize: 11, fontWeight: "800", marginTop: 3 }}>
+                    <Text style={{ color: theme.warn, fontSize: 11, fontWeight: "800", marginTop: 3 }}>
                       {queuedPlan.toUpperCase()} queued from {formatExpiry(queuedStartsAt)}
                     </Text>
                   ) : null}
@@ -653,18 +653,18 @@ export default function DriverWallet() {
                 {queuedPlan ? (
                   <View
                     style={{
-                      backgroundColor: "#FFFBEB",
-                      borderColor: "#FDE68A",
+                      backgroundColor: theme.warnDim,
+                      borderColor: theme.warnDim,
                       borderRadius: 12,
                       borderWidth: 1,
                       marginTop: 10,
                       padding: 10,
                     }}
                   >
-                    <Text style={{ color: "#92400E", fontSize: 12, fontWeight: "900" }}>
+                    <Text style={{ color: theme.warn, fontSize: 12, fontWeight: "900" }}>
                       {queuedPlan.toUpperCase()} starts {formatExpiry(queuedStartsAt)}
                     </Text>
-                    <Text style={{ color: "#92400E", fontSize: 11, lineHeight: 16, marginTop: 3 }}>
+                    <Text style={{ color: theme.warn, fontSize: 11, lineHeight: 16, marginTop: 3 }}>
                       This queued change applies only after the current paid period ends.
                     </Text>
                   </View>
@@ -734,7 +734,7 @@ export default function DriverWallet() {
                   }}
                   activeOpacity={0.85}
                 >
-                  <Text style={{ color: "#fff", fontSize: 13, fontWeight: "900" }}>
+                  <Text style={{ color: theme.surface1, fontSize: 13, fontWeight: "900" }}>
                     Renew Now
                   </Text>
                 </TouchableOpacity>
@@ -753,7 +753,7 @@ export default function DriverWallet() {
                   }}
                   activeOpacity={0.85}
                 >
-                  <Text style={{ color: "#fff", fontSize: 13, fontWeight: "900" }}>
+                  <Text style={{ color: theme.surface1, fontSize: 13, fontWeight: "900" }}>
                     {createSubscription.isPending ? "Opening..." : isActive ? "Manage Renewal" : "Activate Plan"}
                   </Text>
                 </TouchableOpacity>
@@ -844,7 +844,7 @@ export default function DriverWallet() {
               style={{
                 padding: 14,
                 borderBottomWidth: 1,
-                borderBottomColor: "#F5F5F4",
+                borderBottomColor: theme.surface2,
               }}
             >
               <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 12 }}>
@@ -931,7 +931,7 @@ export default function DriverWallet() {
                       paddingHorizontal: 14,
                       paddingVertical: 12,
                       borderBottomWidth: index < visibleRideHistory.length - 1 ? 1 : 0,
-                      borderBottomColor: "#F5F5F4",
+                      borderBottomColor: theme.surface2,
                       flexDirection: "row",
                       alignItems: "center",
                       gap: 10,
@@ -974,7 +974,7 @@ export default function DriverWallet() {
                         {formatDistance(ride.distance_km) ? (
                           <Text
                             style={{
-                              backgroundColor: "#F1F7F7",
+                              backgroundColor: theme.surface2,
                               borderRadius: 999,
                               color: TEXT_SECONDARY,
                               fontSize: 10,
@@ -990,7 +990,7 @@ export default function DriverWallet() {
                       {ride.passenger_rating ? (
                         <View style={{ marginTop: 7 }}>
                           <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-                            <Star size={ICON.xs} color="#F3B51B" fill="#F3B51B" />
+                            <Star size={ICON.xs} color={theme.accent} fill={theme.accent} />
                             <Text style={{ color: TEXT, fontSize: 11, fontWeight: "800" }}>
                               Your passenger rating: {ride.passenger_rating}/5
                             </Text>

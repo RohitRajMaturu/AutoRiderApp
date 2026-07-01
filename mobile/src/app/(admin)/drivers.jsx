@@ -22,17 +22,18 @@ import { StatusBar } from "expo-status-bar";
 import AutoRideIcon from "@/components/AutoRideIcon";
 import { ICON } from "@/theme/iconScale";
 import { getVehicleLabel } from "@/utils/vehicles";
+import { adminTheme as T } from "@/theme/tokens";
 
-const PRIMARY = "#F5A623";
-const PRIMARY_LIGHT = "rgba(245,166,35,0.12)";
-const PRIMARY_BORDER = "rgba(255,255,255,0.14)";
-const BG = "#0D0F12";
-const SURFACE = "#1C2028";
-const BORDER = "rgba(255,255,255,0.16)";
-const TEXT = "#F0F2F5";
-const TEXT_SECONDARY = "#C3C8D4";
-const SUCCESS = "#22C55E";
-const ERROR = "#EF4444";
+const PRIMARY = T.accent;
+const PRIMARY_LIGHT = T.accentDim;
+const PRIMARY_BORDER = T.borderH;
+const BG = T.bg;
+const SURFACE = T.surface2;
+const BORDER = T.border;
+const TEXT = T.text1;
+const TEXT_SECONDARY = T.text2;
+const SUCCESS = T.ok;
+const ERROR = T.err;
 
 function DriverCard({ driver, onApprove, onReject, isUpdating }) {
   const [expanded, setExpanded] = useState(false);
@@ -79,7 +80,7 @@ function DriverCard({ driver, onApprove, onReject, isUpdating }) {
                 borderRadius: 22,
                 backgroundColor: driver.is_approved
                   ? `${SUCCESS}20`
-                  : "#F5F5F415",
+                  : T.surface3,
                 justifyContent: "center",
                 alignItems: "center",
               }}
@@ -106,14 +107,14 @@ function DriverCard({ driver, onApprove, onReject, isUpdating }) {
                 borderRadius: 99,
                 backgroundColor: driver.is_approved
                   ? `${SUCCESS}20`
-                  : "#B8870020",
+                  : T.warnDim,
               }}
             >
               <Text
                 style={{
                   fontSize: 9,
                   fontWeight: "700",
-                  color: driver.is_approved ? SUCCESS : "#B88700",
+                  color: driver.is_approved ? SUCCESS : T.warn,
                   textTransform: "uppercase",
                   letterSpacing: 0.5,
                 }}
@@ -345,9 +346,9 @@ function DriverCard({ driver, onApprove, onReject, isUpdating }) {
                 }}
                 activeOpacity={0.85}
               >
-                <Check size={ICON.sm} color="#fff" />
+                <Check size={ICON.sm} color={T.text1} />
                 <Text
-                  style={{ color: "#fff", fontSize: 13, fontWeight: "700" }}
+                  style={{ color: T.text1, fontSize: 13, fontWeight: "700" }}
                 >
                   {isUpdating ? "Approving..." : "Approve + 30 Days"}
                 </Text>
@@ -520,7 +521,7 @@ export default function AdminDrivers() {
                 style={{
                   fontSize: 12,
                   fontWeight: "700",
-                  color: filter === f ? "#fff" : TEXT_SECONDARY,
+                  color: filter === f ? T.text1 : TEXT_SECONDARY,
                   textTransform: "capitalize",
                 }}
               >

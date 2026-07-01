@@ -1,102 +1,37 @@
 import { Tabs } from "expo-router";
 import { View } from "react-native";
-import { BarChart3, FileText, Map, Users, Route } from "lucide-react-native";
-import { useTheme } from "@/theme/ThemeContext";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { BarChart3, FileText, Map, Route, Users } from "lucide-react-native";
 import { ICON } from "@/theme/iconScale";
+import { adminTheme } from "@/theme/tokens";
 
 export default function AdminLayout() {
-  const theme = useTheme();
-  const active = theme.accent;
-
+  const insets = useSafeAreaInsets();
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: adminTheme.bg }}>
       <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: {
-          backgroundColor: theme.surface1,
-          borderTopWidth: 1,
-          borderTopColor: theme.border,
-          paddingTop: 8,
-          paddingBottom: 4,
-          height: 60,
-        },
-        tabBarActiveTintColor: active,
-        tabBarInactiveTintColor: theme.text3,
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: "600",
-          marginTop: 2,
-        },
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: "Dashboard",
-          tabBarIcon: ({ color }) => (
-            <BarChart3
-              color={color}
-              size={ICON.lg}
-              strokeWidth={color === active ? 2.5 : 1.5}
-            />
-          ),
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: adminTheme.accent,
+          tabBarInactiveTintColor: adminTheme.text3,
+          tabBarLabelStyle: { fontSize: 10, fontWeight: "700", marginTop: 2 },
+          tabBarStyle: {
+            backgroundColor: adminTheme.surface1,
+            borderTopColor: adminTheme.border,
+            borderTopWidth: 1,
+            height: 56 + insets.bottom,
+            paddingBottom: insets.bottom,
+            paddingTop: 8,
+            paddingHorizontal: 4,
+          },
         }}
-      />
-      <Tabs.Screen
-        name="drivers"
-        options={{
-          title: "Drivers",
-          tabBarIcon: ({ color }) => (
-            <Users
-              color={color}
-              size={ICON.lg}
-              strokeWidth={color === active ? 2.5 : 1.5}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="rides"
-        options={{
-          title: "Rides",
-          tabBarIcon: ({ color }) => (
-            <Route
-              color={color}
-              size={ICON.lg}
-              strokeWidth={color === active ? 2.5 : 1.5}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="zones"
-        options={{
-          title: "Zones",
-          tabBarIcon: ({ color }) => (
-            <Map
-              color={color}
-              size={ICON.lg}
-              strokeWidth={color === active ? 2.5 : 1.5}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="audit"
-        options={{
-          title: "Audit",
-          tabBarIcon: ({ color }) => (
-            <FileText
-              color={color}
-              size={ICON.lg}
-              strokeWidth={color === active ? 2.5 : 1.5}
-            />
-          ),
-        }}
-      />
+      >
+        <Tabs.Screen name="index" options={{ title: "Dashboard", tabBarIcon: ({ color, focused }) => <BarChart3 color={color} size={ICON.lg} strokeWidth={focused ? 2.5 : 1.8} /> }} />
+        <Tabs.Screen name="drivers" options={{ title: "Drivers", tabBarIcon: ({ color, focused }) => <Users color={color} size={ICON.lg} strokeWidth={focused ? 2.5 : 1.8} /> }} />
+        <Tabs.Screen name="rides" options={{ title: "Rides", tabBarIcon: ({ color, focused }) => <Route color={color} size={ICON.lg} strokeWidth={focused ? 2.5 : 1.8} /> }} />
+        <Tabs.Screen name="zones" options={{ title: "Zones", tabBarIcon: ({ color, focused }) => <Map color={color} size={ICON.lg} strokeWidth={focused ? 2.5 : 1.8} /> }} />
+        <Tabs.Screen name="audit" options={{ title: "Audit", tabBarIcon: ({ color, focused }) => <FileText color={color} size={ICON.lg} strokeWidth={focused ? 2.5 : 1.8} /> }} />
       </Tabs>
     </View>
   );
 }
-

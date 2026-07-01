@@ -19,10 +19,11 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import TukTukGoLoader from "../components/TukTukGoLoader";
+import { theme } from "@/theme/tokens";
 
-const SAFFRON = "#43B8B3";
-const INDIA_GREEN = "#138808";
-const DARK = "#17272B";
+const SAFFRON = theme.accent;
+const INDIA_GREEN = theme.ok;
+const DARK = theme.text1;
 const TUKTUKGO_ICON = require("../../assets/images/icon.png");
 
 export default function Index() {
@@ -67,7 +68,7 @@ export default function Index() {
       <View
         style={{
           flex: 1,
-          backgroundColor: "#EAF0F1",
+          backgroundColor: theme.bg,
         }}
       >
         <TukTukGoLoader
@@ -94,9 +95,9 @@ export default function Index() {
           title: "Driver account",
           subtitle: "Register, verify KYC, then go online after approval.",
           Icon: Gauge,
-          color: "#16A34A",
-          bg: "#F0FDF4",
-          border: "#BBF7D0",
+          color: theme.ok,
+          bg: theme.okDim,
+          border: theme.okDim,
         }
       : {
           id: "passenger",
@@ -105,8 +106,8 @@ export default function Index() {
           subtitle: "Book autos, track rides, and view trip history.",
           Icon: UserRound,
           color: SAFFRON,
-          bg: "#E7F6F4",
-          border: "#BFE5E0",
+          bg: theme.accentDim,
+          border: theme.borderH,
         };
   const SelectedRoleIcon = selectedRoleMeta.Icon;
 
@@ -150,7 +151,7 @@ export default function Index() {
           }}
         >
           <View style={{ flex: 1, backgroundColor: SAFFRON }} />
-          <View style={{ flex: 1, backgroundColor: "#FFFFFF22" }} />
+          <View style={{ flex: 1, backgroundColor: theme.accentDim }} />
           <View style={{ flex: 1, backgroundColor: INDIA_GREEN }} />
         </View>
 
@@ -167,13 +168,13 @@ export default function Index() {
               width: 104,
               height: 104,
               borderRadius: 30,
-              backgroundColor: "#101820",
+              backgroundColor: theme.text1,
               justifyContent: "center",
               alignItems: "center",
               marginBottom: 26,
               borderWidth: 1,
-              borderColor: "#FFFFFF18",
-              shadowColor: "#000",
+              borderColor: theme.accentDim,
+              shadowColor: theme.text1,
               shadowOffset: { width: 0, height: 12 },
               shadowOpacity: 0.34,
               shadowRadius: 22,
@@ -206,7 +207,7 @@ export default function Index() {
                   left: -54,
                   width: 34,
                   height: 190,
-                  backgroundColor: "#FFFFFF",
+                  backgroundColor: theme.surface1,
                   opacity: logoShineAnim.interpolate({
                     inputRange: [0, 0.18, 0.34, 1],
                     outputRange: [0, 0.32, 0, 0],
@@ -230,7 +231,7 @@ export default function Index() {
                   bottom: 14,
                   height: 20,
                   borderRadius: 999,
-                  backgroundColor: "#F3B51B",
+                  backgroundColor: theme.accent,
                   opacity: logoShineAnim.interpolate({
                     inputRange: [0, 0.45, 0.6, 0.8, 1],
                     outputRange: [0.04, 0.04, 0.18, 0.04, 0.04],
@@ -252,16 +253,16 @@ export default function Index() {
             style={{
               fontSize: 42,
               fontWeight: "800",
-              color: "#FFFFFF",
+              color: theme.surface1,
               letterSpacing: 0,
             }}
           >
-            <Text style={{ color: "#F3B51B" }}>Tuk</Text>TukGo
+            <Text style={{ color: theme.accent }}>Tuk</Text>TukGo
           </Text>
           <Text
             style={{
               fontSize: 16,
-              color: "#647678",
+              color: theme.text3,
               marginTop: 12,
               lineHeight: 24,
             }}
@@ -281,16 +282,16 @@ export default function Index() {
                   paddingHorizontal: 12,
                   paddingVertical: 6,
                   borderRadius: 99,
-                  backgroundColor: "#FFFFFF12",
+                  backgroundColor: theme.accentDim,
                   borderWidth: 1,
-                  borderColor: "#FFFFFF18",
+                  borderColor: theme.accentDim,
                   flexDirection: "row",
                   alignItems: "center",
                   gap: 6,
                 }}
               >
-                <Icon size={13} color="#D6D3D1" />
-                <Text style={{ fontSize: 12, color: "#D6D3D1" }}>{label}</Text>
+                <Icon size={13} color={theme.text2} />
+                <Text style={{ fontSize: 12, color: theme.text2 }}>{label}</Text>
               </View>
             ))}
           </View>
@@ -298,7 +299,7 @@ export default function Index() {
 
         <Animated.View
           style={{
-            backgroundColor: "#FFFFFF",
+            backgroundColor: theme.surface1,
             borderTopLeftRadius: 32,
             borderTopRightRadius: 32,
             paddingHorizontal: 28,
@@ -312,7 +313,7 @@ export default function Index() {
             style={{
               fontSize: 22,
               fontWeight: "800",
-              color: "#17272B",
+              color: theme.text1,
               marginBottom: 6,
             }}
           >
@@ -321,7 +322,7 @@ export default function Index() {
           <Text
             style={{
               fontSize: 14,
-              color: "#586C70",
+              color: theme.text2,
               marginBottom: 18,
               lineHeight: 20,
             }}
@@ -331,8 +332,8 @@ export default function Index() {
 
           <View
             style={{
-              backgroundColor: "#F7FBFA",
-              borderColor: "#D8E4E5",
+              backgroundColor: theme.surface2,
+              borderColor: theme.border,
               borderRadius: 18,
               borderWidth: 1,
               flexDirection: "row",
@@ -347,7 +348,7 @@ export default function Index() {
             ].map((item) => {
               const selected = selectedRole === item.id;
               const RoleIcon = item.Icon;
-              const color = item.id === "driver" ? "#16A34A" : SAFFRON;
+              const color = item.id === "driver" ? theme.ok : SAFFRON;
               return (
                 <TouchableOpacity
                   key={item.id}
@@ -364,10 +365,10 @@ export default function Index() {
                   }}
                   activeOpacity={0.86}
                 >
-                  <RoleIcon size={16} color={selected ? "#fff" : color} />
+                  <RoleIcon size={16} color={selected ? theme.surface1 : color} />
                   <Text
                     style={{
-                      color: selected ? "#fff" : "#586C70",
+                      color: selected ? theme.surface1 : theme.text2,
                       fontSize: 12,
                       fontWeight: "900",
                     }}
@@ -394,7 +395,7 @@ export default function Index() {
             <View
               style={{
                 alignItems: "center",
-                backgroundColor: "#fff",
+                backgroundColor: theme.surface1,
                 borderRadius: 14,
                 height: 44,
                 justifyContent: "center",
@@ -404,10 +405,10 @@ export default function Index() {
               <SelectedRoleIcon size={22} color={selectedRoleMeta.color} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ color: "#17272B", fontSize: 15, fontWeight: "900" }}>
+              <Text style={{ color: theme.text1, fontSize: 15, fontWeight: "900" }}>
                 {selectedRoleMeta.title}
               </Text>
-              <Text style={{ color: "#586C70", fontSize: 12, lineHeight: 17, marginTop: 2 }}>
+              <Text style={{ color: theme.text2, fontSize: 12, lineHeight: 17, marginTop: 2 }}>
                 {selectedRoleMeta.subtitle}
               </Text>
             </View>
@@ -431,8 +432,8 @@ export default function Index() {
             }}
             activeOpacity={0.85}
           >
-            <ArrowRight size={18} color="#fff" />
-            <Text style={{ color: "#fff", fontSize: 16, fontWeight: "900" }}>
+            <ArrowRight size={18} color={theme.surface1} />
+            <Text style={{ color: theme.surface1, fontSize: 16, fontWeight: "900" }}>
               Sign in as {selectedRoleMeta.label}
             </Text>
           </TouchableOpacity>
@@ -444,7 +445,7 @@ export default function Index() {
               borderRadius: 14,
               borderWidth: 1,
               alignItems: "center",
-              backgroundColor: "#fff",
+              backgroundColor: theme.surface1,
               flexDirection: "row",
               gap: 8,
               justifyContent: "center",
@@ -471,8 +472,8 @@ export default function Index() {
               paddingVertical: 4,
             }}
           >
-            <ShieldCheck size={14} color="#647678" />
-            <Text style={{ color: "#647678", fontSize: 12, fontWeight: "700" }}>
+            <ShieldCheck size={14} color={theme.text3} />
+            <Text style={{ color: theme.text3, fontSize: 12, fontWeight: "700" }}>
               Platform admin sign in
             </Text>
           </TouchableOpacity>
@@ -481,7 +482,7 @@ export default function Index() {
             style={{
               textAlign: "center",
               fontSize: 11,
-              color: "#647678",
+              color: theme.text3,
               marginTop: 16,
               lineHeight: 16,
             }}
