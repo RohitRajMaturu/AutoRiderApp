@@ -11,7 +11,7 @@ import { assertDriverAvailable } from "@/app/api/utils/driver-conflicts";
 import { isCronAuthorized } from "@/app/api/utils/cron-auth";
 import { sendWhatsAppTemplate } from "@/app/api/utils/notifications/fast2smsWhatsapp";
 import { readJsonResponse } from "@/app/api/utils/client-response";
-import { getAutocomplete, getPlaceDetails } from "@/app/api/utils/locations";
+import { getAutocomplete } from "@/app/api/utils/locations";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -55,24 +55,26 @@ describe("TukTukPass pricing and schedule validation", () => {
     });
   });
 
+  it("keeps valid destination coordinates when a provider address exceeds 200 characters", () => {
+    const result = readCoordinate({
+      label: `Long destination ${"address ".repeat(30)}`,
+      lat: 12.9716,
+      lng: 77.5946,
+    });
+    expect(result).toMatchObject({ lat: 12.9716, lng: 77.5946 });
+    expect(result.label).toHaveLength(200);
+  });
+
   it("rejects a pass route shorter than 100 metres", () => {
     expect(haversineMeters(17.4399, 78.4983, 17.43991, 78.49831)).toBeLessThan(
       100,
     );
   });
 
-  it("keeps demo place selection resolvable when the maps provider is offline", async () => {
+  it("does not fabricate place coordinates when the maps provider is offline", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
     const search = await getAutocomplete("Demo Office");
-    const suggestion = search.suggestions[0];
-    const details = await getPlaceDetails(suggestion.placeId);
-
-    expect(suggestion.placeId).toMatch(/^local-search-/);
-    expect(details).toMatchObject({
-      label: "Demo Office",
-      lat: expect.any(Number),
-      lng: expect.any(Number),
-    });
+    expect(search.suggestions).toEqual([]);
   });
 });
 
@@ -156,6 +158,23 @@ describe("Phase 2 client responses", () => {
 });
 
 describe("Phase 2 driver assignment priority", () => {
+  it("blocks standalone rides while a recurring ride is actively in progress", async () => {
+    const tx = vi.fn(async (strings) => {
+      const text = strings.join(" ");
+      if (text.includes("FOR UPDATE")) return [{ id: "driver-1" }];
+      if (text.includes("active_recurring")) return [{ id: "trip-1", source_type: "INSTITUTION" }];
+      return [];
+    });
+    await expect(
+      assertDriverAvailable(tx, {
+        driverId: "driver-1",
+        scheduledDays: ["MON"],
+        scheduledTime: "08:30",
+        sourceType: "ON_DEMAND",
+      }),
+    ).rejects.toMatchObject({ code: "DRIVER_SCHEDULE_CONFLICT", status: 409 });
+  });
+
   it("locks the driver and blocks a pass that overlaps an institution route", async () => {
     const tx = vi.fn(async (strings) => {
       const text = strings.join(" ");

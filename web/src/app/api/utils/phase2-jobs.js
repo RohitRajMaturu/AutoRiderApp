@@ -152,7 +152,7 @@ export async function autoResumePasses() {
 export async function expirePasses() {
   const rows =
     await sql`UPDATE commuter_passes SET status='EXPIRED', updated_at=CURRENT_TIMESTAMP
-    WHERE status IN ('ACTIVE','PAUSED') AND end_date < (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date RETURNING id`;
+    WHERE status IN ('PENDING_MATCH','ACTIVE','PAUSED') AND end_date < (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date RETURNING id`;
   return { expired: rows.length };
 }
 

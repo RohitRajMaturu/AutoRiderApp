@@ -22,6 +22,7 @@ export default function DriverPass() {
     queryClient = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ["driverPasses"],
+    refetchOnMount: "always",
     queryFn: async () => {
       const x = await fetch("/api/driver/passes");
       if (!x.ok) throw new Error("Could not load subscriptions");
@@ -31,6 +32,7 @@ export default function DriverPass() {
   const passes = data?.passes || [];
   const offers = data?.offers || [];
   const institutionTrips = data?.institutionTrips || [];
+  const preferences = data?.preferences;
   const acceptOffer = useMutation({
     mutationFn: async (passId) => {
       const response = await fetch(`/api/passes/${passId}/driver-accept`, {
@@ -81,6 +83,14 @@ export default function DriverPass() {
       <Text style={{ color: T, fontSize: 26, fontWeight: "900" }}>
         TukTukPass
       </Text>
+      {preferences?.enabled ? (
+        <View style={{ marginTop: 14, backgroundColor: THEME.okDim, borderWidth: 1, borderColor: THEME.ok, borderRadius: 14, padding: 13 }}>
+          <Text style={{ color: THEME.ok, fontWeight: "900" }}>Pass subscriptions active</Text>
+          <Text style={{ color: M, fontSize: 12, marginTop: 4 }}>
+            {preferences.shift} shift · {preferences.radiusKm} km pickup radius · up to {preferences.maxActivePasses} active passes
+          </Text>
+        </View>
+      ) : null}
       <View
         style={{
           marginTop: 18,
@@ -164,6 +174,11 @@ export default function DriverPass() {
                 {" \u00b7 "}
                 {String(offer.scheduled_time).slice(0, 5)}
               </Text>
+              {Number.isFinite(Number(offer.pickup_distance_km)) ? (
+                <Text style={{ color: M, marginTop: 6, fontSize: 12 }}>
+                  {Number(offer.pickup_distance_km).toFixed(1)} km from your preferred pickup zone
+                </Text>
+              ) : null}
               <Text style={{ color: THEME.accentText, fontWeight: "900", marginTop: 8 }}>
                 {"\u20B9"}
                 {Number(offer.driver_payout || 0).toLocaleString("en-IN")}{" "}
@@ -187,6 +202,15 @@ export default function DriverPass() {
               </TouchableOpacity>
             </View>
           ))}
+        </View>
+      ) : null}
+      {!isLoading && preferences?.enabled && !offers.length && !passes.length ? (
+        <View style={{ marginTop: 22, backgroundColor: C, borderWidth: 1, borderColor: THEME.border, borderRadius: 17, padding: 18, alignItems: "center" }}>
+          <Ticket color={THEME.accentText} />
+          <Text style={{ color: T, fontWeight: "900", marginTop: 10 }}>Preferences saved—waiting for a match</Text>
+          <Text style={{ color: M, fontSize: 12, lineHeight: 18, textAlign: "center", marginTop: 6 }}>
+            New paid passenger passes within your pickup radius and preferred shift will appear here.
+          </Text>
         </View>
       ) : null}
       {isLoading ? (

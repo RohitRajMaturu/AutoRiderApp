@@ -28,12 +28,17 @@ export async function POST(request) {
   const shift = VALID_SHIFTS.has(body.preferredShift) ? body.preferredShift : null;
   const maxActivePasses = Number(body.maxActivePasses);
   const radiusKm = Number(body.preferredZoneRadiusKm);
-  const lat = Number(body.preferredLat);
-  const lng = Number(body.preferredLng);
+  const hasLat = body.preferredLat !== null && body.preferredLat !== undefined && body.preferredLat !== "";
+  const hasLng = body.preferredLng !== null && body.preferredLng !== undefined && body.preferredLng !== "";
+  const lat = hasLat ? Number(body.preferredLat) : null;
+  const lng = hasLng ? Number(body.preferredLng) : null;
   if (!shift || !Number.isInteger(maxActivePasses) || maxActivePasses < 1 || maxActivePasses > 3 || !Number.isFinite(radiusKm) || radiusKm < 1 || radiusKm > 30) {
     return Response.json({ error: "Invalid subscription preferences" }, { status: 400 });
   }
-  const hasZone = Number.isFinite(lat) && Number.isFinite(lng);
+  const hasZone = Number.isFinite(lat) && lat >= -90 && lat <= 90 && Number.isFinite(lng) && lng >= -180 && lng <= 180;
+  if (Boolean(body.acceptsPassSubscriptions) && !hasZone) {
+    return Response.json({ error: "Select a valid preferred pickup zone" }, { status: 400 });
+  }
   const rows = await sql`
     INSERT INTO driver_pass_preferences (
       driver_id, accepts_pass_subscriptions, preferred_shift, preferred_zone_lat, preferred_zone_lng,

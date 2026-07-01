@@ -88,16 +88,39 @@ function updateAuthUrl(screen, role) {
 }
 
 function AuthBackground({ title, children }) {
-  const isMobileClient = readParams().get("client") === "mobile";
+  const params = readParams();
+  const isMobileClient = params.get("client") === "mobile";
+  const isAndroidClient = isMobileClient && params.get("nativePlatform") === "android";
+
+  useEffect(() => {
+    if (!isAndroidClient || typeof window === "undefined") return undefined;
+    const viewport = window.visualViewport;
+    const updateViewportHeight = () => {
+      const height = Math.round(viewport?.height || window.innerHeight);
+      document.documentElement.style.setProperty("--auth-viewport-height", `${height}px`);
+    };
+    updateViewportHeight();
+    viewport?.addEventListener("resize", updateViewportHeight);
+    viewport?.addEventListener("scroll", updateViewportHeight);
+    window.addEventListener("orientationchange", updateViewportHeight);
+    return () => {
+      viewport?.removeEventListener("resize", updateViewportHeight);
+      viewport?.removeEventListener("scroll", updateViewportHeight);
+      window.removeEventListener("orientationchange", updateViewportHeight);
+      document.documentElement.style.removeProperty("--auth-viewport-height");
+    };
+  }, [isAndroidClient]);
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#43B8B3] font-sans text-[#17272B]">
+    <div
+      className={`relative overflow-hidden bg-[#43B8B3] font-sans text-[#17272B] ${isAndroidClient ? "h-[var(--auth-viewport-height,100dvh)] min-h-0" : "min-h-screen"}`}
+    >
       <div className="pointer-events-none absolute left-8 top-24 h-5 w-20 rounded-full bg-white/10" />
       <div className="pointer-events-none absolute left-0 top-[145px] h-4 w-28 rounded-full bg-white/10" />
       <div className="pointer-events-none absolute right-10 top-28 h-5 w-20 rounded-full bg-white/10" />
 
-      <main className="relative z-10 min-h-screen w-full">
-        <section className="relative min-h-screen w-full overflow-hidden bg-gradient-to-br from-[#4BBEB8] via-[#43B8B3] to-[#339E9A]">
+      <main className={`relative z-10 w-full ${isAndroidClient ? "h-full min-h-0" : "min-h-screen"}`}>
+        <section className={`relative w-full overflow-hidden bg-gradient-to-br from-[#4BBEB8] via-[#43B8B3] to-[#339E9A] ${isAndroidClient ? "h-full min-h-0" : "min-h-screen"}`}>
           {!isMobileClient ? (
             <a
               href="/"
@@ -148,7 +171,7 @@ function AuthBackground({ title, children }) {
           </div>
 
           <motion.div
-            layout
+            layout={!isAndroidClient}
             className="absolute bottom-0 left-0 right-0 z-30 max-h-[74vh] overflow-y-auto rounded-t-[38px] bg-white px-7 pb-7 pt-8 text-[#17272B] shadow-[0_-24px_42px_rgba(23,39,43,0.10)] sm:left-1/2 sm:max-w-[560px] sm:-translate-x-1/2 sm:rounded-t-[44px] sm:px-10"
             transition={{ type: "spring", stiffness: 360, damping: 34 }}
           >

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, View } from 'react-native';
+import { Modal, Platform, View } from 'react-native';
 import { AuthWebView } from './AuthWebView';
 import { useAuthStore, useAuthModal } from './store';
 
@@ -47,12 +47,16 @@ export const AuthModal = () => {
     >
       <View
         style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: '100%',
-          width: '100%',
+          ...(Platform.OS === 'android'
+            ? { flex: 1 }
+            : {
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: '100%',
+                width: '100%',
+              }),
           backgroundColor: '#fff',
           padding: 0,
         }}

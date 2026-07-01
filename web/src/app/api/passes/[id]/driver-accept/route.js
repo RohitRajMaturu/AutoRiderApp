@@ -15,7 +15,9 @@ export async function POST(request, { params }) {
       );
     const result = await sql.transaction(async (tx) => {
       const driverRows = await tx`
-        SELECT d.id, p.accepts_pass_subscriptions, p.max_active_passes
+        SELECT d.id, p.accepts_pass_subscriptions, p.max_active_passes,
+          p.preferred_zone_lat, p.preferred_zone_lng, p.preferred_zone_radius_km,
+          p.preferred_shift
         FROM drivers d
         JOIN driver_pass_preferences p ON p.driver_id = d.id
         WHERE d.user_id = ${session.user.id} AND p.accepts_pass_subscriptions = true
@@ -28,11 +30,29 @@ export async function POST(request, { params }) {
           error: "Enable pass subscriptions before accepting offers",
         };
       const passRows = await tx`
-        SELECT * FROM commuter_passes WHERE id = ${params.id} AND status = 'PENDING_MATCH' FOR UPDATE
+        SELECT pass.*
+        FROM commuter_passes pass
+        WHERE pass.id = ${params.id}
+          AND pass.status = 'PENDING_MATCH'
+          AND pass.payment_status = 'PAID'
+          AND pass.driver_id IS NULL
+          AND ${driver.preferred_zone_lat}::double precision IS NOT NULL
+          AND ${driver.preferred_zone_lng}::double precision IS NOT NULL
+          AND ST_DWithin(
+            ST_SetSRID(ST_MakePoint(pass.pickup_lng, pass.pickup_lat), 4326)::geography,
+            ST_SetSRID(ST_MakePoint(${driver.preferred_zone_lng}, ${driver.preferred_zone_lat}), 4326)::geography,
+            ${driver.preferred_zone_radius_km} * 1000
+          )
+          AND (
+            ${driver.preferred_shift} IN ('ANY', 'BOTH')
+            OR (${driver.preferred_shift} = 'MORNING' AND pass.scheduled_time < '12:00'::time)
+            OR (${driver.preferred_shift} = 'EVENING' AND pass.scheduled_time >= '12:00'::time)
+          )
+        FOR UPDATE
       `;
       const pass = passRows[0];
       if (!pass)
-        return { status: 409, error: "Pass offer is no longer available" };
+        return { status: 409, error: "Pass is unavailable, unpaid, or outside your preferred pickup zone" };
       await assertDriverAvailable(tx, {
         driverId: driver.id,
         scheduledDays: pass.scheduled_days,

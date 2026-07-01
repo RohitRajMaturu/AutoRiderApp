@@ -27,8 +27,27 @@ export async function lockDriverSchedule(tx, driverId) {
 
 export async function findDriverConflict(
   tx,
-  { driverId, scheduledDays, scheduledTime, excludeId = null },
+  { driverId, scheduledDays, scheduledTime, sourceType, excludeId = null },
 ) {
+  if (sourceType === "ON_DEMAND") {
+    const activeRecurringRows = await tx`
+      SELECT id, source_type
+      FROM (
+        SELECT trip.id, 'INSTITUTION' AS source_type
+        FROM institution_trips trip
+        WHERE COALESCE(trip.reassigned_driver_id, trip.driver_id) = ${driverId}
+          AND trip.status = 'IN_PROGRESS'
+        UNION ALL
+        SELECT ride.id, 'PASS' AS source_type
+        FROM pass_rides ride
+        JOIN commuter_passes pass ON pass.id = ride.pass_id
+        WHERE COALESCE(ride.actual_driver_id, pass.driver_id) = ${driverId}
+          AND ride.status = 'IN_PROGRESS'
+      ) active_recurring
+      LIMIT 1
+    `;
+    if (activeRecurringRows[0]) return activeRecurringRows[0];
+  }
   const institutionRows = await tx`
     SELECT id, route_name, scheduled_days, scheduled_time, 'INSTITUTION' AS source_type
     FROM institution_routes

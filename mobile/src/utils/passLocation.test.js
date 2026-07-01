@@ -11,28 +11,34 @@ describe("TukTukPass location resolution", () => {
     expect(hasValidPassLocation({ label: "MG Road", lat: null, lng: null })).toBe(false);
   });
 
-  test("resolves a typed destination from autocomplete coordinates", async () => {
-    const fetchFn = jest.fn().mockResolvedValue(response({
-      suggestions: [{ label: "Kempegowda Airport", lat: 13.1986, lng: 77.7066 }],
-    }));
+  test("does not silently choose the first result for a typed destination", async () => {
+    const fetchFn = jest.fn();
 
     await expect(resolvePassLocation(
       { label: "Kempegowda Airport", lat: "", lng: "" },
       { fetchFn, fieldName: "destination" },
-    )).resolves.toEqual({ label: "Kempegowda Airport", lat: 13.1986, lng: 77.7066 });
+    )).rejects.toThrow("Choose the destination from the search results");
+    expect(fetchFn).not.toHaveBeenCalled();
   });
 
   test("loads place details when autocomplete only supplies a place id", async () => {
     const fetchFn = jest.fn()
-      .mockResolvedValueOnce(response({ suggestions: [{ label: "Indiranagar", placeId: "place-1" }] }))
       .mockResolvedValueOnce(response({ place: { address: "Indiranagar, Bengaluru", lat: 12.9784, lng: 77.6408 } }));
 
     const result = await resolvePassLocation(
-      { label: "Indiranagar", lat: "", lng: "" },
+      { label: "Indiranagar", placeId: "place-1", lat: "", lng: "" },
       { fetchFn, fieldName: "destination" },
     );
 
     expect(result).toEqual({ label: "Indiranagar, Bengaluru", lat: 12.9784, lng: 77.6408 });
-    expect(fetchFn).toHaveBeenCalledTimes(2);
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
+  test("keeps coordinates and safely truncates a verbose provider address", async () => {
+    const address = `Long destination ${"address ".repeat(30)}`;
+    const result = await resolvePassLocation({ label: address, lat: 12.9716, lng: 77.5946 });
+
+    expect(result).toMatchObject({ lat: 12.9716, lng: 77.5946 });
+    expect(result.label).toHaveLength(200);
   });
 });

@@ -1,4 +1,4 @@
-import { isLatitude, isLongitude, readBoundedString } from "@/app/api/utils/validation";
+import { isLatitude, isLongitude } from "@/app/api/utils/validation";
 
 export const VALID_DAYS = new Set(["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]);
 export const VALID_SHIFTS = new Set(["MORNING", "EVENING", "BOTH", "ANY"]);
@@ -22,7 +22,9 @@ export function readCoordinate(value) {
   if (rawLat === null || rawLat === undefined || rawLat === "" || rawLng === null || rawLng === undefined || rawLng === "") return null;
   const lat = Number(rawLat);
   const lng = Number(rawLng);
-  const label = readBoundedString(value?.label || value?.address, { min: 3, max: 200 });
+  // Map providers may return addresses longer than the varchar(200) storage
+  // column. Truncate the display label instead of discarding valid coordinates.
+  const label = String(value?.label || value?.address || "").trim().slice(0, 200);
   return isLatitude(lat) && isLongitude(lng) && label ? { lat, lng, label } : null;
 }
 

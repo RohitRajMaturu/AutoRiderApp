@@ -64,7 +64,11 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
   const isMobileSignup = mode === 'signup';
   const authCallback = isMobileSignup ? onboardingUrl : callbackUrl;
   const authParams = useMemo(
-    () => (isMobileSignup ? { ...mobileParams, finalCallbackUrl: callbackUrl } : mobileParams),
+    () => ({
+      ...mobileParams,
+      nativePlatform: Platform.OS,
+      ...(isMobileSignup ? { finalCallbackUrl: callbackUrl } : {}),
+    }),
     [isMobileSignup, mobileParams],
   );
   const [currentURI, setURI] = useState(`${baseURL}${buildFreshAuthPath(mode, authParams, authCallback)}`);
@@ -300,7 +304,7 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
         <ArrowLeft size={20} color="#17272B" />
       </TouchableOpacity>
       {!isPageReady && loadingView}
-      <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
+      <Animated.View style={{ flex: 1, opacity: fadeAnim, backgroundColor: '#EAF0F1' }}>
         <WebView
           ref={nativeWebViewRef}
           sharedCookiesEnabled
@@ -358,6 +362,7 @@ export const AuthWebView = ({ mode, params, proxyURL, baseURL }) => {
             return true;
           }}
           style={{ flex: 1, backgroundColor: '#EAF0F1' }}
+          containerStyle={{ flex: 1, backgroundColor: '#EAF0F1' }}
         />
       </Animated.View>
       {errorBanner}

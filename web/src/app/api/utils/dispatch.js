@@ -45,6 +45,13 @@ export function getBackToBackDispatchRadiusMeters() {
   }) * 1000;
 }
 
+export function getRecurringReservationMinutes() {
+  return getEnvNumber("RECURRING_RIDE_RESERVATION_MINUTES", 90, {
+    min: 30,
+    max: 240,
+  });
+}
+
 export async function findZoneForPoint(lat, lng, scopedSql = sql) {
   const rows = await scopedSql`
     SELECT id, name, max_online_drivers
@@ -107,6 +114,7 @@ export async function selectZoneDrivers(
   if (!zoneId) return [];
   const radiusMeters = getDriverRideRadiusMeters();
   const backToBackRadiusMeters = getBackToBackDispatchRadiusMeters();
+  const recurringReservationMinutes = getRecurringReservationMinutes();
   const rows = await scopedSql`
     WITH target_zone AS (
       SELECT id, boundary, max_online_drivers
@@ -134,6 +142,35 @@ export async function selectZoneDrivers(
       AND d.vehicle_type = ${vehicleType}
       AND d.subscription_expiry > CURRENT_TIMESTAMP
       AND d.location IS NOT NULL
+      AND NOT EXISTS (
+        SELECT 1
+        FROM institution_routes recurring_route
+        WHERE recurring_route.driver_id = d.id
+          AND recurring_route.status = 'ACTIVE'
+          AND upper(to_char(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata', 'DY')) = ANY(recurring_route.scheduled_days)
+          AND abs(extract(epoch FROM (recurring_route.scheduled_time - (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::time)))
+              < ${recurringReservationMinutes} * 60
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM commuter_passes recurring_pass
+        WHERE (recurring_pass.driver_id = d.id OR recurring_pass.backup_driver_id = d.id)
+          AND recurring_pass.status = 'ACTIVE'
+          AND upper(to_char(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata', 'DY')) = ANY(recurring_pass.scheduled_days)
+          AND abs(extract(epoch FROM (recurring_pass.scheduled_time - (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::time)))
+              < ${recurringReservationMinutes} * 60
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM institution_trips active_institution_trip
+        WHERE COALESCE(active_institution_trip.reassigned_driver_id, active_institution_trip.driver_id) = d.id
+          AND active_institution_trip.status = 'IN_PROGRESS'
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM pass_rides active_pass_ride
+        JOIN commuter_passes active_pass ON active_pass.id = active_pass_ride.pass_id
+        WHERE COALESCE(active_pass_ride.actual_driver_id, active_pass.driver_id) = d.id
+          AND active_pass_ride.status = 'IN_PROGRESS'
+      )
       AND (
         NOT EXISTS (
           SELECT 1

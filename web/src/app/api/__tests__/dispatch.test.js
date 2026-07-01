@@ -22,6 +22,9 @@ describe("driver dispatch zone recovery", () => {
     expect(query).toContain("SET zone_id");
     expect(query).toContain("current_ride.started_at IS NOT NULL");
     expect(query).toContain("ST_DWithin");
+    expect(query).toContain("institution_routes");
+    expect(query).toContain("commuter_passes");
+    expect(query).toContain("IN_PROGRESS");
   });
 
   it("never expires a ride that has already started", async () => {

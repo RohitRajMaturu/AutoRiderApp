@@ -180,11 +180,7 @@ function localPlacesForQuery(text = "", locationBias = {}) {
     })
     .slice(0, 6);
 
-  if (matches.length > 0 || !query) {
-    return matches;
-  }
-
-  return [makeSearchFallbackPlace(text, locationBias)].filter(Boolean);
+  return matches;
 }
 
 function localPlaceById(placeId) {
@@ -350,10 +346,7 @@ export async function getAutocomplete(text = "", locationBias = {}) {
 
     return {
       provider: "ola",
-      suggestions:
-        suggestions.length > 0
-          ? suggestions
-          : localPlacesForQuery(query, locationBias),
+      suggestions,
     };
   } catch {
     return {

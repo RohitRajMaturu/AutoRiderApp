@@ -1,6 +1,6 @@
 import sql from "@/app/api/utils/sql";
 import { auth } from "@/auth";
-import { getAutocomplete, getPlaceDetails, getRouteEstimate } from "@/app/api/utils/locations";
+import { getPlaceDetails, getRouteEstimate } from "@/app/api/utils/locations";
 import {
   addDays,
   calculatePassFare,
@@ -19,11 +19,9 @@ async function resolveCoordinateInput(value) {
   const label = String(value?.label || value?.address || "").trim();
   if (label.length < 3) return null;
 
+  // Do not guess from free text: the first autocomplete result may be a
+  // different destination. Clients must send selected coordinates/placeId.
   let place = value?.placeId ? await getPlaceDetails(String(value.placeId)) : null;
-  if (!place) {
-    const search = await getAutocomplete(label);
-    place = search.suggestions?.[0] || null;
-  }
   if (place?.placeId && (!Number.isFinite(Number(place.lat)) || !Number.isFinite(Number(place.lng)))) {
     place = await getPlaceDetails(place.placeId);
   }
@@ -40,6 +38,7 @@ export async function GET(request) {
   const rows = await sql`
     SELECT
       p.*,
+      (p.end_date < (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date) AS is_stale,
       u.name AS driver_name,
       u.image AS driver_image,
       d.vehicle_number,
@@ -115,20 +114,50 @@ export async function POST(request) {
       ? Number(comparable[0].average_fare)
       : estimate.estimatedFare;
     const fare = calculatePassFare({ estimatedFareRupees: marketFare, rideCount });
-    const passRows = await sql`
-      INSERT INTO commuter_passes (
-        passenger_id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, pickup_label, dropoff_label,
-        scheduled_days, scheduled_time, duration_type, agreed_fare,
-        platform_fee, driver_payout, start_date, end_date
-      ) VALUES (
-        ${session.user.id},
-        ${pickup.lat}, ${pickup.lng}, ${dropoff.lat}, ${dropoff.lng},
-        ${pickup.label}, ${dropoff.label}, ${scheduledDays}::text[], ${scheduledTime}::time,
-        ${durationType}, ${fare.agreedFare}, ${fare.platformFee},
-        ${fare.driverPayout}, ${startDate}::date, ${endDate}::date
-      ) RETURNING *
-    `;
-    const pass = passRows[0];
+    const creation = await sql.transaction(async (tx) => {
+      // Serialize pass creation per passenger so two simultaneous requests
+      // cannot both pass the overlap check.
+      await tx`SELECT id FROM auth_users WHERE id = ${session.user.id} FOR UPDATE`;
+      const conflictRows = await tx`
+        SELECT id, pickup_label, dropoff_label, scheduled_time, scheduled_days
+        FROM commuter_passes
+        WHERE passenger_id = ${session.user.id}
+          AND status IN ('PENDING_MATCH', 'ACTIVE', 'PAUSED')
+          AND start_date <= ${endDate}::date
+          AND end_date >= ${startDate}::date
+          AND scheduled_days && ${scheduledDays}::text[]
+          AND abs(extract(epoch FROM (scheduled_time - ${scheduledTime}::time))) <= 7200
+        ORDER BY created_at DESC
+        LIMIT 1
+      `;
+      if (conflictRows[0]) return { conflict: conflictRows[0] };
+
+      const passRows = await tx`
+        INSERT INTO commuter_passes (
+          passenger_id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, pickup_label, dropoff_label,
+          scheduled_days, scheduled_time, duration_type, agreed_fare,
+          platform_fee, driver_payout, start_date, end_date
+        ) VALUES (
+          ${session.user.id},
+          ${pickup.lat}, ${pickup.lng}, ${dropoff.lat}, ${dropoff.lng},
+          ${pickup.label}, ${dropoff.label}, ${scheduledDays}::text[], ${scheduledTime}::time,
+          ${durationType}, ${fare.agreedFare}, ${fare.platformFee},
+          ${fare.driverPayout}, ${startDate}::date, ${endDate}::date
+        ) RETURNING *
+      `;
+      return { pass: passRows[0] };
+    });
+    if (creation.conflict) {
+      return Response.json(
+        {
+          error: `This schedule overlaps your existing ${creation.conflict.pickup_label} to ${creation.conflict.dropoff_label} pass. Choose different days or a pickup time more than 2 hours apart.`,
+          code: "PASSENGER_SCHEDULE_CONFLICT",
+          conflict: creation.conflict,
+        },
+        { status: 409 },
+      );
+    }
+    const pass = creation.pass;
     const overlapRows = await sql`
       SELECT count(*)::int AS count
       FROM commuter_passes existing
@@ -139,40 +168,15 @@ export async function POST(request) {
         AND abs(existing.dropoff_lat - ${dropoff.lat}) < 0.004
         AND abs(existing.dropoff_lng - ${dropoff.lng}) < 0.004
         AND existing.scheduled_days && ${scheduledDays}::text[]
-        AND abs(extract(epoch FROM (existing.scheduled_time - ${scheduledTime}::time))) < 900
+        AND abs(extract(epoch FROM (existing.scheduled_time - ${scheduledTime}::time))) <= 7200
     `;
-    const passengerOverlapRows = await sql`
-      SELECT
-        existing.id,
-        existing.pickup_label,
-        existing.dropoff_label,
-        existing.scheduled_time,
-        existing.scheduled_days
-      FROM commuter_passes existing
-      WHERE existing.id <> ${pass.id}
-        AND existing.passenger_id = ${session.user.id}
-        AND existing.status IN ('PENDING_MATCH', 'ACTIVE', 'PAUSED')
-        AND existing.start_date <= ${endDate}::date
-        AND existing.end_date >= ${startDate}::date
-        AND existing.scheduled_days && ${scheduledDays}::text[]
-        AND abs(extract(epoch FROM (existing.scheduled_time - ${scheduledTime}::time))) < 900
-      ORDER BY existing.created_at DESC
-      LIMIT 1
-    `;
-    const overlappingPass = passengerOverlapRows[0] || null;
     return Response.json(
       {
         pass,
         paymentRequired: true,
         fare: { ...fare, rideCount },
         sharedRouteOpportunity: Number(overlapRows[0]?.count || 0) > 0,
-        overlappingPass,
-        warnings: overlappingPass
-          ? [{
-              code: "OVERLAPPING_PASS_SCHEDULE",
-              message: `This schedule overlaps your existing ${overlappingPass.pickup_label} to ${overlappingPass.dropoff_label} pass. The new pass was still created.`,
-            }]
-          : [],
+        warnings: [],
       },
       { status: 201 },
     );

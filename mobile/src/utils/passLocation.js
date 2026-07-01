@@ -22,7 +22,9 @@ function normalizeLocation(place) {
   const rawLat = place?.lat ?? place?.latitude;
   const rawLng = place?.lng ?? place?.longitude;
   return {
-    label: String(place?.address || place?.label || "").trim(),
+    // Pass labels are stored in varchar(200). Keep the verified coordinates
+    // even when a map provider returns an unusually verbose postal address.
+    label: String(place?.address || place?.label || "").trim().slice(0, 200),
     lat: rawLat === null || rawLat === undefined || rawLat === "" ? NaN : Number(rawLat),
     lng: rawLng === null || rawLng === undefined || rawLng === "" ? NaN : Number(rawLng),
     ...(place?.placeId ? { placeId: place.placeId } : {}),
@@ -44,20 +46,17 @@ export async function resolvePassLocation(value, options = {}) {
     throw new Error(`Enter a ${fieldName} with at least 3 characters.`);
   }
 
+  // A typed label is not a verified place. Silently using the first search
+  // result can save a different destination than the passenger intended.
+  if (!value?.placeId) {
+    throw new Error(`Choose the ${fieldName} from the search results.`);
+  }
+
   let place = null;
-  if (value?.placeId) {
-    const detailResponse = await fetchFn(`/api/locations/place/${encodeURIComponent(value.placeId)}`);
-    const detailBody = await readJson(detailResponse);
-    if (detailResponse.ok) place = detailBody.place || null;
-  }
-  if (!place) {
-    const searchResponse = await fetchFn(`/api/locations/autocomplete?q=${encodeURIComponent(query)}`);
-    const searchBody = await readJson(searchResponse);
-    place = searchBody.suggestions?.[0] || null;
-    if (!searchResponse.ok || !place) {
-      throw new Error(`We couldn't find that ${fieldName}. Enter a more specific address.`);
-    }
-  }
+  const detailResponse = await fetchFn(`/api/locations/place/${encodeURIComponent(value.placeId)}`);
+  const detailBody = await readJson(detailResponse);
+  if (detailResponse.ok) place = detailBody.place || null;
+  if (!place) throw new Error(`We couldn't verify that ${fieldName}. Choose another search result.`);
 
   const suggestion = place;
   if (!hasValidPassLocation(normalizeLocation(place)) && suggestion.placeId) {

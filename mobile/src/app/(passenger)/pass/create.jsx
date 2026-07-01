@@ -45,6 +45,11 @@ function formatTime(value) {
   return `${hour % 12 || 12}:${String(minute).padStart(2, "0")} ${suffix}`;
 }
 
+function timeToMinutes(value) {
+  const [hour, minute] = String(value || "").slice(0, 5).split(":").map(Number);
+  return Number.isInteger(hour) && Number.isInteger(minute) ? hour * 60 + minute : NaN;
+}
+
 function formatLocationAddress(location) {
   return [location?.name, location?.street, location?.district, location?.city]
     .filter(Boolean)
@@ -190,7 +195,7 @@ export default function CreatePass() {
       if (!["PENDING_MATCH", "ACTIVE", "PAUSED"].includes(pass.status)) return false;
       const passTime = String(pass.scheduled_time || "").slice(0, 5);
       const sharesDay = (pass.scheduled_days || []).some((day) => days.includes(day));
-      return passTime === time && sharesDay;
+      return sharesDay && Math.abs(timeToMinutes(passTime) - timeToMinutes(time)) <= 120;
     }),
     [days, existingData, time],
   );
@@ -310,6 +315,12 @@ export default function CreatePass() {
       }
       if (!PASS_TIME_SLOTS.includes(time)) {
         toast.error("Choose a pickup time", { description: "Select a time from the available slots." });
+        return;
+      }
+      if (overlappingPass) {
+        toast.error("Pass schedule overlaps", {
+          description: "Choose different travel days or a pickup time more than 2 hours from your existing pass.",
+        });
         return;
       }
       setStep(3);
@@ -451,7 +462,7 @@ export default function CreatePass() {
               <View style={{ marginTop: 12, backgroundColor: T.warnDim, borderRadius: T.radii.lg, borderWidth: 1, borderColor: T.warn, padding: 14 }}>
                 <Text style={{ color: T.warn, fontWeight: "900" }}>Schedule overlap detected</Text>
                 <Text style={{ ...T.typography.caption, color: T.text2, marginTop: 4 }}>
-                  This overlaps your {overlappingPass.pickup_label} → {overlappingPass.dropoff_label} pass at {formatTime(time)}. You may still create it, but only one ride can be taken at a time.
+                  This overlaps your {overlappingPass.pickup_label} → {overlappingPass.dropoff_label} pass. Choose different days or a pickup time more than 2 hours apart.
                 </Text>
               </View>
             ) : null}
