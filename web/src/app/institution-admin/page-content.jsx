@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Bus,
+  Download,
   FileText,
   LayoutDashboard,
   ReceiptIndianRupee,
@@ -21,6 +22,24 @@ const navItems = [
   { key: "invoices", label: "Invoices", Icon: ReceiptIndianRupee },
   { key: "settings", label: "Settings", Icon: Settings },
 ];
+
+async function fetchInstitutionJson(url, label) {
+  const response = await fetch(url, {
+    credentials: "same-origin",
+    cache: "no-store",
+  });
+  if (response.status === 401) {
+    window.location.replace(
+      `/institution-login?callbackUrl=${encodeURIComponent("/institution-admin")}`,
+    );
+    return new Promise(() => {});
+  }
+  const body = await readJsonResponse(response, label);
+  if (!response.ok) {
+    throw new Error(body.error || `${label} failed (${response.status})`);
+  }
+  return body;
+}
 
 function statusKey(value) {
   return String(value || "").trim().toLowerCase();
@@ -256,6 +275,210 @@ function MembersSection({ members }) {
   );
 }
 
+function localIsoDate(daysAgo = 0) {
+  const date = new Date();
+  date.setDate(date.getDate() - daysAgo);
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return localDate.toISOString().slice(0, 10);
+}
+
+function csvCell(value) {
+  return `"${String(value ?? "").replaceAll('"', '""')}"`;
+}
+
+function AttendanceSection({ institutionId, routes }) {
+  const [dateFrom, setDateFrom] = useState(() => localIsoDate(30));
+  const [dateTo, setDateTo] = useState(() => localIsoDate());
+  const [routeId, setRouteId] = useState("");
+  const [attendanceStatus, setAttendanceStatus] = useState("");
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!institutionId) return undefined;
+    let active = true;
+    const params = new URLSearchParams({ date_from: dateFrom, date_to: dateTo, limit: "1000" });
+    if (routeId) params.set("route_id", routeId);
+    if (attendanceStatus) params.set("status", attendanceStatus);
+    setLoading(true);
+    setError("");
+    fetchInstitutionJson(
+      `/api/institutions/${institutionId}/trips/log?${params}`,
+      "Attendance log",
+    )
+      .then((body) => {
+        if (active) setRows(Array.isArray(body.attendance) ? body.attendance : []);
+      })
+      .catch((requestError) => {
+        if (active) setError(requestError.message || "Could not load attendance");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [attendanceStatus, dateFrom, dateTo, institutionId, routeId]);
+
+  const exportCsv = () => {
+    const headers = ["Date", "Route", "Member", "Status", "Driver"];
+    const lines = rows.map((row) => [
+      row.scheduled_date,
+      row.route_name,
+      row.member_name,
+      row.attendance_status,
+      row.driver_name || "Unassigned",
+    ]);
+    const csv = [headers, ...lines].map((line) => line.map(csvCell).join(",")).join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `attendance-${dateFrom}-to-${dateTo}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <section aria-labelledby="attendance-heading">
+      <div className="ar-section-header">
+        <div>
+          <h2 id="attendance-heading" className="ar-section-title">Attendance Log</h2>
+          <p className="mt-1 text-xs text-[var(--ar-t2)]">Member pickup records by route and date</p>
+        </div>
+        <button
+          type="button"
+          onClick={exportCsv}
+          disabled={!rows.length}
+          className="inline-flex items-center gap-2 rounded-lg bg-[var(--ar-accent)] px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <Download size={15} /> Export CSV
+        </button>
+      </div>
+
+      <div className="ar-card mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <label className="text-xs font-medium text-[var(--ar-t2)]">
+          From
+          <input type="date" value={dateFrom} max={dateTo} onChange={(event) => setDateFrom(event.target.value)} className="mt-1 w-full rounded-lg border border-[var(--ar-border)] bg-transparent px-3 py-2 text-sm text-[var(--ar-t1)]" />
+        </label>
+        <label className="text-xs font-medium text-[var(--ar-t2)]">
+          To
+          <input type="date" value={dateTo} min={dateFrom} onChange={(event) => setDateTo(event.target.value)} className="mt-1 w-full rounded-lg border border-[var(--ar-border)] bg-transparent px-3 py-2 text-sm text-[var(--ar-t1)]" />
+        </label>
+        <label className="text-xs font-medium text-[var(--ar-t2)]">
+          Route
+          <select value={routeId} onChange={(event) => setRouteId(event.target.value)} className="mt-1 w-full rounded-lg border border-[var(--ar-border)] bg-[var(--ar-surface)] px-3 py-2 text-sm text-[var(--ar-t1)]">
+            <option value="">All routes</option>
+            {routes.map((route) => <option key={route.id} value={route.id}>{route.route_name}</option>)}
+          </select>
+        </label>
+        <label className="text-xs font-medium text-[var(--ar-t2)]">
+          Status
+          <select value={attendanceStatus} onChange={(event) => setAttendanceStatus(event.target.value)} className="mt-1 w-full rounded-lg border border-[var(--ar-border)] bg-[var(--ar-surface)] px-3 py-2 text-sm text-[var(--ar-t1)]">
+            <option value="">All statuses</option>
+            {["PICKED_UP", "ABSENT", "UNCONFIRMED", "PENDING", "NOT_RECORDED", "CANCELLED"].map((value) => <option key={value} value={value}>{value.replaceAll("_", " ")}</option>)}
+          </select>
+        </label>
+      </div>
+
+      {error ? <div className="mb-4 rounded-xl border border-[var(--ar-err)] bg-[var(--ar-err-dim)] px-4 py-3 text-sm text-[var(--ar-err)]" role="alert">{error}</div> : null}
+      {loading ? <div className="ar-skeleton h-48" /> : rows.length ? (
+        <div className="ar-card overflow-x-auto p-0">
+          <table className="w-full border-collapse">
+            <thead><tr>{["Date", "Route", "Member", "Status", "Driver"].map((column) => <th key={column} className="ar-th">{column}</th>)}</tr></thead>
+            <tbody>{rows.map((row) => (
+              <tr key={`${row.trip_id}-${row.member_id}`} className="ar-tr">
+                <td className="ar-td">{String(row.scheduled_date).slice(0, 10)}</td>
+                <td className="ar-td font-medium">{row.route_name}</td>
+                <td className="ar-td">{row.member_name}</td>
+                <td className="ar-td"><StatusBadge status={row.attendance_status} label={String(row.attendance_status).replaceAll("_", " ")} /></td>
+                <td className="ar-td text-[var(--ar-t2)]">{row.driver_name || "Unassigned"}</td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </div>
+      ) : <EmptyState>No attendance records match these filters.</EmptyState>}
+    </section>
+  );
+}
+
+const invoiceColors = {
+  PAID: ["var(--ar-ok-dim)", "var(--ar-ok)"],
+  SENT: ["var(--ar-info-dim)", "var(--ar-info)"],
+  OVERDUE: ["var(--ar-err-dim)", "var(--ar-err)"],
+  DRAFT: ["var(--ar-s3)", "var(--ar-t3)"],
+};
+
+function InvoicesSection({ institutionId }) {
+  const [invoices, setInvoices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!institutionId) return undefined;
+    let active = true;
+    fetchInstitutionJson(`/api/institutions/${institutionId}/invoices`, "Institution invoices")
+      .then((body) => {
+        if (active) setInvoices(Array.isArray(body.invoices) ? body.invoices : []);
+      })
+      .catch((requestError) => {
+        if (active) setError(requestError.message || "Could not load invoices");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [institutionId]);
+
+  const openExternal = (url) => {
+    const target = new URL(url, window.location.origin);
+    if (!["http:", "https:"].includes(target.protocol)) return;
+    const popup = window.open(target.href, "_blank", "noopener,noreferrer");
+    if (popup) popup.opener = null;
+  };
+
+  const money = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
+
+  return (
+    <section aria-labelledby="invoices-heading">
+      <div className="ar-section-header">
+        <div>
+          <h2 id="invoices-heading" className="ar-section-title">Invoices</h2>
+          <p className="mt-1 text-xs text-[var(--ar-t2)]">Monthly route billing and payment status</p>
+        </div>
+        <span className="ar-section-meta">{invoices.length} total</span>
+      </div>
+      {error ? <div className="mb-4 rounded-xl border border-[var(--ar-err)] bg-[var(--ar-err-dim)] px-4 py-3 text-sm text-[var(--ar-err)]" role="alert">{error}</div> : null}
+      {loading ? <div className="ar-skeleton h-48" /> : invoices.length ? (
+        <div className="ar-card overflow-x-auto p-0">
+          <table className="w-full border-collapse">
+            <thead><tr>{["Month", "Routes", "Trips done", "Amount", "Status", "Action"].map((column) => <th key={column} className="ar-th">{column}</th>)}</tr></thead>
+            <tbody>{invoices.map((invoice) => {
+              const status = String(invoice.status || "DRAFT").toUpperCase();
+              const colors = invoiceColors[status] || invoiceColors.DRAFT;
+              return (
+                <tr key={invoice.id} className="ar-tr">
+                  <td className="ar-td font-medium">{new Date(invoice.billing_month).toLocaleDateString("en-IN", { month: "long", year: "numeric" })}</td>
+                  <td className="ar-td">{Number(invoice.total_routes) || 0}</td>
+                  <td className="ar-td">{Number(invoice.total_trips_completed) || 0}</td>
+                  <td className="ar-td font-semibold">{money.format(Number(invoice.amount) || 0)}</td>
+                  <td className="ar-td"><span className="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold" style={{ background: colors[0], color: colors[1] }}>{status}</span></td>
+                  <td className="ar-td"><div className="flex flex-wrap gap-2">
+                    {["SENT", "OVERDUE"].includes(status) && invoice.razorpay_payment_link_url ? <button type="button" onClick={() => openExternal(invoice.razorpay_payment_link_url)} className="rounded-lg bg-[var(--ar-accent)] px-3 py-1.5 text-xs font-semibold text-white">Pay Now</button> : null}
+                    {status !== "DRAFT" && invoice.pdf_url ? <button type="button" onClick={() => openExternal(invoice.pdf_url)} className="rounded-lg border border-[var(--ar-border)] px-3 py-1.5 text-xs font-semibold text-[var(--ar-t1)]">Download PDF</button> : null}
+                  </div></td>
+                </tr>
+              );
+            })}</tbody>
+          </table>
+        </div>
+      ) : <EmptyState>No invoices have been generated yet.</EmptyState>}
+    </section>
+  );
+}
+
 function PendingSection({ section }) {
   const label = navItems.find((item) => item.key === section)?.label || "Module";
   return (
@@ -278,29 +501,10 @@ export default function InstitutionAdminDashboard() {
 
   useEffect(() => {
     let active = true;
-
-    const fetchJson = async (url, label) => {
-      const response = await fetch(url, {
-        credentials: "same-origin",
-        cache: "no-store",
-      });
-      if (response.status === 401) {
-        window.location.replace(
-          `/institution-login?callbackUrl=${encodeURIComponent("/institution-admin")}`,
-        );
-        return new Promise(() => {});
-      }
-      const body = await readJsonResponse(response, label);
-      if (!response.ok) {
-        throw new Error(body.error || `${label} failed (${response.status})`);
-      }
-      return body;
-    };
-
     Promise.all([
-      fetchJson("/api/institution/overview", "Institution overview"),
-      fetchJson("/api/institution/routes", "Institution routes"),
-      fetchJson("/api/institution/members", "Institution members"),
+      fetchInstitutionJson("/api/institution/overview", "Institution overview"),
+      fetchInstitutionJson("/api/institution/routes", "Institution routes"),
+      fetchInstitutionJson("/api/institution/members", "Institution members"),
     ])
       .then(([overviewData, routeData, memberData]) => {
         if (!active) return;
@@ -341,7 +545,9 @@ export default function InstitutionAdminDashboard() {
       {overview && section === "overview" ? <OverviewSection overview={overview} /> : null}
       {overview && section === "routes" ? <RoutesSection routes={routes} /> : null}
       {overview && section === "members" ? <MembersSection members={members} /> : null}
-      {overview && !["overview", "routes", "members"].includes(section) ? (
+      {overview && section === "attendance" ? <AttendanceSection institutionId={overview.institution.id} routes={routes} /> : null}
+      {overview && section === "invoices" ? <InvoicesSection institutionId={overview.institution.id} /> : null}
+      {overview && section === "settings" ? (
         <PendingSection section={section} />
       ) : null}
     </InstitutionShell>

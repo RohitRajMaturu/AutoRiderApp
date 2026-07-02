@@ -7,6 +7,7 @@ import {
   Check,
   CheckCircle2,
   Clock3,
+  FileText,
   LocateFixed,
   MapPin,
   ShieldCheck,
@@ -165,6 +166,84 @@ function PassLocationField({ label, value, onChange, onUseCurrentLocation, locat
   );
 }
 
+function PassTermsModal({ visible, terms, version, accepting, onAccept, onClose }) {
+  const [reachedEnd, setReachedEnd] = useState(false);
+
+  useEffect(() => {
+    if (visible) setReachedEnd(false);
+  }, [visible]);
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(21,32,34,0.55)" }}>
+        <View style={{ height: "92%", backgroundColor: T.surface1, borderTopLeftRadius: T.radii.xxl, borderTopRightRadius: T.radii.xxl, overflow: "hidden" }}>
+          <View style={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: T.border }}>
+            <View style={{ width: 42, height: 4, borderRadius: 2, backgroundColor: T.border, alignSelf: "center", marginBottom: 16 }} />
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+              <View style={{ width: 46, height: 46, borderRadius: 15, backgroundColor: T.accentDim, alignItems: "center", justifyContent: "center" }}>
+                <FileText size={ICON.md} color={T.accentText} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ ...T.typography.heading, color: T.text1 }}>TukTukPass terms</Text>
+                <Text style={{ ...T.typography.micro, color: T.text3, marginTop: 2 }}>Version {version}</Text>
+              </View>
+            </View>
+            <Text style={{ ...T.typography.caption, color: T.text2, lineHeight: 20, marginTop: 12 }}>
+              Please read every section. The agreement button unlocks only after you reach the end.
+            </Text>
+          </View>
+
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ padding: 20, paddingBottom: 28 }}
+            showsVerticalScrollIndicator
+            scrollEventThrottle={16}
+            onScroll={({ nativeEvent }) => {
+              const distanceFromEnd = nativeEvent.contentSize.height - (nativeEvent.contentOffset.y + nativeEvent.layoutMeasurement.height);
+              if (distanceFromEnd <= 20) setReachedEnd(true);
+            }}
+          >
+            {(terms || []).map((section, index) => (
+              <View key={section.title} style={{ marginBottom: 18, paddingBottom: 18, borderBottomWidth: index === terms.length - 1 ? 0 : 1, borderBottomColor: T.border }}>
+                <Text style={{ color: T.text1, fontSize: 16, fontWeight: "900" }}>{index + 1}. {section.title}</Text>
+                <Text style={{ ...T.typography.body, color: T.text2, lineHeight: 22, marginTop: 7 }}>{section.body}</Text>
+              </View>
+            ))}
+            <View style={{ flexDirection: "row", gap: 10, backgroundColor: T.okDim, borderRadius: T.radii.lg, padding: 14 }}>
+              <ShieldCheck size={ICON.md} color={T.ok} />
+              <Text style={{ ...T.typography.caption, color: T.ok, flex: 1, lineHeight: 20 }}>
+                You reached the end. Your consent, timestamp, and this terms version will be retained with the pass.
+              </Text>
+            </View>
+          </ScrollView>
+
+          <View style={{ padding: 18, borderTopWidth: 1, borderTopColor: T.border, paddingBottom: 24 }}>
+            {!reachedEnd ? (
+              <Text style={{ color: T.warn, fontSize: 12, fontWeight: "800", textAlign: "center", marginBottom: 10 }}>
+                Scroll to the end to enable agreement
+              </Text>
+            ) : null}
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              <TouchableOpacity disabled={accepting} onPress={onClose} style={{ flex: 0.8, borderRadius: T.radii.lg, borderWidth: 1, borderColor: T.border, paddingVertical: 14, alignItems: "center" }}>
+                <Text style={{ color: T.text1, fontWeight: "900" }}>Not now</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                disabled={!reachedEnd || accepting}
+                onPress={onAccept}
+                style={{ flex: 1.4, borderRadius: T.radii.lg, backgroundColor: reachedEnd ? T.accent : T.surface3, paddingVertical: 14, alignItems: "center" }}
+              >
+                {accepting ? <ActivityIndicator color={T.surface1} /> : (
+                  <Text style={{ color: reachedEnd ? T.surface1 : T.text3, fontWeight: "900" }}>I have read and agree</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 export default function CreatePass() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -179,6 +258,8 @@ export default function CreatePass() {
   const [locating, setLocating] = useState(false);
   const [resolvingRoute, setResolvingRoute] = useState(false);
   const [result, setResult] = useState(null);
+  const [termsOpen, setTermsOpen] = useState(false);
+  const [termsConsentId, setTermsConsentId] = useState(null);
 
   const { data: existingData } = useQuery({
     queryKey: ["passengerPasses"],
@@ -187,6 +268,48 @@ export default function CreatePass() {
       if (!response.ok) return { passes: [] };
       return response.json();
     },
+  });
+
+  const termsQuery = useQuery({
+    queryKey: ["passTermsStatus"],
+    queryFn: async () => {
+      const response = await fetch("/api/passes/terms");
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || "Could not load TukTukPass terms");
+      return body;
+    },
+  });
+
+  useEffect(() => {
+    if (!termsQuery.data) return;
+    setTermsConsentId(termsQuery.data.consentId || null);
+    if (termsQuery.data.required) setTermsOpen(true);
+  }, [termsQuery.data]);
+
+  const acceptTerms = useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/passes/terms", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accepted: true, termsVersion: termsQuery.data?.version }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || "Could not save consent");
+      return body;
+    },
+    onSuccess: (body) => {
+      setTermsConsentId(body.consentId);
+      setTermsOpen(false);
+      queryClient.setQueryData(["passTermsStatus"], (current) => ({
+        ...(current || {}),
+        required: false,
+        consentId: body.consentId,
+        version: body.version,
+        sections: body.sections || current?.sections || [],
+      }));
+      toast.success("Terms accepted", { description: "Your consent has been saved securely." });
+    },
+    onError: (error) => toast.error("Consent not saved", { description: error.message }),
   });
 
   const rideCount = useMemo(() => countScheduledRides(days, duration), [days, duration]);
@@ -249,6 +372,7 @@ export default function CreatePass() {
           scheduledDays: days,
           scheduledTime: time,
           durationType: duration,
+          termsConsentId,
         }),
       });
       const body = await response.json().catch(() => ({}));
@@ -283,6 +407,16 @@ export default function CreatePass() {
       }
     },
     onError: (error) => {
+      if (error.code === "PASS_TERMS_CONSENT_REQUIRED") {
+        termsQuery.refetch().then(({ data }) => {
+          if (data) {
+            setTermsConsentId(data.consentId || null);
+            setTermsOpen(true);
+          }
+        });
+        toast.warning("Review the pass terms", { description: "Consent is required before this pass can be created." });
+        return;
+      }
       const fieldErrors = error.fieldErrors || {};
       if (fieldErrors.pickup) {
         setStep(1);
@@ -343,6 +477,10 @@ export default function CreatePass() {
         toast.error("Check your locations", {
           description: "Select a location from the search suggestions to confirm coordinates.",
         });
+        return;
+      }
+      if (termsQuery.data?.required && !termsConsentId) {
+        setTermsOpen(true);
         return;
       }
       createPass.mutate();
@@ -572,6 +710,14 @@ export default function CreatePass() {
           </Pressable>
         </Pressable>
       </Modal>
+      <PassTermsModal
+        visible={termsOpen}
+        terms={termsQuery.data?.sections || []}
+        version={termsQuery.data?.version || ""}
+        accepting={acceptTerms.isPending}
+        onAccept={() => acceptTerms.mutate()}
+        onClose={() => !acceptTerms.isPending && setTermsOpen(false)}
+      />
     </>
   );
 }

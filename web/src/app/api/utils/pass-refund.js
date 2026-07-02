@@ -12,6 +12,10 @@ export async function processPassRefund(pass) {
     !pass.razorpay_payment_id ||
     amount <= 0
   ) {
+    if (pass.id && amount <= 0) {
+      await sql`UPDATE commuter_passes SET cancellation_refund_pending=false,
+        updated_at=CURRENT_TIMESTAMP WHERE id=${pass.id}`;
+    }
     return {
       refundAmount: amount,
       refundPending: pass.payment_status === "PAID" && amount > 0,
@@ -22,7 +26,9 @@ export async function processPassRefund(pass) {
   try {
     const refund = await refundPayment(pass.razorpay_payment_id, amount);
     const full = amount >= Number(pass.agreed_fare || 0);
-    await sql`UPDATE commuter_passes SET payment_status=${full ? "REFUNDED" : "PARTIAL_REFUND"},updated_at=CURRENT_TIMESTAMP WHERE id=${pass.id}`;
+    await sql`UPDATE commuter_passes SET payment_status=${full ? "REFUNDED" : "PARTIAL_REFUND"},
+      cancellation_refund_pending=false, cancellation_refund_id=${refund.id || null},
+      updated_at=CURRENT_TIMESTAMP WHERE id=${pass.id}`;
     return {
       refundAmount: amount,
       refundPending: false,

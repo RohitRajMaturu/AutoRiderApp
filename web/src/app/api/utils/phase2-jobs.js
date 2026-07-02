@@ -1,4 +1,5 @@
 import sql from "@/app/api/utils/sql";
+import { assertDriverAvailable } from "@/app/api/utils/driver-conflicts";
 import { sendPushToUsers } from "@/app/api/utils/push-notifications";
 import { sendWhatsAppWithSmsFallback } from "@/app/api/utils/notifications/phase2Messaging";
 import { writeOperationalEvent } from "@/app/api/utils/observability";
@@ -89,6 +90,7 @@ export async function handlePassNoShows() {
   const rows = await sql.transaction(async (tx) => {
     const due = await tx`
       SELECT pr.id, pr.pass_id, p.passenger_id, p.backup_driver_id,
+        p.scheduled_days, p.scheduled_time,
         greatest(1, round(p.agreed_fare::numeric /
           greatest(1, cardinality(p.scheduled_days) * CASE WHEN p.duration_type='MONTHLY' THEN 4 ELSE 1 END)))::int AS ride_fare
       FROM pass_rides pr JOIN commuter_passes p ON p.id=pr.pass_id
@@ -98,7 +100,22 @@ export async function handlePassNoShows() {
     `;
     const handled = [];
     for (const ride of due) {
+      let backupAvailable = false;
       if (ride.backup_driver_id) {
+        try {
+          await assertDriverAvailable(tx, {
+            driverId: ride.backup_driver_id,
+            scheduledDays: ride.scheduled_days,
+            scheduledTime: String(ride.scheduled_time).slice(0, 5),
+            sourceType: "PASS",
+            excludeId: ride.pass_id,
+          });
+          backupAvailable = true;
+        } catch (error) {
+          if (!["DRIVER_SCHEDULE_CONFLICT", "DRIVER_NOT_FOUND"].includes(error.code)) throw error;
+        }
+      }
+      if (backupAvailable) {
         await tx`UPDATE pass_rides SET actual_driver_id=${ride.backup_driver_id}, status='DRIVER_ASSIGNED',
           backup_activated=true, driver_no_show_escalated=true, updated_at=CURRENT_TIMESTAMP WHERE id=${ride.id}`;
         handled.push({ ...ride, backup: true });
@@ -149,10 +166,71 @@ export async function autoResumePasses() {
   return { resumed: rows.length };
 }
 
+export async function sendPassRenewalReminders() {
+  const rows = await sql`
+    SELECT p.id, p.pickup_label, p.dropoff_label, p.end_date,
+      p.passenger_id, p.duration_type, p.agreed_fare
+    FROM commuter_passes p
+    WHERE p.status = 'ACTIVE'
+      AND p.end_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date + 7
+  `;
+  await Promise.allSettled(
+    rows.map((pass) =>
+      sendPushToUsers([pass.passenger_id], {
+        title: "Your TukTukPass expires in 7 days",
+        body: `${pass.pickup_label} to ${pass.dropoff_label}. Renew to keep your guaranteed commute.`,
+        data: {
+          type: "pass_expiring_soon",
+          passId: pass.id,
+          screen: "/(passenger)/pass",
+        },
+      }),
+    ),
+  );
+  return { reminded: rows.length };
+}
+
+export async function sendPassExpiryFinalReminder() {
+  const rows = await sql`
+    SELECT p.id, p.pickup_label, p.dropoff_label, p.passenger_id
+    FROM commuter_passes p
+    WHERE p.status = 'ACTIVE'
+      AND p.end_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date + 3
+  `;
+  await Promise.allSettled(
+    rows.map((pass) =>
+      sendPushToUsers([pass.passenger_id], {
+        title: "TukTukPass expires in 3 days",
+        body: `${pass.pickup_label} to ${pass.dropoff_label}. Renew now to avoid a gap in service.`,
+        data: {
+          type: "pass_expiring_final",
+          passId: pass.id,
+          screen: "/(passenger)/pass",
+        },
+      }),
+    ),
+  );
+  return { reminded: rows.length };
+}
+
 export async function expirePasses() {
   const rows =
     await sql`UPDATE commuter_passes SET status='EXPIRED', updated_at=CURRENT_TIMESTAMP
-    WHERE status IN ('PENDING_MATCH','ACTIVE','PAUSED') AND end_date < (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date RETURNING id`;
+    WHERE status IN ('PENDING_MATCH','ACTIVE','PAUSED') AND end_date < (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date
+    RETURNING id, passenger_id, pickup_label, dropoff_label`;
+  await Promise.allSettled(
+    rows.map((pass) =>
+      sendPushToUsers([pass.passenger_id], {
+        title: "TukTukPass has ended",
+        body: `Your ${pass.pickup_label} to ${pass.dropoff_label} pass has expired. Renew anytime.`,
+        data: {
+          type: "pass_expired",
+          passId: pass.id,
+          screen: "/(passenger)/pass",
+        },
+      }),
+    ),
+  );
   return { expired: rows.length };
 }
 

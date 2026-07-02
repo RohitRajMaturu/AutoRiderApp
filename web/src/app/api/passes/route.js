@@ -11,6 +11,7 @@ import {
   readDays,
   readTime,
 } from "@/app/api/utils/phase2";
+import { PASS_TERMS_VERSION } from "@/app/api/utils/pass-terms";
 
 async function resolveCoordinateInput(value) {
   const direct = readCoordinate(value);
@@ -66,6 +67,9 @@ export async function POST(request) {
       return Response.json({ error: "Only passengers can create a TukTukPass" }, { status: 403 });
     }
     const body = await request.json();
+    const requestedConsentId = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(body.termsConsentId || "")
+      ? body.termsConsentId
+      : null;
     const pickup = await resolveCoordinateInput(body.pickup || { lat: body.pickup_lat, lng: body.pickup_lng, label: body.pickup_label });
     const dropoff = await resolveCoordinateInput(body.dropoff || { lat: body.dropoff_lat, lng: body.dropoff_lng, label: body.dropoff_label });
     const scheduledDays = readDays(body.scheduledDays || body.scheduled_days);
@@ -132,6 +136,29 @@ export async function POST(request) {
       `;
       if (conflictRows[0]) return { conflict: conflictRows[0] };
 
+      const currentPassRows = await tx`
+        SELECT EXISTS(
+          SELECT 1 FROM commuter_passes
+          WHERE passenger_id = ${session.user.id}
+            AND status IN ('PENDING_MATCH', 'ACTIVE', 'PAUSED')
+            AND end_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date
+        ) AS has_current_pass
+      `;
+      let consentId = null;
+      if (!currentPassRows[0]?.has_current_pass) {
+        const consentRows = await tx`
+          SELECT id FROM pass_terms_consents
+          WHERE id = ${requestedConsentId}
+            AND passenger_id = ${session.user.id}
+            AND terms_version = ${PASS_TERMS_VERSION}
+            AND pass_id IS NULL
+            AND consumed_at IS NULL
+          FOR UPDATE
+        `;
+        if (!consentRows[0]) return { consentRequired: true };
+        consentId = consentRows[0].id;
+      }
+
       const passRows = await tx`
         INSERT INTO commuter_passes (
           passenger_id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, pickup_label, dropoff_label,
@@ -145,6 +172,13 @@ export async function POST(request) {
           ${fare.driverPayout}, ${startDate}::date, ${endDate}::date
         ) RETURNING *
       `;
+      if (consentId) {
+        await tx`
+          UPDATE pass_terms_consents
+          SET pass_id = ${passRows[0].id}, consumed_at = CURRENT_TIMESTAMP
+          WHERE id = ${consentId} AND pass_id IS NULL AND consumed_at IS NULL
+        `;
+      }
       return { pass: passRows[0] };
     });
     if (creation.conflict) {
@@ -155,6 +189,16 @@ export async function POST(request) {
           conflict: creation.conflict,
         },
         { status: 409 },
+      );
+    }
+    if (creation.consentRequired) {
+      return Response.json(
+        {
+          error: "Review and accept the TukTukPass terms before creating this pass.",
+          code: "PASS_TERMS_CONSENT_REQUIRED",
+          termsVersion: PASS_TERMS_VERSION,
+        },
+        { status: 428 },
       );
     }
     const pass = creation.pass;

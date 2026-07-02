@@ -9,7 +9,7 @@
 		"test:api": "vitest run --config src/app/api/vitest.config.ts",
 		"db:check": "node scripts/db-check.mjs",
 		"db:migrate": "node scripts/db-migrate.mjs",
-		"db:rollback:phase2": "node scripts/db-rollback.mjs 025_phase2_architecture_alignment.down.sql 024_phase2_pass_safe.down.sql",
+		"db:rollback:phase2": "node scripts/db-rollback.mjs 027_pass_terms_consents.down.sql 026_pass_cancellation_receipts.down.sql 025_phase2_architecture_alignment.down.sql 024_phase2_pass_safe.down.sql",
 		"db:schema:bundle": "node scripts/generate-consolidated-schema.mjs",
 		"repair:admin-login": "node scripts/repair-admin-login.mjs",
 		"seed:phase2": "node scripts/seed-phase2-demo.mjs",
