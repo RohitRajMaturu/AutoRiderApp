@@ -173,6 +173,9 @@ describe("Phase 2 driver assignment priority", () => {
         sourceType: "ON_DEMAND",
       }),
     ).rejects.toMatchObject({ code: "DRIVER_SCHEDULE_CONFLICT", status: 409 });
+    const recurringQuery = tx.mock.calls.find((call) => call[0].join(" ").includes("active_recurring"));
+    expect(recurringQuery[0].join(" ")).toContain("trip.actual_start_time");
+    expect(recurringQuery[0].join(" ")).toContain("ride.start_time");
   });
 
   it("locks the driver and blocks a pass that overlaps an institution route", async () => {

@@ -25,6 +25,10 @@ describe("driver dispatch zone recovery", () => {
     expect(query).toContain("institution_routes");
     expect(query).toContain("commuter_passes");
     expect(query).toContain("IN_PROGRESS");
+    expect(query).toContain("BETWEEN recurring_pass.start_date AND recurring_pass.end_date");
+    expect(query).toContain("active_institution_trip.actual_start_time");
+    expect(query).toContain("active_pass_ride.start_time");
+    expect(query).toContain("make_interval(hours =>");
   });
 
   it("never expires a ride that has already started", async () => {

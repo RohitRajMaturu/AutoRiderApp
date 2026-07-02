@@ -14,7 +14,8 @@
 		"repair:admin-login": "node scripts/repair-admin-login.mjs",
 		"seed:phase2": "node scripts/seed-phase2-demo.mjs",
 		"reset:dev": "node scripts/reset-dev-data.mjs --force",
-		"maintenance": "node scripts/maintenance.mjs"
+		"maintenance": "node scripts/maintenance.mjs",
+		"cleanup:stale-recurring": "node scripts/cleanup-stale-recurring-trips.mjs"
 	},
 	"dependencies": {
 		"@auth/core": "^0.37.2",

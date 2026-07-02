@@ -45,6 +45,12 @@ function readAcceptedRideTimeoutMinutes() {
   return minutes;
 }
 
+function readRecurringTripTimeoutHours() {
+  const hours = Number(process.env.RECURRING_TRIP_TIMEOUT_HOURS || 6);
+  if (!Number.isFinite(hours) || hours < 1 || hours > 24) return 6;
+  return hours;
+}
+
 function readOptionalTimeoutSeconds(name) {
   const seconds = Number(process.env[name] || 0);
   if (!Number.isFinite(seconds) || seconds < 0 || seconds > 86400) return 0;
@@ -71,6 +77,7 @@ async function runMaintenance(pool) {
 
     const heartbeatTimeoutSeconds = readHeartbeatTimeoutSeconds();
     const acceptedRideTimeoutMinutes = readAcceptedRideTimeoutMinutes();
+    const recurringTripTimeoutHours = readRecurringTripTimeoutHours();
     const operationalEventRetentionDays = readRetentionDays(
       "OPERATIONAL_EVENT_RETENTION_DAYS",
       90,
@@ -125,6 +132,43 @@ async function runMaintenance(pool) {
       `,
       [acceptedRideTimeoutMinutes],
     );
+
+    const staleInstitutionTrips = await client.query(
+      `
+        UPDATE institution_trips
+        SET status = 'CANCELLED',
+            actual_end_time = COALESCE(actual_end_time, CURRENT_TIMESTAMP),
+            cancellation_reason = COALESCE(cancellation_reason, 'Automatically closed after exceeding the active-trip window'),
+            cancelled_by = COALESCE(cancelled_by, 'OPS'),
+            updated_at = CURRENT_TIMESTAMP
+        WHERE status = 'IN_PROGRESS'
+          AND COALESCE(actual_start_time, updated_at)
+              < CURRENT_TIMESTAMP - make_interval(hours => $1)
+        RETURNING id
+      `,
+      [recurringTripTimeoutHours],
+    );
+
+    const stalePassRides = await client.query(
+      `
+        UPDATE pass_rides
+        SET status = 'CANCELLED',
+            end_time = COALESCE(end_time, CURRENT_TIMESTAMP),
+            notes = concat_ws(E'\n', NULLIF(notes, ''), 'Automatically closed after exceeding the active-trip window'),
+            updated_at = CURRENT_TIMESTAMP
+        WHERE status = 'IN_PROGRESS'
+          AND COALESCE(start_time, updated_at)
+              < CURRENT_TIMESTAMP - make_interval(hours => $1)
+        RETURNING id
+      `,
+      [recurringTripTimeoutHours],
+    );
+
+    if (staleInstitutionTrips.rowCount || stalePassRides.rowCount) {
+      console.log(
+        `[maintenance] closed ${staleInstitutionTrips.rowCount} stale institution trip(s) and ${stalePassRides.rowCount} stale pass ride(s)`,
+      );
+    }
 
     if (noDriverTimeoutSeconds > 0) {
       await client.query(

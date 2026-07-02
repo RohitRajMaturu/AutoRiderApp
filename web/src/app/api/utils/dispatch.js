@@ -52,6 +52,13 @@ export function getRecurringReservationMinutes() {
   });
 }
 
+export function getRecurringTripTimeoutHours() {
+  return getEnvNumber("RECURRING_TRIP_TIMEOUT_HOURS", 6, {
+    min: 1,
+    max: 24,
+  });
+}
+
 export async function findZoneForPoint(lat, lng, scopedSql = sql) {
   const rows = await scopedSql`
     SELECT id, name, max_online_drivers
@@ -115,6 +122,7 @@ export async function selectZoneDrivers(
   const radiusMeters = getDriverRideRadiusMeters();
   const backToBackRadiusMeters = getBackToBackDispatchRadiusMeters();
   const recurringReservationMinutes = getRecurringReservationMinutes();
+  const recurringTripTimeoutHours = getRecurringTripTimeoutHours();
   const rows = await scopedSql`
     WITH target_zone AS (
       SELECT id, boundary, max_online_drivers
@@ -156,6 +164,7 @@ export async function selectZoneDrivers(
         FROM commuter_passes recurring_pass
         WHERE (recurring_pass.driver_id = d.id OR recurring_pass.backup_driver_id = d.id)
           AND recurring_pass.status = 'ACTIVE'
+          AND (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date BETWEEN recurring_pass.start_date AND recurring_pass.end_date
           AND upper(to_char(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata', 'DY')) = ANY(recurring_pass.scheduled_days)
           AND abs(extract(epoch FROM (recurring_pass.scheduled_time - (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::time)))
               < ${recurringReservationMinutes} * 60
@@ -164,12 +173,16 @@ export async function selectZoneDrivers(
         SELECT 1 FROM institution_trips active_institution_trip
         WHERE COALESCE(active_institution_trip.reassigned_driver_id, active_institution_trip.driver_id) = d.id
           AND active_institution_trip.status = 'IN_PROGRESS'
+          AND COALESCE(active_institution_trip.actual_start_time, active_institution_trip.updated_at)
+              > CURRENT_TIMESTAMP - make_interval(hours => ${recurringTripTimeoutHours})
       )
       AND NOT EXISTS (
         SELECT 1 FROM pass_rides active_pass_ride
         JOIN commuter_passes active_pass ON active_pass.id = active_pass_ride.pass_id
         WHERE COALESCE(active_pass_ride.actual_driver_id, active_pass.driver_id) = d.id
           AND active_pass_ride.status = 'IN_PROGRESS'
+          AND COALESCE(active_pass_ride.start_time, active_pass_ride.updated_at)
+              > CURRENT_TIMESTAMP - make_interval(hours => ${recurringTripTimeoutHours})
       )
       AND (
         NOT EXISTS (

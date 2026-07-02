@@ -54,6 +54,10 @@ describe("driver zone ride filtering", () => {
     expect(rideQueryValues).toContain("zone-1");
     expect(notificationQueryText).toContain("active_ride.status = 'accepted'");
     expect(rideQueryText).toContain("active_ride.status = 'accepted'");
+    expect(notificationQueryText).toContain("active_institution_trip.actual_start_time");
+    expect(notificationQueryText).toContain("active_pass_ride.start_time");
+    expect(rideQueryText).toContain("active_institution_trip.actual_start_time");
+    expect(rideQueryText).toContain("active_pass_ride.start_time");
   });
 
   it("returns no ride discovery rows when the driver profile is missing", async () => {

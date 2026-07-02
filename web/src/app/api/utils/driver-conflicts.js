@@ -1,3 +1,5 @@
+import { getRecurringTripTimeoutHours } from "@/app/api/utils/dispatch";
+
 export function currentServiceSlot(date = new Date()) {
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Asia/Kolkata",
@@ -30,6 +32,7 @@ export async function findDriverConflict(
   { driverId, scheduledDays, scheduledTime, sourceType, excludeId = null },
 ) {
   if (sourceType === "ON_DEMAND") {
+    const recurringTripTimeoutHours = getRecurringTripTimeoutHours();
     const activeRecurringRows = await tx`
       SELECT id, source_type
       FROM (
@@ -37,12 +40,16 @@ export async function findDriverConflict(
         FROM institution_trips trip
         WHERE COALESCE(trip.reassigned_driver_id, trip.driver_id) = ${driverId}
           AND trip.status = 'IN_PROGRESS'
+          AND COALESCE(trip.actual_start_time, trip.updated_at)
+              > CURRENT_TIMESTAMP - make_interval(hours => ${recurringTripTimeoutHours})
         UNION ALL
         SELECT ride.id, 'PASS' AS source_type
         FROM pass_rides ride
         JOIN commuter_passes pass ON pass.id = ride.pass_id
         WHERE COALESCE(ride.actual_driver_id, pass.driver_id) = ${driverId}
           AND ride.status = 'IN_PROGRESS'
+          AND COALESCE(ride.start_time, ride.updated_at)
+              > CURRENT_TIMESTAMP - make_interval(hours => ${recurringTripTimeoutHours})
       ) active_recurring
       LIMIT 1
     `;
