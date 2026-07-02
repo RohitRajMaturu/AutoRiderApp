@@ -132,7 +132,7 @@ function HistoryChip({ label, selected, onPress }) {
     >
       <Text
         style={{
-          color: selected ? theme.surface : theme.textSecondary,
+          color: selected ? theme.surface1 : theme.text2,
           fontSize: 11,
           fontWeight: "800",
         }}
@@ -167,10 +167,10 @@ function HistoryPager({
       }}
     >
       <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-        <Text style={{ color: theme.textMuted, fontSize: 11, fontWeight: "800" }}>
+        <Text style={{ color: theme.text3, fontSize: 11, fontWeight: "800" }}>
           Showing {start}-{end} of {total}
         </Text>
-        <Text style={{ color: theme.text, fontSize: 11, fontWeight: "900" }}>
+        <Text style={{ color: theme.text1, fontSize: 11, fontWeight: "900" }}>
           Page {currentPage}
         </Text>
       </View>
@@ -193,8 +193,8 @@ function HistoryPager({
             paddingVertical: 11,
           }}
         >
-          <ChevronLeft size={ICON.sm} color={theme.textSecondary} />
-          <Text style={{ color: theme.textSecondary, fontSize: 12, fontWeight: "900" }}>
+          <ChevronLeft size={ICON.sm} color={theme.text2} />
+          <Text style={{ color: theme.text2, fontSize: 12, fontWeight: "900" }}>
             Previous
           </Text>
         </TouchableOpacity>
@@ -216,10 +216,10 @@ function HistoryPager({
             paddingVertical: 11,
           }}
         >
-          <Text style={{ color: canGoForward ? theme.surface : theme.textSecondary, fontSize: 12, fontWeight: "900" }}>
+          <Text style={{ color: canGoForward ? theme.surface1 : theme.text2, fontSize: 12, fontWeight: "900" }}>
             {isFetchingNextPage ? "Loading" : "Next"}
           </Text>
-          <ChevronRight size={ICON.sm} color={canGoForward ? theme.surface : theme.textSecondary} />
+          <ChevronRight size={ICON.sm} color={canGoForward ? theme.surface1 : theme.text2} />
         </TouchableOpacity>
       </View>
     </View>
@@ -235,9 +235,9 @@ export default function DriverWallet() {
   const BG = theme.background;
   const SURFACE = theme.surface;
   const BORDER = theme.border;
-  const TEXT = theme.text;
-  const TEXT_SECONDARY = theme.textSecondary;
-  const TEXT_MUTED = theme.textMuted;
+  const TEXT = theme.text1;
+  const TEXT_SECONDARY = theme.text2;
+  const TEXT_MUTED = theme.text3;
   const SUCCESS = theme.success;
   const DARK = theme.dark;
   const { auth } = useAuth();

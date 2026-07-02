@@ -283,7 +283,18 @@ export default function CreatePass() {
       }
     },
     onError: (error) => {
-      const detail = error.fieldErrors ? Object.values(error.fieldErrors)[0] : error.message;
+      const fieldErrors = error.fieldErrors || {};
+      if (fieldErrors.pickup) {
+        setStep(1);
+        toast.error("Pickup location issue", { description: fieldErrors.pickup });
+        return;
+      }
+      if (fieldErrors.dropoff) {
+        setStep(1);
+        toast.error("Destination issue", { description: fieldErrors.dropoff });
+        return;
+      }
+      const detail = Object.values(fieldErrors)[0] || error.message;
       toast.error("Pass could not be created", { description: detail || "Review the highlighted pass details and try again." });
     },
   });
@@ -326,7 +337,16 @@ export default function CreatePass() {
       setStep(3);
       return;
     }
-    createPass.mutate();
+    if (step === 3) {
+      if (!hasValidPassLocation(pickup) || !hasValidPassLocation(dropoff)) {
+        setStep(1);
+        toast.error("Check your locations", {
+          description: "Select a location from the search suggestions to confirm coordinates.",
+        });
+        return;
+      }
+      createPass.mutate();
+    }
   };
 
   return (

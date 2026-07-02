@@ -33,6 +33,24 @@ export default function Index() {
   const slideAnim = useRef(new Animated.Value(40)).current;
   const logoShineAnim = useRef(new Animated.Value(0)).current;
   const [selectedRole, setSelectedRole] = useState("passenger");
+  const [transitioning, setTransitioning] = useState(false);
+  const wasSigningOut = useRef(false);
+
+  useEffect(() => {
+    if (isSigningOut) {
+      wasSigningOut.current = true;
+      setTransitioning(true);
+      return undefined;
+    }
+    if (wasSigningOut.current) {
+      const timer = setTimeout(() => {
+        wasSigningOut.current = false;
+        setTransitioning(false);
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+    return undefined;
+  }, [isSigningOut]);
 
   useEffect(() => {
     Animated.parallel([
@@ -63,7 +81,7 @@ export default function Index() {
     return () => animation.stop();
   }, [logoShineAnim]);
 
-  if (!isReady || isSigningOut) {
+  if (!isReady || isSigningOut || transitioning) {
     return (
       <View
         style={{

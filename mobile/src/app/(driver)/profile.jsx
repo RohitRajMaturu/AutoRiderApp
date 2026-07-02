@@ -983,7 +983,7 @@ export default function DriverProfile() {
             try {
               await signOut();
             } catch {
-              Alert.alert("Sign out", "You have been returned to the start screen.");
+              Alert.alert("Sign out failed", "Could not sign out completely. Please try again.");
             }
           }}
         />

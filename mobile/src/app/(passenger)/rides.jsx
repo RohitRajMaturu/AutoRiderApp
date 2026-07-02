@@ -149,10 +149,10 @@ const RideCard = memo(function RideCard({ ride }) {
             <Icon size={ICON.sm} color={config.text} strokeWidth={2.4} />
           </View>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={[theme.typography.caption, { color: theme.text, fontWeight: "800" }]} numberOfLines={1}>
+            <Text style={[theme.typography.caption, { color: theme.text1, fontWeight: "800" }]} numberOfLines={1}>
               {titleText}
             </Text>
-            <Text style={[theme.typography.micro, { color: theme.textMuted, marginTop: 2 }]} numberOfLines={1}>
+            <Text style={[theme.typography.micro, { color: theme.text3, marginTop: 2 }]} numberOfLines={1}>
               {formattedDate} - {formattedTime}
             </Text>
           </View>
@@ -162,12 +162,12 @@ const RideCard = memo(function RideCard({ ride }) {
 
       <View style={{ marginTop: theme.spacing[3], gap: theme.spacing[1] }}>
         <View style={{ alignItems: "flex-start", flexDirection: "row", gap: theme.spacing[2] }}>
-          <MapPin size={ICON.sm} color={theme.textMuted} />
+          <MapPin size={ICON.sm} color={theme.text3} />
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={[theme.typography.caption, { color: theme.text }]} numberOfLines={1}>
+            <Text style={[theme.typography.caption, { color: theme.text1 }]} numberOfLines={1}>
               {ride.dest_address}
             </Text>
-            <Text style={[theme.typography.micro, { color: theme.textMuted, marginTop: 2 }]} numberOfLines={1}>
+            <Text style={[theme.typography.micro, { color: theme.text3, marginTop: 2 }]} numberOfLines={1}>
               From {ride.pickup_address}
             </Text>
           </View>
@@ -198,7 +198,7 @@ const RideCard = memo(function RideCard({ ride }) {
             }}
           >
             <AutoRideIcon size={ICON.sm} />
-            <Text style={[theme.typography.micro, { color: theme.textSecondary, fontWeight: "800" }]}>
+            <Text style={[theme.typography.micro, { color: theme.text2, fontWeight: "800" }]}>
               {ride.vehicle_number} - {getVehicleLabel(ride.vehicle_type)}
             </Text>
           </View>
@@ -216,8 +216,8 @@ const RideCard = memo(function RideCard({ ride }) {
               paddingVertical: theme.spacing[2],
             }}
           >
-            <IndianRupee size={ICON.xs} color={theme.textSecondary} />
-            <Text style={[theme.typography.micro, { color: theme.textSecondary, fontWeight: "800" }]}>
+            <IndianRupee size={ICON.xs} color={theme.text2} />
+            <Text style={[theme.typography.micro, { color: theme.text2, fontWeight: "800" }]}>
               {fare}
             </Text>
           </View>
@@ -232,7 +232,7 @@ const RideCard = memo(function RideCard({ ride }) {
               paddingVertical: theme.spacing[2],
             }}
           >
-            <Text style={[theme.typography.micro, { color: theme.textSecondary, fontWeight: "800" }]}>
+            <Text style={[theme.typography.micro, { color: theme.text2, fontWeight: "800" }]}>
               {distance.toFixed(1)} km
             </Text>
           </View>
@@ -247,7 +247,7 @@ const RideCard = memo(function RideCard({ ride }) {
               paddingVertical: theme.spacing[2],
             }}
           >
-            <Text style={[theme.typography.micro, { color: theme.textSecondary, fontWeight: "800" }]}>
+            <Text style={[theme.typography.micro, { color: theme.text2, fontWeight: "800" }]}>
               {"★".repeat(safeRating)}
               {"☆".repeat(5 - safeRating)}
             </Text>
@@ -286,8 +286,8 @@ const PassCard = memo(function PassCard({ pass, onPress }) {
             <Ticket size={ICON.sm} color={theme.primaryDark} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[theme.typography.caption, { color: theme.text, fontWeight: "800" }]}>TukTukPass</Text>
-            <Text style={[theme.typography.micro, { color: theme.textMuted, marginTop: 2 }]}>
+            <Text style={[theme.typography.caption, { color: theme.text1, fontWeight: "800" }]}>TukTukPass</Text>
+            <Text style={[theme.typography.micro, { color: theme.text3, marginTop: 2 }]}>
               {Number.isNaN(created.getTime()) ? "Pass history" : created.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
             </Text>
           </View>
@@ -297,15 +297,15 @@ const PassCard = memo(function PassCard({ pass, onPress }) {
         </View>
       </View>
       <View style={{ flexDirection: "row", gap: theme.spacing[2], marginTop: theme.spacing[3] }}>
-        <MapPin size={ICON.sm} color={theme.textMuted} />
+        <MapPin size={ICON.sm} color={theme.text3} />
         <View style={{ flex: 1 }}>
-          <Text style={[theme.typography.caption, { color: theme.text }]} numberOfLines={1}>{pass.dropoff_label}</Text>
-          <Text style={[theme.typography.micro, { color: theme.textMuted, marginTop: 2 }]} numberOfLines={1}>From {pass.pickup_label}</Text>
+          <Text style={[theme.typography.caption, { color: theme.text1 }]} numberOfLines={1}>{pass.dropoff_label}</Text>
+          <Text style={[theme.typography.micro, { color: theme.text3, marginTop: 2 }]} numberOfLines={1}>From {pass.pickup_label}</Text>
         </View>
       </View>
       <View style={{ alignItems: "center", flexDirection: "row", gap: theme.spacing[2], marginTop: theme.spacing[3] }}>
-        <CalendarDays size={ICON.xs} color={theme.textMuted} />
-        <Text style={[theme.typography.micro, { color: theme.textSecondary, flex: 1 }]}>
+        <CalendarDays size={ICON.xs} color={theme.text3} />
+        <Text style={[theme.typography.micro, { color: theme.text2, flex: 1 }]}>
           {(pass.scheduled_days || []).join(" · ")} · {String(pass.scheduled_time || "").slice(0, 5)} · {pass.duration_type === "WEEKLY" ? "7 days" : "30 days"}
         </Text>
         <ChevronRight size={ICON.sm} color={theme.primaryDark} />
@@ -377,10 +377,10 @@ function PaginationBar({ page, totalPages, totalCount, start, end, onPrevious, o
       }}
     >
       <View style={{ alignItems: "center", flexDirection: "row", justifyContent: "space-between" }}>
-        <Text style={[theme.typography.micro, { color: theme.textSecondary }]}>
+        <Text style={[theme.typography.micro, { color: theme.text2 }]}>
           Showing {start}-{end} of {totalCount}
         </Text>
-        <Text style={[theme.typography.micro, { color: theme.text }]}>
+        <Text style={[theme.typography.micro, { color: theme.text1 }]}>
           Page {page}/{totalPages}
         </Text>
       </View>
@@ -403,8 +403,8 @@ function PaginationBar({ page, totalPages, totalCount, start, end, onPrevious, o
             paddingVertical: theme.spacing[3],
           }}
         >
-          <ChevronLeft size={ICON.sm} color={theme.textSecondary} />
-          <Text style={[theme.typography.caption, { color: theme.textSecondary }]}>Previous</Text>
+          <ChevronLeft size={ICON.sm} color={theme.text2} />
+          <Text style={[theme.typography.caption, { color: theme.text2 }]}>Previous</Text>
         </TouchableOpacity>
         <TouchableOpacity
           activeOpacity={0.85}
@@ -424,8 +424,8 @@ function PaginationBar({ page, totalPages, totalCount, start, end, onPrevious, o
             paddingVertical: theme.spacing[3],
           }}
         >
-          <Text style={[theme.typography.caption, { color: disabledNext ? theme.textSecondary : theme.surface }]}>Next</Text>
-          <ChevronRight size={ICON.sm} color={disabledNext ? theme.textSecondary : theme.surface} />
+          <Text style={[theme.typography.caption, { color: disabledNext ? theme.text2 : theme.surface1 }]}>Next</Text>
+          <ChevronRight size={ICON.sm} color={disabledNext ? theme.text2 : theme.surface1} />
         </TouchableOpacity>
       </View>
     </View>
@@ -471,14 +471,14 @@ function RidesEmptyState({ title, description }) {
           <AutoRideIcon size={44} />
         </View>
       </Animated.View>
-      <Text style={[theme.typography.heading, { color: theme.text, textAlign: "center" }]}>
+      <Text style={[theme.typography.heading, { color: theme.text1, textAlign: "center" }]}>
         {title}
       </Text>
       <Text
         style={[
           theme.typography.body,
           {
-            color: theme.textSecondary,
+            color: theme.text2,
             marginTop: theme.spacing[2],
             maxWidth: 280,
             textAlign: "center",
@@ -586,8 +586,8 @@ export default function PassengerRides() {
           paddingTop: insets.top + theme.spacing[4],
         }}
       >
-        <Text style={[theme.typography.heading, { color: theme.text }]}>My Rides</Text>
-        <Text style={[theme.typography.caption, { color: theme.textSecondary, marginTop: theme.spacing[1] }]}>
+        <Text style={[theme.typography.heading, { color: theme.text1 }]}>My Rides</Text>
+        <Text style={[theme.typography.caption, { color: theme.text2, marginTop: theme.spacing[1] }]}>
           {displayCounts.all ?? totalCount} trips and passes - newest first
         </Text>
         <FilterTabs activeFilter={activeFilter} counts={displayCounts} onChange={setActiveFilter} />
